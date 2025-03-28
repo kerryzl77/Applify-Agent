@@ -1,0 +1,82 @@
+{
+  "personal_info": {
+    "name": "Alex Johnson",
+    "email": "alex.johnson@example.com",
+    "phone": "555-123-4567",
+    "linkedin": "linkedin.com/in/alexjohnson",
+    "github": "github.com/alexjohnson"
+  },
+  "resume": {
+    "summary": "Experienced software engineer with 5+ years of experience in full-stack development. Passionate about creating user-friendly applications and solving complex problems.",
+    "experience": [
+      {
+        "title": "Senior Software Engineer",
+        "company": "Tech Solutions Inc.",
+        "location": "San Francisco, CA",
+        "start_date": "2020-01",
+        "end_date": "Present",
+        "description": "Lead developer for customer-facing web applications. Implemented CI/CD pipelines and reduced deployment time by 40%."
+      },
+      {
+        "title": "Software Developer",
+        "company": "Digital Innovations",
+        "location": "Seattle, WA",
+        "start_date": "2017-06",
+        "end_date": "2019-12",
+        "description": "Developed and maintained RESTful APIs. Collaborated with UX designers to implement responsive front-end features."
+      }
+    ],
+    "education": [
+      {
+        "degree": "Bachelor of Science in Computer Science",
+        "institution": "University of Washington",
+        "location": "Seattle, WA",
+        "graduation_date": "2017-05"
+      }
+    ],
+    "skills": [
+      "JavaScript", "Python", "React", "Node.js", "AWS", "Docker", "CI/CD", "Agile Methodologies"
+    ]
+  },
+  "story_bank": [
+    {
+      "title": "Project Leadership Success",
+      "content": "I led a team of 5 developers to redesign our company's flagship product. By implementing agile methodologies and fostering open communication, we completed the project 2 weeks ahead of schedule and received excellent customer feedback."
+    },
+    {
+      "title": "Problem-Solving Example",
+      "content": "When faced with a critical performance issue in our application, I conducted thorough analysis and identified a database query bottleneck. By optimizing the query and implementing caching, I improved response times by 70%."
+    },
+    {
+      "title": "Collaboration Achievement",
+      "content": "I collaborated with the marketing team to develop a feature that increased user engagement by 35%. This cross-functional partnership allowed us to better understand user needs and create a more intuitive interface."
+    }
+  ],
+  "templates": {
+    "linkedin_messages": [
+      {
+        "title": "General Connection",
+        "template": "Hi {{name}}, I noticed your work at {{company}} and was impressed by {{specific_detail}}. I'd love to connect and learn more about your experience in {{industry}}."
+      }
+    ],
+    "connection_emails": [
+      {
+        "title": "Mutual Connection Intro",
+        "template": "Dear {{name}},\n\nI hope this email finds you well. {{mutual_connection}} suggested I reach out to you regarding opportunities in {{field}}. I've been working as a {{role}} for {{years}} years and am particularly interested in {{specific_interest}}.\n\nI'd appreciate the opportunity to discuss how my experience might align with your team's needs.\n\nBest regards,\nAlex Johnson"
+      }
+    ],
+    "hiring_manager_emails": [
+      {
+        "title": "Job Application Follow-up",
+        "template": "Dear {{name}},\n\nI recently applied for the {{position}} role at {{company}} and wanted to express my continued interest in the position. The opportunity to {{specific_aspect}} particularly resonates with my experience in {{relevant_experience}}.\n\nI'm excited about the possibility of contributing to your team and would welcome the chance to discuss how my skills align with your needs.\n\nThank you for your consideration.\n\nBest regards,\nAlex Johnson"
+      }
+    ],
+    "cover_letters": [
+      {
+        "title": "Standard Cover Letter",
+        "template": "Dear {{hiring_manager_name}},\n\nI am writing to express my interest in the {{position}} position at {{company}}. With my background in {{relevant_field}} and passion for {{industry_aspect}}, I believe I would be a valuable addition to your team.\n\nIn my current role as {{current_role}} at {{current_company}}, I have {{achievement_1}}. Prior to this, at {{previous_company}}, I {{achievement_2}}. These experiences have equipped me with the skills necessary to excel in the {{position}} role.\n\nI am particularly drawn to {{company}} because of {{company_specific_reason}}. Your commitment to {{company_value}} aligns perfectly with my professional values and goals.\n\nThank you for considering my application. I look forward to the opportunity to discuss how my skills and experiences can contribute to {{company}}'s continued success.\n\nSincerely,\nAlex Johnson"
+      }
+    ]
+  },
+  "generated_content": []
+} 
