@@ -1,3 +1,5 @@
 echo ".history/" >> .gitignore
 echo "**/.env" >> .gitignore.env
 .history/
+.env
+.history/
