@@ -1,5 +1,5 @@
 import os
-from openai import OpenAI
+import openai
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -7,8 +7,13 @@ load_dotenv()
 
 class LLMGenerator:
     def __init__(self):
-        # Initialize OpenAI client with API key from environment variable
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Get API key from environment variable
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.")
+        
+        # Initialize the OpenAI client with minimal parameters
+        self.client = openai.OpenAI(api_key=api_key)
         
     def generate_linkedin_message(self, job_data, candidate_data):
         """Generate a LinkedIn connection message (200 characters max)."""
@@ -31,7 +36,7 @@ class LLMGenerator:
         return self._generate_text(prompt, max_tokens=500)  # ~350 words
     
     def _generate_text(self, prompt, max_tokens=300):
-        """Call the OpenAI API to generate text."""
+        """Call the OpenAI API to generate text using the new API syntax."""
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4",  # or another appropriate model
@@ -48,16 +53,12 @@ class LLMGenerator:
     
     def _build_linkedin_message_prompt(self, job_data, candidate_data):
         """Build prompt for LinkedIn connection message."""
-        # Get values with defaults for missing keys
-        company_name = job_data.get('company_name', 'the company')
-        job_title = job_data.get('job_title', 'the position')
-        
         return f"""
-        Create a LinkedIn connection message from {candidate_data['personal_info']['name']} to someone at {company_name}.
+        Create a LinkedIn connection message from {candidate_data['personal_info']['name']} to someone at {job_data['company_name']}.
         
         About the job:
-        - Title: {job_title}
-        - Company: {company_name}
+        - Title: {job_data['job_title']}
+        - Company: {job_data['company_name']}
         
         About the candidate:
         - Current role: {candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}
@@ -75,18 +76,13 @@ class LLMGenerator:
     
     def _build_connection_email_prompt(self, job_data, candidate_data):
         """Build prompt for connection email."""
-        # Get values with defaults for missing keys
-        company_name = job_data.get('company_name', 'the company')
-        job_title = job_data.get('job_title', 'the position')
-        job_description = job_data.get('job_description', 'The job involves working with data and technology.')
-        
         return f"""
-        Create a connection email from {candidate_data['personal_info']['name']} to someone at {company_name}.
+        Create a connection email from {candidate_data['personal_info']['name']} to someone at {job_data['company_name']}.
         
         About the job:
-        - Title: {job_title}
-        - Company: {company_name}
-        - Description: {job_description[:300]}...
+        - Title: {job_data['job_title']}
+        - Company: {job_data['company_name']}
+        - Description: {job_data['job_description'][:300]}...
         
         About the candidate:
         - Current role: {candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}
@@ -106,26 +102,20 @@ class LLMGenerator:
     
     def _build_hiring_manager_email_prompt(self, job_data, candidate_data):
         """Build prompt for hiring manager email."""
-        # Get values with defaults for missing keys
-        company_name = job_data.get('company_name', 'the company')
-        job_title = job_data.get('job_title', 'the position')
-        job_description = job_data.get('job_description', 'The job involves working with data and technology.')
-        requirements = job_data.get('requirements', 'Skills in data analysis, programming, and communication.')
-        
         return f"""
-        Create an email from {candidate_data['personal_info']['name']} to the hiring manager for the {job_title} position at {company_name}.
+        Create an email from {candidate_data['personal_info']['name']} to the hiring manager for the {job_data['job_title']} position at {job_data['company_name']}.
         
         About the job:
-        - Title: {job_title}
-        - Company: {company_name}
-        - Description: {job_description[:300]}...
-        - Requirements: {requirements[:300]}...
+        - Title: {job_data['job_title']}
+        - Company: {job_data['company_name']}
+        - Description: {job_data['job_description'][:300]}...
+        - Requirements: {job_data['requirements'][:300]}...
         
         About the candidate:
         - Current role: {candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}
         - Experience: {candidate_data['resume']['summary']}
         - Key skills: {', '.join(candidate_data['resume']['skills'])}
-        - Relevant story: {candidate_data['story_bank'][0]['content'] if candidate_data['story_bank'] else 'Experienced in delivering results.'}
+        - Relevant story: {candidate_data['story_bank'][0]['content']}
         
         The email should:
         - Be addressed to the hiring manager
@@ -141,32 +131,25 @@ class LLMGenerator:
     
     def _build_cover_letter_prompt(self, job_data, candidate_data):
         """Build prompt for cover letter."""
-        # Get values with defaults for missing keys
-        company_name = job_data.get('company_name', 'the company')
-        job_title = job_data.get('job_title', 'the position')
-        job_description = job_data.get('job_description', 'The job involves working with data and technology.')
-        requirements = job_data.get('requirements', 'Skills in data analysis, programming, and communication.')
-        location = job_data.get('location', 'the location')
-        
         return f"""
-        Create a cover letter from {candidate_data['personal_info']['name']} for the {job_title} position at {company_name}.
+        Create a cover letter from {candidate_data['personal_info']['name']} for the {job_data['job_title']} position at {job_data['company_name']}.
         
         About the job:
-        - Title: {job_title}
-        - Company: {company_name}
-        - Description: {job_description}
-        - Requirements: {requirements}
-        - Location: {location}
+        - Title: {job_data['job_title']}
+        - Company: {job_data['company_name']}
+        - Description: {job_data['job_description']}
+        - Requirements: {job_data['requirements']}
+        - Location: {job_data['location']}
         
         About the candidate:
         - Contact: {candidate_data['personal_info']['email']} | {candidate_data['personal_info']['phone']}
         - Current role: {candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}
-        - Previous role: {candidate_data['resume']['experience'][1]['title'] if len(candidate_data['resume']['experience']) > 1 else 'Previous role'} at {candidate_data['resume']['experience'][1]['company'] if len(candidate_data['resume']['experience']) > 1 else 'Previous company'}
+        - Previous role: {candidate_data['resume']['experience'][1]['title']} at {candidate_data['resume']['experience'][1]['company']}
         - Education: {candidate_data['resume']['education'][0]['degree']} from {candidate_data['resume']['education'][0]['institution']}
         - Summary: {candidate_data['resume']['summary']}
         - Key skills: {', '.join(candidate_data['resume']['skills'])}
         - Stories: 
-          1. {candidate_data['story_bank'][0]['content'] if candidate_data['story_bank'] else 'Experienced in delivering results.'}
+          1. {candidate_data['story_bank'][0]['content']}
           2. {candidate_data['story_bank'][1]['content'] if len(candidate_data['story_bank']) > 1 else ''}
         
         The cover letter should:
@@ -181,4 +164,4 @@ class LLMGenerator:
         - Be professional but show personality
         
         Write the complete cover letter.
-        """
+        """ 

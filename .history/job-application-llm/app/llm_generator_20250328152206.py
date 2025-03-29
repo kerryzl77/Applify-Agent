@@ -48,16 +48,12 @@ class LLMGenerator:
     
     def _build_linkedin_message_prompt(self, job_data, candidate_data):
         """Build prompt for LinkedIn connection message."""
-        # Get values with defaults for missing keys
-        company_name = job_data.get('company_name', 'the company')
-        job_title = job_data.get('job_title', 'the position')
-        
         return f"""
-        Create a LinkedIn connection message from {candidate_data['personal_info']['name']} to someone at {company_name}.
+        Create a LinkedIn connection message from {candidate_data['personal_info']['name']} to someone at {job_data['company_name']}.
         
         About the job:
-        - Title: {job_title}
-        - Company: {company_name}
+        - Title: {job_data['job_title']}
+        - Company: {job_data['company_name']}
         
         About the candidate:
         - Current role: {candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}
@@ -75,18 +71,13 @@ class LLMGenerator:
     
     def _build_connection_email_prompt(self, job_data, candidate_data):
         """Build prompt for connection email."""
-        # Get values with defaults for missing keys
-        company_name = job_data.get('company_name', 'the company')
-        job_title = job_data.get('job_title', 'the position')
-        job_description = job_data.get('job_description', 'The job involves working with data and technology.')
-        
         return f"""
-        Create a connection email from {candidate_data['personal_info']['name']} to someone at {company_name}.
+        Create a connection email from {candidate_data['personal_info']['name']} to someone at {job_data['company_name']}.
         
         About the job:
-        - Title: {job_title}
-        - Company: {company_name}
-        - Description: {job_description[:300]}...
+        - Title: {job_data['job_title']}
+        - Company: {job_data['company_name']}
+        - Description: {job_data['job_description'][:300]}...
         
         About the candidate:
         - Current role: {candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}
@@ -106,26 +97,20 @@ class LLMGenerator:
     
     def _build_hiring_manager_email_prompt(self, job_data, candidate_data):
         """Build prompt for hiring manager email."""
-        # Get values with defaults for missing keys
-        company_name = job_data.get('company_name', 'the company')
-        job_title = job_data.get('job_title', 'the position')
-        job_description = job_data.get('job_description', 'The job involves working with data and technology.')
-        requirements = job_data.get('requirements', 'Skills in data analysis, programming, and communication.')
-        
         return f"""
-        Create an email from {candidate_data['personal_info']['name']} to the hiring manager for the {job_title} position at {company_name}.
+        Create an email from {candidate_data['personal_info']['name']} to the hiring manager for the {job_data['job_title']} position at {job_data['company_name']}.
         
         About the job:
-        - Title: {job_title}
-        - Company: {company_name}
-        - Description: {job_description[:300]}...
-        - Requirements: {requirements[:300]}...
+        - Title: {job_data['job_title']}
+        - Company: {job_data['company_name']}
+        - Description: {job_data['job_description'][:300]}...
+        - Requirements: {job_data['requirements'][:300]}...
         
         About the candidate:
         - Current role: {candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}
         - Experience: {candidate_data['resume']['summary']}
         - Key skills: {', '.join(candidate_data['resume']['skills'])}
-        - Relevant story: {candidate_data['story_bank'][0]['content'] if candidate_data['story_bank'] else 'Experienced in delivering results.'}
+        - Relevant story: {candidate_data['story_bank'][0]['content']}
         
         The email should:
         - Be addressed to the hiring manager
@@ -141,32 +126,25 @@ class LLMGenerator:
     
     def _build_cover_letter_prompt(self, job_data, candidate_data):
         """Build prompt for cover letter."""
-        # Get values with defaults for missing keys
-        company_name = job_data.get('company_name', 'the company')
-        job_title = job_data.get('job_title', 'the position')
-        job_description = job_data.get('job_description', 'The job involves working with data and technology.')
-        requirements = job_data.get('requirements', 'Skills in data analysis, programming, and communication.')
-        location = job_data.get('location', 'the location')
-        
         return f"""
-        Create a cover letter from {candidate_data['personal_info']['name']} for the {job_title} position at {company_name}.
+        Create a cover letter from {candidate_data['personal_info']['name']} for the {job_data['job_title']} position at {job_data['company_name']}.
         
         About the job:
-        - Title: {job_title}
-        - Company: {company_name}
-        - Description: {job_description}
-        - Requirements: {requirements}
-        - Location: {location}
+        - Title: {job_data['job_title']}
+        - Company: {job_data['company_name']}
+        - Description: {job_data['job_description']}
+        - Requirements: {job_data['requirements']}
+        - Location: {job_data['location']}
         
         About the candidate:
         - Contact: {candidate_data['personal_info']['email']} | {candidate_data['personal_info']['phone']}
         - Current role: {candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}
-        - Previous role: {candidate_data['resume']['experience'][1]['title'] if len(candidate_data['resume']['experience']) > 1 else 'Previous role'} at {candidate_data['resume']['experience'][1]['company'] if len(candidate_data['resume']['experience']) > 1 else 'Previous company'}
+        - Previous role: {candidate_data['resume']['experience'][1]['title']} at {candidate_data['resume']['experience'][1]['company']}
         - Education: {candidate_data['resume']['education'][0]['degree']} from {candidate_data['resume']['education'][0]['institution']}
         - Summary: {candidate_data['resume']['summary']}
         - Key skills: {', '.join(candidate_data['resume']['skills'])}
         - Stories: 
-          1. {candidate_data['story_bank'][0]['content'] if candidate_data['story_bank'] else 'Experienced in delivering results.'}
+          1. {candidate_data['story_bank'][0]['content']}
           2. {candidate_data['story_bank'][1]['content'] if len(candidate_data['story_bank']) > 1 else ''}
         
         The cover letter should:

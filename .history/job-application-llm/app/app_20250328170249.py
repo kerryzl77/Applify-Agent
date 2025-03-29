@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 import os
 import sys
 import datetime
+import json  # Add this import for pretty printing
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -38,20 +39,33 @@ def generate_content():
     if not content_type or not url:
         return jsonify({'error': 'Missing required fields'}), 400
     
+    # Debug log
+    print(f"\n\n===== Processing URL: {url} =====")
+    print(f"Content type: {content_type}")
+    
     # Scrape data from URL
     if 'linkedin.com' in url:
+        print("Detected LinkedIn URL, scraping profile...")
         job_data = data_retriever.scrape_linkedin_profile(url)
     else:
+        print("Scraping job posting...")
         job_data = data_retriever.scrape_job_posting(url)
+    
+    # Debug log - print the job data
+    print("\n===== Scraped Data =====")
+    print(json.dumps(job_data, indent=2))
+    print("========================\n")
     
     # Check if scraping was successful
     if 'error' in job_data:
+        print(f"Error during scraping: {job_data['error']}")
         return jsonify({'error': f"Failed to scrape data: {job_data['error']}"}), 400
     
     # Get candidate data
     candidate_data = db_manager.get_candidate_data()
     
     # Generate content based on type
+    print(f"Generating {content_type}...")
     if content_type == 'linkedin_message':
         content = llm_generator.generate_linkedin_message(job_data, candidate_data)
     elif content_type == 'connection_email':
@@ -61,6 +75,7 @@ def generate_content():
     elif content_type == 'cover_letter':
         content = llm_generator.generate_cover_letter(job_data, candidate_data)
     else:
+        print(f"Invalid content type: {content_type}")
         return jsonify({'error': 'Invalid content type'}), 400
     
     # Format the content
@@ -87,6 +102,7 @@ def generate_content():
         'file_path': file_path
     }
     
+    print(f"Successfully generated {content_type}")
     return jsonify(response)
 
 @app.route('/api/download/<path:file_path>')

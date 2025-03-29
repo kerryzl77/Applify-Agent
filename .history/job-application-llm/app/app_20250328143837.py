@@ -6,7 +6,6 @@ import datetime
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Fix imports to use relative imports instead of absolute imports
 from scraper.retriever import DataRetriever
 from database.db_manager import DatabaseManager
 from app.llm_generator import LLMGenerator

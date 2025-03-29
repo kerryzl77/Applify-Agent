@@ -9,8 +9,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Fix imports to use relative imports instead of absolute imports
 from scraper.retriever import DataRetriever
 from database.db_manager import DatabaseManager
-from app.llm_generator import LLMGenerator
-from app.output_formatter import OutputFormatter
+from .llm_generator import LLMGenerator
+from .output_formatter import OutputFormatter
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 

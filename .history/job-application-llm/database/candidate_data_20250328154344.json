@@ -1,0 +1,108 @@
+{
+  "personal_info": {
+    "name": "Zikai (Kerry) Liu",
+    "email": "zikailiu@berkeley.edu",
+    "phone": "(650) 613-8398",
+    "linkedin": "linkedin.com/in/zikailiu",
+    "github": "github.com/kerryzl77"
+  },
+  "resume": {
+    "summary": "Data Scientist with strong skills in NLP, machine learning, and forecasting. Proven track record in e-commerce analytics, forecasting, and operational optimization.",
+    "experience": [
+      {
+        "title": "Data Science Intern",
+        "company": "VIP.com",
+        "location": "Singapore (Remote)",
+        "start_date": "2024-06",
+        "end_date": "2024-08",
+        "description": "Implemented multimodal RAG classifier achieving 98% accuracy, optimized PySpark notebooks reducing shipment time by 27%."
+      },
+      {
+        "title": "Business Analyst Intern",
+        "company": "Amazon",
+        "location": "London, UK",
+        "start_date": "2023-05",
+        "end_date": "2023-09",
+        "description": "Developed distributed forecasting models with 5.2% MAPE; automated data pipelines, reducing query time by 70%."
+      },
+      {
+        "title": "Data Engineer Intern",
+        "company": "Dark Matter Artificial Intelligence (DMAI)",
+        "location": "Los Angeles, US (Remote)",
+        "start_date": "2022-07",
+        "end_date": "2022-08",
+        "description": "Prepared 10GB calligraphy dataset; created ETL pipelines and ensured data quality, reducing errors by 20%."
+      },
+      {
+        "title": "Intern",
+        "company": "SCOR Ventures",
+        "location": "London, UK (Hybrid)",
+        "start_date": "2021-10",
+        "end_date": "2022-06",
+        "description": "Built VBA-driven valuation models using 10,000+ data points; visualized insights in Tableau."
+      }
+    ],
+    "education": [
+      {
+        "degree": "Master of Engineering in Industrial Engineering & Operational Research",
+        "institution": "University of California, Berkeley",
+        "location": "Berkeley, US",
+        "graduation_date": "2025-05"
+      },
+      {
+        "degree": "Master of Arts (Honours) in Mathematics",
+        "institution": "University of St Andrews",
+        "location": "St Andrews, UK",
+        "graduation_date": "2024-06"
+      }
+    ],
+    "skills": [
+      "Python", "PyTorch", "TensorFlow", "HuggingFace", "AWS (SageMaker, EC2, Lambda)", "Java", "C++", "CUDA", "Docker", "SQL", "Git", "Spark", "VBA", "Power BI", "Julia", "RESTful APIs"
+    ]
+  },
+  "story_bank": [
+    {
+      "title": "VIP.com Return Classification Success",
+      "content": "While working as a data scientist intern at VIP.com, I developed an LLMs Agent framework to analyze structured and unstructured data related to customer returns. By implementing a Vector Database to retrieve similar queries and employing conversational retrieval chains, the system provided context-aware solutions for return responsibility decisions. This analysis revealed patterns indicating that specific product categories had higher return rates due to unclear descriptions. Based on these insights, the product team revised the product descriptions, leading to a 15% reduction in return rates and an enhanced user experience."
+    },
+    {
+      "title": "Amazon Forecasting Optimization",
+      "content": "In a recent project, I led the development of a machine learning model aimed at predicting the percentage share of network volume during Fulfillment Center (FC) shutdown days, which historically exhibited inaccuracies four times higher than normal days. I defined key metrics such as Mean Absolute Percentage Error (MAPE) and prediction intervals to assess model performance. Challenges included addressing the spatio-temporal nature of the data, understanding complex business rules, and managing the impact of individual FC shutdowns on the overall network. By incorporating features like past seven-week day-of-week data, one-hot encoding of shutdown events, and temporal indicators (e.g., holidays, weekends), we improved prediction accuracy by over 400 basis points. This enhancement enabled more reliable forecasting and informed decision-making for planning managers."
+    },
+    {
+      "title": "Automated Data Pipeline",
+      "content": "At Amazon, developed an automated AWS EC2 data pipeline, reducing daily reporting query time by 70% and enhancing decision-making efficiency for over 100 stakeholders."
+    },
+    {
+      "title": "Cross Functional Alignment at SCOR Ventures",
+      "content": "During my tenure at a venture capital firm, I collaborated with a diverse team comprising professionals from North America, Europe, and Asia to evaluate investment opportunities in fintech solutions for SMEs in developing countries. We ensured alignment by sharing regional success stories, leveraging our varied expertise in insurance, consulting, and regional markets, and maintaining open communication channels. This collaborative approach led to a successful investment in Treinta, the largest Series A funding in LATAM for a super-app targeting SMEs. The diversity of perspectives within the team was instrumental in identifying and capitalizing on this high-potential opportunity."
+    }
+  ],
+  "templates": {
+    "linkedin_messages": [
+      {
+        "title": "General Data Science Connection",
+        "template": "Hi {{name}}, I came across your profile at {{company}} and am fascinated by your work in {{specific_detail}}. As a fellow data scientist, I'd love to connect and exchange insights on {{industry}} trends."
+      }
+    ],
+    "connection_emails": [
+      {
+        "title": "IEOR Alumni Connection",
+        "template": "Dear {{name}},\n\nI am a current IEOR M.Eng student at Berkeley exploring opportunities in data science, particularly focused on {{specific_interest}}. Our mutual connection, {{mutual_connection}}, suggested reaching out to you. I'd appreciate the chance to discuss how my background might align with your team's needs.\n\nBest regards,\nZikai (Kerry) Liu"
+      }
+    ],
+    "hiring_manager_emails": [
+      {
+        "title": "Data Scientist Position Follow-up",
+        "template": "Dear {{name}},\n\nI recently applied for the {{position}} at {{company}} and wanted to reiterate my strong interest. With extensive experience in {{relevant_experience}}, I am eager to contribute to your team's objectives, particularly {{specific_aspect}}. I'd welcome an opportunity to discuss further.\n\nThank you,\nZikai (Kerry) Liu"
+      }
+    ],
+    "cover_letters": [
+      {
+        "title": "Data Scientist Cover Letter",
+        "template": "Dear {{hiring_manager_name}},\n\nI'm excited to apply for the {{position}} at {{company}}. My experience in NLP, forecasting, and optimization, especially during internships at Amazon and VIP.com, aligns well with this role. At Amazon, I improved forecasting accuracy by 5.2%, while at VIP.com, I achieved a 98% accuracy in multimodal classification. {{company}}'s commitment to {{company_value}} particularly resonates with me.\n\nI look forward to potentially contributing my skills to your team.\n\nWarm regards,\nZikai (Kerry) Liu"
+      }
+    ]
+  },
+  "generated_content": []
+}

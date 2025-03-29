@@ -2,12 +2,12 @@
   "personal_info": {
     "name": "Zikai (Kerry) Liu",
     "email": "zikailiu@berkeley.edu",
-    "phone": "650-613-8398",
+    "phone": "(650) 613-8398",
     "linkedin": "linkedin.com/in/zikailiu",
     "github": "github.com/kerryzl77"
   },
   "resume": {
-    "summary": "Data Scientist / Machine Learning Engineer with strong skills in NLP, machine learning, and forecasting. Proven track record in e-commerce analytics, forecasting, and operational optimization.",
+    "summary": "Data Scientist with strong skills in NLP, machine learning, and forecasting. Proven track record in e-commerce analytics, forecasting, and operational optimization.",
     "experience": [
       {
         "title": "Data Science Intern",
@@ -57,22 +57,7 @@
       }
     ],
     "skills": [
-      "Python",
-      "PyTorch",
-      "TensorFlow",
-      "HuggingFace",
-      "AWS (SageMaker, EC2, Lambda)",
-      "Java",
-      "C++",
-      "CUDA",
-      "Docker",
-      "SQL",
-      "Git",
-      "Spark",
-      "VBA",
-      "Power BI",
-      "Julia",
-      "RESTful APIs"
+      "Python", "PyTorch", "TensorFlow", "HuggingFace", "AWS (SageMaker, EC2, Lambda)", "Java", "C++", "CUDA", "Docker", "SQL", "Git", "Spark", "VBA", "Power BI", "Julia", "RESTful APIs"
     ]
   },
   "story_bank": [
@@ -92,26 +77,26 @@
   "templates": {
     "linkedin_messages": [
       {
-        "title": "General Connection",
-        "template": "Hi {{name}}, I noticed your work at {{company}} and was impressed by {{specific_detail}}. I'd love to connect and learn more about your experience in {{industry}}."
+        "title": "General Data Science Connection",
+        "template": "Hi {{name}}, I came across your profile at {{company}} and am fascinated by your work in {{specific_detail}}. As a fellow data scientist, I'd love to connect and exchange insights on {{industry}} trends."
       }
     ],
     "connection_emails": [
       {
-        "title": "Mutual Connection Intro",
-        "template": "Hi {{name}},\n\nI'm {{your_name}}, currently an MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May. With over 3 years in data science and ML, including roles at Amazon and expertise in Spark, LLM, and NLP, I was excited to find the {{position}} at {{company}}.\n\nI'd greatly appreciate your insights about the team or any advice or referrals you might offer regarding the position. Thanks so much, and have a great day!\n\nBest,\n{{your_name}}\nLinkedIn"
+        "title": "IEOR Alumni Connection",
+        "template": "Dear {{name}},\n\nI am a current IEOR M.Eng student at Berkeley exploring opportunities in data science, particularly focused on {{specific_interest}}. Our mutual connection, {{mutual_connection}}, suggested reaching out to you. I'd appreciate the chance to discuss how my background might align with your team's needs.\n\nBest regards,\nZikai (Kerry) Liu"
       }
     ],
     "hiring_manager_emails": [
       {
-        "title": "Job Application Follow-up",
-        "template": "Hi {{name}},\n\nI'm {{your_name}}, currently an MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May. I've recently applied for the {{position}} at {{company}} and am particularly excited about this role. My experience with forecasting models at Amazon, NLP teaching, and PySpark-based RAG solutions at VIP.com aligns closely with the job requirements.\n\nI'd greatly appreciate the opportunity to discuss how my skills might fit with your team's needs. Thanks so much for your time.\n\nBest regards,\n{{your_name}}\nLinkedIn"
+        "title": "Data Scientist Position Follow-up",
+        "template": "Dear {{name}},\n\nI recently applied for the {{position}} at {{company}} and wanted to reiterate my strong interest. With extensive experience in {{relevant_experience}}, I am eager to contribute to your team's objectives, particularly {{specific_aspect}}. I'd welcome an opportunity to discuss further.\n\nThank you,\nZikai (Kerry) Liu"
       }
     ],
     "cover_letters": [
       {
-        "title": "Standard Cover Letter",
-        "template": "Hi {{hiring_manager_name}},\n\nI'm {{your_name}}, currently an MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May. With over 3 years of hands-on data science and ML experience, including developing forecasting models at Amazon London and building RAG solutions using PySpark at VIP.com, I'm excited to apply for the {{position}} at {{company}}.\n\nMy recent work on multimodal classification achieving 98% accuracy and my research into job categorization using large language models closely align with the analytical rigor and innovation your team emphasizes. My teaching experience in graduate NLP courses further demonstrates my ability to effectively communicate complex solutions.\n\nI'd love the opportunity to discuss further how my background and passion align with your team's objectives at {{company}}. Thank you so much for your consideration.\n\nBest,\n{{your_name}}\nLinkedIn"
+        "title": "Data Scientist Cover Letter",
+        "template": "Dear {{hiring_manager_name}},\n\nI'm excited to apply for the {{position}} at {{company}}. My experience in NLP, forecasting, and optimization, especially during internships at Amazon and VIP.com, aligns well with this role. At Amazon, I improved forecasting accuracy by 5.2%, while at VIP.com, I achieved a 98% accuracy in multimodal classification. {{company}}'s commitment to {{company_value}} particularly resonates with me.\n\nI look forward to potentially contributing my skills to your team.\n\nWarm regards,\nZikai (Kerry) Liu"
       }
     ]
   },
