@@ -4,11 +4,20 @@
     "email": "zikailiu@berkeley.edu",
     "phone": "650-613-8398",
     "linkedin": "linkedin.com/in/zikailiu",
-    "github": "github.com/kerryzl77"
+    "github": "github.com/kerryzl77",
+    "current_role": "MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May"
   },
   "resume": {
     "summary": "Data Scientist / Machine Learning Engineer with strong skills in NLP, machine learning, and forecasting. Proven track record in e-commerce analytics, forecasting, and operational optimization.",
     "experience": [
+      {
+        "title": "Graduate Teaching Assistant",
+        "company": "University of California, Berkeley",
+        "location": "Berkeley, US",
+        "start_date": "2025-01",
+        "end_date": "2025-05",
+        "description": "Designed and taught a graduate-level course on Natural Language Processing (include LLM Agent, Pre-trained LLM, and LLM-based applications)."
+      },
       {
         "title": "Data Science Intern",
         "company": "VIP.com",
@@ -115,5 +124,246 @@
       }
     ]
   },
-  "generated_content": []
+  "generated_content": [
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Machine Learning Engineer, AGIF position at Amazon.com Services LLC. As a soon-to-be graduate from UC Berkeley with a Master's degree in Industrial Engineering & Operational Research, I bring a strong foundation in software development, machine learning techniques, and a track record of successful project delivery.\n\nOne of my key achievements was successfully leading the integration of the DeepSeek RAG zero-shot classifier during my internship at VIP.com. This complex project involved utilizing Python, PyTorch, and HuggingFace, along with multimodal embeddings and FAISS. The result was a prediction model with human-level accuracy of 98% for return responsibilities. I believe this experience, coupled with my expertise in software development, aligns well with your requirement for a professional with solid software development and design architecture experience.\n\nAnother project I'm particularly proud of was the creation of a distributed LightGBM forecasting model on AWS SageMaker. This model improved forecasting accuracy to a 5.2% MAPE, providing VIP.com with a robust tool for informed demand planning decisions. This project not only honed my skills in working with AWS services but also underlined the value I can bring to Amazon in terms of building, testing, and maintaining key tooling for model evaluation.\n\nAs a passionate engineer and scientist, I am excited about the opportunity to work with a team dedicated to pushing the boundaries of innovation. I am particularly drawn to Amazon's commitment to representing the customer perspective through accurate benchmarking and believe that my experiences and passion for machine learning make me a strong candidate for this role.\n\nIn closing, I am excited about the prospect of bringing my unique blend of skills and experiences to Amazon.com Services LLC. I am confident that my background in software development, machine learning, and project management will be of great value to your team. I look forward to the possibility of discussing this exciting opportunity further.\n\nThank you for considering my application.\n\nBest Regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Machine Learning Engineer, AGIF",
+        "company_name": "Amazon.com Services LLC",
+        "url": "",
+        "generated_at": "2025-03-29 18:43:52.711944"
+      },
+      "created_at": "2025-03-29 18:43:52.712449",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI'm writing to express my interest in the Unknown Job Title position at Meta. As a soon-to-be graduate of the Master of Engineering in Industrial Engineering & Operational Research program at UC Berkeley, I've honed my analytical skills and developed a deep understanding of data-driven decision making. My experience as a Data Science Intern at VIP.com further showcases my ability to leverage large datasets to solve complex problems and drive product strategy.\n\nAt VIP.com, I led the integration of DeepSeek RAG zero-shot classifier, where I used multimodal embeddings and FAISS to achieve an impressive 98% human-level accuracy in predicting return responsibilities. This successful project demonstrates my proficiency in Python, TensorFlow, and PyTorch, which aligns with the technical expertise your role requires.\n\nI also engineered a distributed LightGBM forecasting model on AWS SageMaker during my tenure at VIP.com. This project significantly improved forecasting accuracy to a 5.2% MAPE, demonstrating my ability to understand ecosystems, user behaviors, and long-term product trends. With my proficiency in SQL and my strong understanding of statistical/mathematical software like R, I am confident in my ability to handle Meta's large and complex datasets.\n\nMy interest in Meta extends beyond the role's requirements. I am drawn to Meta's vision of moving beyond 2D screens towards immersive experiences like augmented and virtual reality. I am excited at the prospect of using my skills to contribute to this next evolution in social technology.\n\nIn closing, I believe the Unknown Job Title position at Meta is a perfect match for my qualifications. I am excited about the opportunity to apply my skills and experiences to contribute to Meta's mission. I look forward to the possibility of discussing my application with you further.\n\nThank you for considering my application.\n\nBest Regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Unknown Job Title",
+        "company_name": "Meta",
+        "url": "",
+        "generated_at": "2025-03-29 18:54:33.965788"
+      },
+      "created_at": "2025-03-29 18:54:33.966543",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Data Scientist, Product Analytics position at a Scientist. As a Master of Engineering graduate with a specialization in Industrial Engineering & Operational Research, I'm excited about the opportunity to apply my skills in your dynamic environment. \n\nMy experience as a Data Science Intern at VIP.com has equipped me with a deep understanding of data analytics, as well as the technical skills required for this role. I successfully led the integration of the DeepSeek RAG zero-shot classifier, achieving human-level accuracy (98%) in predicting return responsibilities. This project demanded a keen understanding of data mining and analytical problem-solving. \n\nFurther, my experience in developing a distributed LightGBM forecasting model on AWS SageMaker at VIP.com, which improved accuracy by 5.2%, demonstrates my capacity for using quantitative approaches to understand long-term product trends. This aligns directly with your need for a professional who can identify and measure the success of product efforts through goal setting and monitoring of key product metrics.\n\nIn addition to my work experience, I bring a robust technical toolkit. My proficiency in Python, SQL, TensorFlow, and other scripting languages aligns with your job requirements. Moreover, my ability to use these tools to generate actionable insights and drive data-driven projects from definition to execution is a testament to my readiness for this role.\n\nI am drawn to a Scientist because of your commitment to using data to solve complex problems and inform strategy decisions. I am excited about the prospect of working with your cross-functional teams to leverage data in creating innovative solutions. \n\nIn conclusion, I am confident that my strong technical abilities, coupled with my passion for analytics and proven track record, make me a compelling candidate for this role. I am eager to contribute to your team and look forward to the possibility of discussing my application with you further.\n\nThank you for considering my application.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Data Scientist, Product Analytics",
+        "company_name": "a Scientist",
+        "url": "",
+        "generated_at": "2025-03-29 18:55:45.711208"
+      },
+      "created_at": "2025-03-29 18:55:45.712493",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Data Scientist, Product Analytics position at a Scientist. As an upcoming Master of Engineering graduate from UC Berkeley with a focus on Industrial Engineering and Operational Research, I am eager to apply my strong analytical skills and passion for data in a challenging and innovative environment.\n\nIn my previous role as a Data Science Intern at VIP.com, I led the integration of DeepSeek RAG zero-shot classifier, achieving a 98% accuracy rate in predicting return responsibilities. This was accomplished by using multimodal embeddings and FAISS. This project not only honed my technical expertise in Python, PyTorch, and AWS but also exhibited my ability to apply advanced statistical techniques to solve complex problems. \n\nAdditionally, I engineered a distributed LightGBM forecasting model on AWS SageMaker, improving forecasting accuracy by 5.2%. I believe my experience in developing and executing data-driven projects will greatly contribute to your team's ambitious goals. My robust knowledge of SQL and scripting languages like Python will allow me to effectively analyze and interpret complex data sets, as required for this role.\n\nThe opportunity to work with a Scientist excites me as your company's work aligns with my passion for leveraging data to drive product strategy and investment decisions. I am particularly impressed by your dedication to serving billions of people and hundreds of millions of businesses. I am confident that my unique blend of skills and experiences will make a significant impact on your team.\n\nIn closing, I am keen to bring my technical abilities, analytical mindset, and commitment to achieving results to a Scientist. I am eager to further discuss how my background can be a valuable addition to your team.\n\nThank you for considering my application. I look forward to the possibility of contributing to a Scientist.\n\nBest Regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Data Scientist, Product Analytics",
+        "company_name": "a Scientist",
+        "url": "",
+        "generated_at": "2025-03-29 19:09:48.513607"
+      },
+      "created_at": "2025-03-29 19:09:48.514548",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Data Scientist, Product Analytics position at a Scientist. As a soon-to-be graduate of the Master of Engineering in Industrial Engineering & Operational Research program at UC Berkeley, I have developed my skills in data science, machine learning, and natural language processing (NLP). My professional track record, featuring a successful stint as a Data Science Intern at VIP.com, demonstrates my ability to apply these skills to real-world problems, making me the ideal candidate for this position.\n\nOne of my proudest achievements is leading the integration of the DeepSeek RAG zero-shot classifier at VIP.com. This project involved using multimodal embeddings and FAISS, and our team achieved human-level accuracy (98%) in predicting return responsibilities. This initiative required strong analytical skills and a deep understanding of machine learning algorithms, both of which are key requirements for the Data Scientist role at a Scientist.\n\nAdditionally, I engineered a distributed LightGBM forecasting model on AWS SageMaker during my time at VIP.com. This significantly improved forecasting accuracy (5.2% MAPE) and database integration, thereby enabling informed demand planning decisions. This reflects my proficiency in using Python, SQL, and statistical/mathematical software, aligning with your job requirements.\n\nNot only do I meet the technical requirements for this role, but I am also passionate about using data science to make strategic product decisions. I am excited by the prospect of working with large and complex datasets to solve challenging problems and influence product strategies at a Scientist. I am confident that my strong analytical skills, coupled with my experience in leading data-driven projects, will add significant value to your team.\n\nThank you for considering my application. I am eager to bring my unique skill set to a Scientist and am confident that I can contribute to your team's success. I look forward to the possibility of discussing my candidacy further.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Data Scientist, Product Analytics",
+        "company_name": "a Scientist",
+        "url": "",
+        "generated_at": "2025-03-29 19:15:47.392143"
+      },
+      "created_at": "2025-03-29 19:15:47.392857",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Data Scientist, Product Analytics position at a Scientist. As a Master of Engineering in Industrial Engineering & Operational Research from the University of California, Berkeley, I have a deep understanding of analytics and data querying languages. My experience as a Data Science Intern at VIP.com and my current role as an MEng IEOR Fung Scholar at Berkeley have equipped me with the skills necessary to excel in this role.\n\nDuring my internship at VIP.com, I led the integration of the DeepSeek RAG zero-shot classifier, achieving human-level accuracy of 98% in predicting return responsibilities. This was accomplished through the use of multimodal embeddings and FAISS, demonstrating my ability to work with large and complex datasets and solve challenging problems using various analytical and statistical approaches.\n\nIn addition to my work at VIP.com, I developed a distributed LightGBM forecasting model on AWS SageMaker in my current role. This significantly improved forecasting accuracy to a 5.2% MAPE, showcasing my ability to apply technical expertise with quantitative analysis, experimentation, data mining, and the presentation of data to develop effective product strategies.\n\nMy interest in a Scientist stems from its commitment to leveraging data to drive product strategy and investment decisions. I am excited about the opportunity to work with cross-functional teams and inform, influence, support, and execute product strategy. I believe my background in e-commerce analytics, forecasting, and operational optimization, along with my strong skills in Python, PyTorch, TensorFlow, and AWS, make me an excellent fit for this role.\n\nI look forward to the opportunity to contribute to your team and further develop my skills in data science. Thank you for considering my application. I am eager to provide further information on my qualifications and discuss how I can be a valuable addition to a Scientist.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Data Scientist, Product Analytics",
+        "company_name": "a Scientist",
+        "url": "",
+        "generated_at": "2025-03-29 19:17:28.112192"
+      },
+      "created_at": "2025-03-29 19:17:28.113164",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Software Engineer, ML Research position with Codeium. As a Fung Scholar at Berkeley, where I am completing my Master of Engineering in Industrial Engineering & Operational Research, I have honed my skills in machine learning, NLP, and forecasting, making me an excellent fit for this opportunity.\n\nMy previous role as a Data Science Intern at VIP.com allowed me to gain significant hands-on experience in the field. I successfully led the integration of the DeepSeek RAG zero-shot classifier, achieving human-level accuracy of 98% in predicting return responsibilities. This was accomplished using multimodal embeddings and FAISS, showing my proficiency in navigating high levels of uncertainty and maximizing product impact.\n\nIn addition, I engineered a distributed LightGBM forecasting model on AWS SageMaker, which significantly improved forecasting accuracy to a MAPE of 5.2%. This achievement demonstrates my ability to swiftly design, track, and analyze experiment results, as well as my adeptness at transforming successful outcomes into robust, scalable features.\n\nMy familiarity with AI-powered developer tools like Codeium, Copilot, ChatGPT, and others, coupled with my extensive programming knowledge, including skills in Python, PyTorch, TensorFlow, AWS, Java, and more, make me a strong asset to your team. I am particularly intrigued by the code generation problem and am looking forward to challenging my priors in the face of new discoveries.\n\nCodeium's commitment to delivering the highest quality experience to users aligns with my own dedication to excellence. I am excited by the prospect of contributing to your state-of-the-art proprietary language models and custom inference stack, while also benefiting from the chance to learn from and contribute to your team's collective knowledge.\n\nThank you for considering my application. I am eager to further discuss how my skills and experiences align with Codeium's goals and to demonstrate my deep curiosity for this field. I look forward to the possibility of contributing to your team.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "e-of-the-art proprietary language models and custom inference stack allow us to deliver the best experience possible to our users. We've achieved substantial revenue and enterprise traction as proof of the quality and usefulness of our tools.",
+        "url": "",
+        "generated_at": "2025-03-29 19:27:05.665538"
+      },
+      "created_at": "2025-03-29 19:27:05.666045",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Software Engineer, ML Research position at your organization. As a graduating Master of Engineering student specializing in Industrial Engineering & Operational Research at UC Berkeley and a Data Scientist with a strong background in machine learning and forecasting, I am confident my skills align with the requirements of your role.\n\nIn my previous role as a Data Science Intern at VIP.com, I spearheaded the implementation of the DeepSeek RAG zero-shot classifier, achieving a striking 98% accuracy in predicting return responsibilities. This project demonstrated my ability to navigate high levels of uncertainty, as well as my expertise in fine-tuning large language models, both of which are key requirements for your role.\n\nI also have a proven track record in designing, tracking, and analyzing experiment results. For instance, I engineered a distributed LightGBM forecasting model on AWS SageMaker, which improved forecasting accuracy to a remarkable 5.2% MAPE. This experience required a strong grasp of the feasibility frontier of CS, AI, and LLMs, and meticulous documentation of findings, which I understand are important to your role.\n\nThe reason for my keen interest in your company is its innovative approach to AI. Having been featured on the Forbes AI 50 list, your company\u2019s reputation for delivering a high-quality user experience through state-of-the-art proprietary language models is inspiring. I am particularly excited about the opportunity to transform successful experimental outcomes into robust, scalable features for your core product.\n\nIn closing, I am eager to contribute my machine learning and software engineering skills to your team. I am especially excited about the opportunity to participate in the ML reading group and help level up the team's knowledge of LLM training and infrastructure. I look forward to the possibility of discussing my candidacy further.\n\nBest regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "e-of-the-art proprietary language models and custom inference stack allow us to deliver the best experience possible to our users. We've achieved substantial revenue and enterprise traction as proof of the quality and usefulness of our tools.",
+        "url": "",
+        "generated_at": "2025-03-29 19:33:31.511100"
+      },
+      "created_at": "2025-03-29 19:33:31.512064",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to apply for the Software Engineer, ML Research position at your esteemed company. As an MEng IEOR Fung Scholar at UC Berkeley, my academic and professional experiences have thoroughly prepared me for the complexities of machine learning research. I am particularly drawn to your company's commitment to leveraging state-of-the-art proprietary language models and custom inference stack to maximize user experience.\n\nMy strong software engineering skills, honed through rigorous academic training and real-world application, align perfectly with your job requirements. I am proficient in Python, PyTorch, TensorFlow, HuggingFace, and AWS, among others. More importantly, I have a deep curiosity about the code generation problem and a proven aptitude for transforming successful experimental outcomes into robust, scalable features.\n\nAt VIP.com, I led the integration of the DeepSeek RAG zero-shot classifier, where we achieved human-level accuracy of 98% in predicting return responsibilities. This project involved navigating high levels of uncertainty, prioritizing high-value experiments, and meticulously documenting findings. Furthermore, my experience in engineering a distributed LightGBM forecasting model on AWS SageMaker demonstrated my ability to iterate on large production neural networks.\n\nYour company's mission resonates with my belief in the power of AI and machine learning to revolutionize industries. I am particularly excited about the opportunity to contribute to a product that is not only innovative but also widely used and appreciated by hundreds of thousands of users worldwide. \n\nIn closing, I am confident that my skills, passion, and deep understanding of machine learning make me an ideal candidate for this position. I am excited about the possibility of contributing to your team and look forward to the opportunity to discuss how I can add value to your company.\n\nThank you for considering my application.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "e-of-the-art proprietary language models and custom inference stack allow us to deliver the best experience possible to our users. We've achieved substantial revenue and enterprise traction as proof of the quality and usefulness of our tools.",
+        "url": "",
+        "generated_at": "2025-03-29 19:34:20.974602"
+      },
+      "created_at": "2025-03-29 19:34:20.975448",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to apply for the Data Scientist, Product Analytics position at a Scientist, as advertised. As a Data Scientist and Machine Learning Engineer with a Master's Degree in Industrial Engineering & Operational Research from UC Berkeley, my background aligns perfectly with the responsibilities and requirements of this role.\n\nIn my current role as an MEng IEOR Fung Scholar at Berkeley, and my previous role as a Data Science Intern at VIP.com, I have honed my skills in Python, SQL, and statistical software such as R. My experience in the field of e-commerce analytics, forecasting, and operational optimization has built a foundation of knowledge in understanding ecosystems, user behaviors, and long-term product trends.\n\nOne of my significant achievements at VIP.com was leading the integration of the DeepSeek RAG zero-shot classifier. By leveraging multimodal embeddings and FAISS, we achieved human-level accuracy of 98% in predicting return responsibilities. Furthermore, I developed a distributed LightGBM forecasting model on AWS SageMaker, which significantly improved forecasting accuracy to a 5.2% MAPE and facilitated database integration for informed demand planning decisions.\n\nI am drawn to a Scientist due to its commitment to using science and technology to transcend the limits of distance and physical constraints. I am excited about the prospect of contributing to the next evolution in social technology and being part of a team that serves billions of people and millions of businesses.\n\nIn closing, I am confident that my technical expertise, coupled with my passion for solving complex problems using quantitative approaches, would make me a valuable addition to the team at a Scientist. I am eager to bring my skills and experience to bear in driving product strategy and investment decisions through data-driven insights. I look forward to the opportunity to discuss my candidacy further.\n\nThank you for considering my application.\n\nBest regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Data Scientist, Product Analytics",
+        "company_name": "a Scientist",
+        "url": "",
+        "generated_at": "2025-03-29 19:36:31.940590"
+      },
+      "created_at": "2025-03-29 19:36:31.941073",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Subject: Application for Software Engineer, ML Research Position\n\nDear Hiring Manager,\n\nI am writing to apply for the position of Software Engineer, ML Research at your esteemed organization. As a prospective Master of Engineering graduate from UC Berkeley with a robust proficiency in machine learning and data science, I am confident that my unique skill set aligns with your requirements.\n\nThroughout my academic and professional journey, I've worked on numerous projects that demonstrate my ability to navigate high levels of uncertainty and prioritize high-value experiments. During my tenure as a Data Science Intern at VIP.com, I led the integration of DeepSeek RAG zero-shot classifier, which achieved human-level accuracy (98%) in predicting return responsibilities. This project not only honed my ability in training and fine-tuning large language models but also sharpened my skills in synthesizing data into actionable insights.\n\nIn addition, I engineered a distributed LightGBM forecasting model on AWS SageMaker, improving the forecasting accuracy to 5.2% MAPE. This experience allowed me to further develop my software engineering skills and gain a deeper understanding of the feasibility frontier of AI. I am proficient in Python, PyTorch, TensorFlow, and HuggingFace, among others, which I believe will be beneficial in this role.\n\nYour company's dedication to delivering the best experience possible to users through state-of-the-art proprietary language models and custom inference stack is what attracts me the most. I am particularly intrigued by your focus on transforming successful experimental outcomes into robust, scalable features for the core product offering. My experiences have prepared me to thrive in such a dynamic, rigorous environment.\n\nIn conclusion, I am excited about the opportunity to contribute to your team and expand my understanding of ML research in a real-world context. I look forward to the possibility of discussing my application with you further. \n\nThank you for considering my application.\n\nBest Regards,\n\nZikai (Kerry) Liu\n650-613-8398\nzikailiu@berkeley.edu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "e-of-the-art proprietary language models and custom inference stack allow us to deliver the best experience possible to our users. We've achieved substantial revenue and enterprise traction as proof of the quality and usefulness of our tools.",
+        "url": "",
+        "generated_at": "2025-03-29 19:40:11.809866"
+      },
+      "created_at": "2025-03-29 19:40:11.811953",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Software Engineer, ML Research position, as advertised at your esteemed company. I am an MEng IEOR Fung Scholar at Berkeley, graduating this May, with a strong background in machine learning and a proven track record in e-commerce analytics and operational optimization.\n\nDuring my tenure as a Data Science Intern at VIP.com, I successfully led the integration of a DeepSeek RAG zero-shot classifier, which achieved 98% accuracy in predicting return responsibilities using multimodal embeddings and FAISS. This project highlighted my ability to navigate high levels of uncertainty, prioritize high-value ML experiments, and transform successful experimental outcomes into robust, scalable features - all of which are key requirements for your position.\n\nIn another project, I engineered a distributed LightGBM forecasting model on AWS SageMaker, significantly improving the forecasting accuracy to a 5.2% MAPE. This experience aligns well with your need for someone who can meticulously document findings, conduct ablation studies, and synthesize data into actionable insights. \n\nMy strong software engineering skills are backed by my proficiency in Python, PyTorch, TensorFlow, HuggingFace, AWS (SageMaker, EC2, Lambda), Java, C++, CUDA, Docker, SQL, Git, Spark, VBA, Power BI, Julia, and RESTful APIs. I'm confident that this diverse skill set will allow me to contribute significantly to your team.\n\nI am particularly drawn to your company's commitment to delivering the best user experience using cutting-edge language models and custom inference stacks. Also, being deeply interested in the code generation problem, I am excited about the prospect of working in an environment that encourages continuous questioning and re-examination of priors in light of new discoveries.\n\nIn conclusion, I am eager to contribute to your team's success and participate in the ML reading group to level up the team's knowledge. If given the opportunity, I am sure that I could bring my strong software engineering skills and passion for machine learning to bear on the challenges and opportunities at your company.\n\nThank you for considering my application. I look forward to the possibility of discussing this exciting opportunity with you.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "e-of-the-art proprietary language models and custom inference stack allow us to deliver the best experience possible to our users. We've achieved substantial revenue and enterprise traction as proof of the quality and usefulness of our tools.",
+        "url": "",
+        "generated_at": "2025-03-29 19:48:29.075383"
+      },
+      "created_at": "2025-03-29 19:48:29.076736",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Software Engineer, ML Research position at e-of-the-art proprietary language models and custom inference stack. As a Master of Engineering candidate at UC Berkeley, I have honed my skills in machine learning and NLP, while gaining practical experience through my role as a Data Science Intern at VIP.com. I am confident that my strong software engineering skills and deep curiosity about the code generation problem make me an ideal candidate for this role.\n\nAt VIP.com, I led the integration of DeepSeek RAG zero-shot classifier, achieving human-level accuracy of 98% in predicting return responsibilities. This project required me to leverage my skills in Python, PyTorch, and HuggingFace. I am well-versed in training and iterating on large production neural networks, and I am passionate about transforming successful experimental outcomes into robust, scalable features.\n\nMy experience also includes building a distributed LightGBM forecasting model on AWS SageMaker. This project significantly improved forecasting accuracy by 5.2% MAPE and enhanced database integration for informed demand planning decisions. My ability to meticulously design, track, and analyze experiments results will be invaluable in this role.\n\nYour mission to deliver the best experience possible to users resonates with me. As an engineer, I am always motivated by the potential impact of my work on end users. I am excited by the prospect of joining your team and helping to level up the knowledge of LLM training and infrastructure.\n\nI look forward to the opportunity to discuss my candidacy further and how I can contribute to your team. Thank you for considering my application.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "e-of-the-art proprietary language models and custom inference stack allow us to deliver the best experience possible to our users. We've achieved substantial revenue and enterprise traction as proof of the quality and usefulness of our tools.",
+        "url": "",
+        "generated_at": "2025-03-29 19:51:12.496369"
+      },
+      "created_at": "2025-03-29 19:51:12.497286",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Software Engineer, ML Research position at your esteemed company. As an MEng IEOR Fung Scholar from the University of California, Berkeley, I have gained a strong foundation in Machine Learning, NLP, and forecasting, and I am eager to bring my skills and passion to your team.\n\nDuring my time as a Data Science Intern at VIP.com, I gained hands-on experience in developing and implementing advanced ML models. Notably, I led the successful integration of the DeepSeek RAG zero-shot classifier, achieving an impressive 98% human-level accuracy in predicting return responsibilities. This project required a deep understanding of multimodal embeddings and FAISS, which aligns perfectly with your requirement for experience in training and iterating on large production neural networks.\n\nIn another project, I engineered a distributed LightGBM forecasting model on AWS SageMaker, significantly improving forecasting accuracy to a 5.2% MAPE. This experience would be beneficial in navigating high levels of uncertainty and prioritizing high-value ML experiments to maximize product impact, as mentioned in your job description.\n\nI am particularly drawn to your company because of its commitment to delivering the best experience possible to users through state-of-the-art proprietary language models and custom inference stack. I am excited about the opportunity to contribute to your mission and believe that my strong software engineering skills and familiarity with AI-powered developer tools like Codeium, Copilot, and ChatGPT make me an excellent fit for your team.\n\nIn conclusion, I am confident that my skills, passion, and previous work experience align well with the requirements of the Software Engineer, ML Research role. I look forward to the possibility of contributing to your team and would welcome the opportunity to further discuss my qualifications with you.\n\nThank you for considering my application.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "e-of-the-art proprietary language models and custom inference stack allow us to deliver the best experience possible to our users. We've achieved substantial revenue and enterprise traction as proof of the quality and usefulness of our tools.",
+        "url": "",
+        "generated_at": "2025-03-29 19:52:27.287954"
+      },
+      "created_at": "2025-03-29 19:52:27.288787",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Software Engineer, ML Research position at e-of-the-art proprietary language models and custom inference stack. As an upcoming Master of Engineering graduate from UC Berkeley with a focus on Industrial Engineering & Operation Research, I bring robust skills in machine learning and Natural Language Processing (NLP), coupled with a proven record in e-commerce analytics and operational optimization.\n\nOne of my proudest achievements was during my tenure at VIP.com as a Data Science Intern. I led the integration of the DeepSeek RAG zero-shot classifier, achieving human-level accuracy (98%) in predicting return responsibilities. This was accomplished using multimodal embeddings and FAISS, demonstrating my capability in handling large production neural networks. Furthermore, I engineered a distributed LightGBM forecasting model on AWS SageMaker. This initiative boosted our forecasting accuracy to a remarkable 5.2% MAPE, enabling more informed demand planning decisions.\n\nMy technical skills, including proficiency in Python, PyTorch, TensorFlow, HuggingFace, and AWS (SageMaker, EC2, Lambda), align excellently with your requirements. Furthermore, my deep curiosity about the code generation problem and familiarity with AI-powered developer tools like Codeium and Copilot will allow me to contribute positively to your team.\n\nI am particularly drawn to your company due to its innovative approach to using language models and custom inference stacks to provide the best user experience. Your commitment to research and product improvement resonates with my belief in constant learning and adaptation.\n\nIn closing, I am excited about the possibility of joining your dynamic team and contributing to your ongoing projects. I am confident that my skills and drive would make a significant impact on your product offering. I look forward to the opportunity to discuss my application further.\n\nThank you for considering my application.\n\nBest Regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "e-of-the-art proprietary language models and custom inference stack allow us to deliver the best experience possible to our users. We've achieved substantial revenue and enterprise traction as proof of the quality and usefulness of our tools.",
+        "url": "",
+        "generated_at": "2025-03-29 20:01:05.530782"
+      },
+      "created_at": "2025-03-29 20:01:05.532031",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am excited to apply for the Software Engineer, ML Research position at Codeium. As a current MEng IEOR Fung Scholar at Berkeley, specializing in machine learning and data science, I am eager to bring my strong software engineering skills and experience with AI-powered developer tools to your dynamic team.\n\nNotably, I led the integration of the DeepSeek RAG zero-shot classifier at VIP.com, achieving 98% accuracy in predicting return responsibilities using multimodal embeddings and FAISS. This experience has honed my skills in training and fine-tuning large language models, rigorously analyzing experimental results, and transforming successful outcomes into robust product features. \n\nIn addition, I designed and deployed a distributed LightGBM forecasting model on AWS SageMaker. This resulted in a significant improvement in forecasting accuracy (5.2% MAPE) and a more integrated database for informed planning decisions. I believe this experience aligns with your requirement for a candidate who can navigate high levels of uncertainty, prioritize high-value ML experiments, and demonstrate initiative in starting and driving projects independently.\n\nAs a user and admirer of AI-powered tools like Codeium and Copilot, I have deep appreciation and curiosity about the code generation problem. This, coupled with my willingness to constantly re-examine priors in the light of new discoveries, makes me a good fit for your team. I am confident that I can contribute meaningfully to Codeium's mission of delivering the best experience possible to users.\n\nIn closing, I am excited about the prospect of joining Codeium and contributing to the cutting-edge work your team is doing. I believe my skills and experiences make me a strong candidate for this role and I look forward to the possibility of discussing my application with you further.\n\nThank you for considering my application.\n\nBest Regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "e-of-the-art proprietary language models and custom inference stack allow us to deliver the best experience possible to our users. We've achieved substantial revenue and enterprise traction as proof of the quality and usefulness of our tools.",
+        "url": "",
+        "generated_at": "2025-03-29 20:07:23.589961"
+      },
+      "created_at": "2025-03-29 20:07:23.590805",
+      "status": "generated"
+    },
+    {
+      "type": "hiring_manager_email",
+      "content": "Subject: Expression of Interest - Unknown Job Title at Company\n\nDear Hiring Manager,\n\nI am Zikai (Kerry) Liu, an MEng IEOR Fung Scholar at Berkeley, graduating this May. I am writing to express my keen interest in the Unknown Job Title position at your reputable organization.\n\nIn my current role, I have honed my skills as a Data Scientist/Machine Learning Engineer with a strong emphasis on NLP, machine learning, and forecasting. This experience, particularly my successful leadership in integrating the DeepSeek RAG zero-shot classifier at VIP.com, seems to align well with the needs of your organization. This project achieved a remarkable 98% human-level accuracy in predicting return responsibilities, a testament to my capabilities in e-commerce analytics, operational optimization, and forecasting.\n\nMy proficiency in Python, PyTorch, TensorFlow, and AWS among other key skills, coupled with my proven track record should make me a strong candidate for this position. I am confident that my experiences and skills will be beneficial to your team.\n\nI would love the opportunity to further discuss how I can contribute to your team. Looking forward to hearing from you soon.\n\nBest Regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Unknown Job Title",
+        "company_name": "Company",
+        "url": "https://codeium.com/careers/e73d0a80-eee6-43a6-8c47-956e8fc52d76",
+        "generated_at": "2025-03-29 21:08:25.176003"
+      },
+      "created_at": "2025-03-29 21:08:25.177251",
+      "status": "generated"
+    },
+    {
+      "type": "hiring_manager_email",
+      "content": "Subject: Application for Software Engineer, ML Research Position\n\nDear Hiring Manager,\n\nI am writing to express my interest in the Software Engineer, ML Research role at your esteemed company. As an MEng IEOR Fung Scholar at Berkeley with a strong background in machine learning and NLP, I believe my qualifications align well with your requirements.\n\nMy experience as a Data Scientist at VIP.com, where I led the integration of DeepSeek RAG zero-shot classifier achieving a 98% accuracy in predicting return responsibilities, has honed my skills in fine-tuning large language models. Coupled with my expertise in Python, PyTorch, TensorFlow, and AWS, I'm confident in my ability to navigate high levels of uncertainty and prioritize high-value ML experiments to maximize product impact.\n\nI am very excited about the possibility of contributing to your team and would love to discuss how my background and skills would be a good fit for your needs. I am available at your earliest convenience for a discussion.\n\nThank you for considering my application.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "e-of-the-art proprietary language models and custom inference stack allow us to deliver the best experience possible to our users. We've achieved substantial revenue and enterprise traction as proof of the quality and usefulness of our tools.",
+        "url": "https://codeium.com/careers/e73d0a80-eee6-43a6-8c47-956e8fc52d76",
+        "generated_at": "2025-03-29 21:09:39.806549"
+      },
+      "created_at": "2025-03-29 21:09:39.808551",
+      "status": "generated"
+    },
+    {
+      "type": "hiring_manager_email",
+      "content": "Subject: Application for Software Engineer, ML Research - Zikai Liu\n\nDear Hiring Manager,\n\nI am writing to express my interest in the Software Engineer, ML Research position at Codeium. As a MEng IEOR Fung Scholar at Berkeley, my strong software engineering skills and passion for machine learning make me a strong candidate for this role.\n\nI bring substantial experience as a Data Scientist/Machine Learning Engineer, with a record of success in e-commerce analytics and operational optimization. Notably, I led the integration of the DeepSeek RAG zero-shot classifier at VIP.com, achieving human-level accuracy (98%) using multimodal embeddings and FAISS.\n\nMy extensive knowledge of Python, PyTorch, TensorFlow, and HuggingFace, coupled with my curiosity about code generation, aligns with your requirements. Additionally, my experience managing ML experiments and transforming outcomes into robust features will enable me to contribute significantly to your team.\n\nI am eager to discuss how my skills and experiences could be valuable to Codeium. Could we arrange a time to chat further?\n\nThank you for considering my application.\n\nBest regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Software Engineer, ML Research",
+        "company_name": "Codeium",
+        "url": "",
+        "generated_at": "2025-03-29 21:18:26.970721"
+      },
+      "created_at": "2025-03-29 21:18:26.972117",
+      "status": "generated"
+    },
+    {
+      "type": "hiring_manager_email",
+      "content": "Subject: Application for Position at Unknown Company\n\nDear Hiring Manager,\n\nI am excited to express my interest in the available position at your esteemed organization, Unknown Company. As a MEng IEOR Fung Scholar at Berkeley, I am well-versed in handling complex data analytics and forecasting tasks.\n\nMy experience as a Data Scientist and Machine Learning Engineer allows me to bring a robust skill set to your team, particularly in NLP, machine learning, and forecasting. Notably, I led the integration of DeepSeek RAG zero-shot classifier at VIP.com, achieving a 98% accuracy rate in predicting return responsibilities.\n\nI am confident that my expertise in Python, TensorFlow, and AWS, along with my ability to optimize operations, will be beneficial to your company. Given my track record in e-commerce analytics, I am confident I can contribute significantly to your team.\n\nI am looking forward to the possibility of discussing my application further. Please let me know of a suitable time for an interview.\n\nThank you for considering my application.\n\nBest Regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Unknown Job Title",
+        "company_name": "Unknown Company",
+        "url": "https://www.metacareers.com/jobs/572429542041302/",
+        "generated_at": "2025-03-29 21:23:02.725193"
+      },
+      "created_at": "2025-03-29 21:23:02.726338",
+      "status": "generated"
+    }
+  ]
 }

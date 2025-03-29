@@ -1,0 +1,165 @@
+{
+  "personal_info": {
+    "name": "Zikai (Kerry) Liu",
+    "email": "zikailiu@berkeley.edu",
+    "phone": "650-613-8398",
+    "linkedin": "linkedin.com/in/zikailiu",
+    "github": "github.com/kerryzl77",
+    "current_role": "MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May"
+  },
+  "resume": {
+    "summary": "Data Scientist / Machine Learning Engineer with strong skills in NLP, machine learning, and forecasting. Proven track record in e-commerce analytics, forecasting, and operational optimization.",
+    "experience": [
+      {
+        "title": "Graduate Teaching Assistant",
+        "company": "University of California, Berkeley",
+        "location": "Berkeley, US",
+        "start_date": "2025-01",
+        "end_date": "2025-05",
+        "description": "Designed and taught a graduate-level course on Natural Language Processing (include LLM Agent, Pre-trained LLM, and LLM-based applications)."
+      },
+      {
+        "title": "Data Science Intern",
+        "company": "VIP.com",
+        "location": "Singapore (Remote)",
+        "start_date": "2024-06",
+        "end_date": "2024-08",
+        "description": "Implemented multimodal RAG classifier achieving 98% accuracy, optimized PySpark notebooks reducing shipment time by 27%."
+      },
+      {
+        "title": "Business Analyst Intern",
+        "company": "Amazon",
+        "location": "London, UK",
+        "start_date": "2023-05",
+        "end_date": "2023-09",
+        "description": "Developed distributed forecasting models with 5.2% MAPE; automated data pipelines, reducing query time by 70%."
+      },
+      {
+        "title": "Data Engineer Intern",
+        "company": "Dark Matter Artificial Intelligence (DMAI)",
+        "location": "Los Angeles, US (Remote)",
+        "start_date": "2022-07",
+        "end_date": "2022-08",
+        "description": "Prepared 10GB calligraphy dataset; created ETL pipelines and ensured data quality, reducing errors by 20%."
+      },
+      {
+        "title": "Intern",
+        "company": "SCOR Ventures",
+        "location": "London, UK (Hybrid)",
+        "start_date": "2021-10",
+        "end_date": "2022-06",
+        "description": "Built VBA-driven valuation models using 10,000+ data points; visualized insights in Tableau."
+      }
+    ],
+    "education": [
+      {
+        "degree": "Master of Engineering in Industrial Engineering & Operational Research",
+        "institution": "University of California, Berkeley",
+        "location": "Berkeley, US",
+        "graduation_date": "2025-05"
+      },
+      {
+        "degree": "Master of Arts (Honours) in Mathematics",
+        "institution": "University of St Andrews",
+        "location": "St Andrews, UK",
+        "graduation_date": "2024-06"
+      }
+    ],
+    "skills": [
+      "Python",
+      "PyTorch",
+      "TensorFlow",
+      "HuggingFace",
+      "AWS (SageMaker, EC2, Lambda)",
+      "Java",
+      "C++",
+      "CUDA",
+      "Docker",
+      "SQL",
+      "Git",
+      "Spark",
+      "VBA",
+      "Power BI",
+      "Julia",
+      "RESTful APIs"
+    ]
+  },
+  "story_bank": [
+    {
+      "title": "VIP.com Return Classification Success",
+      "content": "Successfully led the integration of DeepSeek RAG zero-shot classifier at VIP.com, achieving human-level accuracy (98%) in predicting return responsibilities using multimodal embeddings and FAISS."
+    },
+    {
+      "title": "Amazon Forecasting Optimization",
+      "content": "Engineered a distributed LightGBM forecasting model on AWS SageMaker, significantly improving forecasting accuracy (5.2% MAPE) and database integration for informed demand planning decisions."
+    },
+    {
+      "title": "Automated Data Pipeline",
+      "content": "At Amazon, developed an automated AWS EC2 data pipeline, reducing daily reporting query time by 70% and enhancing decision-making efficiency for over 100 stakeholders."
+    }
+  ],
+  "templates": {
+    "linkedin_messages": [
+      {
+        "title": "General Connection",
+        "template": "Hi {{name}}, I noticed your work at {{company}} and was impressed by {{specific_detail}}. I'd love to connect and learn more about your experience in {{industry}}."
+      }
+    ],
+    "connection_emails": [
+      {
+        "title": "Mutual Connection Intro",
+        "template": "Hi {{name}},\n\nI'm {{your_name}}, currently an MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May. With over 3 years in data science and ML, including roles at Amazon and expertise in Spark, LLM, and NLP, I was excited to find the {{position}} at {{company}}.\n\nI'd greatly appreciate your insights about the team or any advice or referrals you might offer regarding the position. Thanks so much, and have a great day!\n\nBest,\n{{your_name}}\nLinkedIn"
+      }
+    ],
+    "hiring_manager_emails": [
+      {
+        "title": "Job Application Follow-up",
+        "template": "Hi {{name}},\n\nI'm {{your_name}}, currently an MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May. I've recently applied for the {{position}} at {{company}} and am particularly excited about this role. My experience with forecasting models at Amazon, NLP teaching, and PySpark-based RAG solutions at VIP.com aligns closely with the job requirements.\n\nI'd greatly appreciate the opportunity to discuss how my skills might fit with your team's needs. Thanks so much for your time.\n\nBest regards,\n{{your_name}}\nLinkedIn"
+      }
+    ],
+    "cover_letters": [
+      {
+        "title": "Standard Cover Letter",
+        "template": "Hi {{hiring_manager_name}},\n\nI'm {{your_name}}, currently an MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May. With over 3 years of hands-on data science and ML experience, including developing forecasting models at Amazon London and building RAG solutions using PySpark at VIP.com, I'm excited to apply for the {{position}} at {{company}}.\n\nMy recent work on multimodal classification achieving 98% accuracy and my research into job categorization using large language models closely align with the analytical rigor and innovation your team emphasizes. My teaching experience in graduate NLP courses further demonstrates my ability to effectively communicate complex solutions.\n\nI'd love the opportunity to discuss further how my background and passion align with your team's objectives at {{company}}. Thank you so much for your consideration.\n\nBest,\n{{your_name}}\nLinkedIn"
+      }
+    ]
+  },
+  "generated_content": [
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Machine Learning Engineer, AGIF position at Amazon.com Services LLC. As a soon-to-be graduate from UC Berkeley with a Master's degree in Industrial Engineering & Operational Research, I bring a strong foundation in software development, machine learning techniques, and a track record of successful project delivery.\n\nOne of my key achievements was successfully leading the integration of the DeepSeek RAG zero-shot classifier during my internship at VIP.com. This complex project involved utilizing Python, PyTorch, and HuggingFace, along with multimodal embeddings and FAISS. The result was a prediction model with human-level accuracy of 98% for return responsibilities. I believe this experience, coupled with my expertise in software development, aligns well with your requirement for a professional with solid software development and design architecture experience.\n\nAnother project I'm particularly proud of was the creation of a distributed LightGBM forecasting model on AWS SageMaker. This model improved forecasting accuracy to a 5.2% MAPE, providing VIP.com with a robust tool for informed demand planning decisions. This project not only honed my skills in working with AWS services but also underlined the value I can bring to Amazon in terms of building, testing, and maintaining key tooling for model evaluation.\n\nAs a passionate engineer and scientist, I am excited about the opportunity to work with a team dedicated to pushing the boundaries of innovation. I am particularly drawn to Amazon's commitment to representing the customer perspective through accurate benchmarking and believe that my experiences and passion for machine learning make me a strong candidate for this role.\n\nIn closing, I am excited about the prospect of bringing my unique blend of skills and experiences to Amazon.com Services LLC. I am confident that my background in software development, machine learning, and project management will be of great value to your team. I look forward to the possibility of discussing this exciting opportunity further.\n\nThank you for considering my application.\n\nBest Regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Machine Learning Engineer, AGIF",
+        "company_name": "Amazon.com Services LLC",
+        "url": "",
+        "generated_at": "2025-03-29 18:43:52.711944"
+      },
+      "created_at": "2025-03-29 18:43:52.712449",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI'm writing to express my interest in the Unknown Job Title position at Meta. As a soon-to-be graduate of the Master of Engineering in Industrial Engineering & Operational Research program at UC Berkeley, I've honed my analytical skills and developed a deep understanding of data-driven decision making. My experience as a Data Science Intern at VIP.com further showcases my ability to leverage large datasets to solve complex problems and drive product strategy.\n\nAt VIP.com, I led the integration of DeepSeek RAG zero-shot classifier, where I used multimodal embeddings and FAISS to achieve an impressive 98% human-level accuracy in predicting return responsibilities. This successful project demonstrates my proficiency in Python, TensorFlow, and PyTorch, which aligns with the technical expertise your role requires.\n\nI also engineered a distributed LightGBM forecasting model on AWS SageMaker during my tenure at VIP.com. This project significantly improved forecasting accuracy to a 5.2% MAPE, demonstrating my ability to understand ecosystems, user behaviors, and long-term product trends. With my proficiency in SQL and my strong understanding of statistical/mathematical software like R, I am confident in my ability to handle Meta's large and complex datasets.\n\nMy interest in Meta extends beyond the role's requirements. I am drawn to Meta's vision of moving beyond 2D screens towards immersive experiences like augmented and virtual reality. I am excited at the prospect of using my skills to contribute to this next evolution in social technology.\n\nIn closing, I believe the Unknown Job Title position at Meta is a perfect match for my qualifications. I am excited about the opportunity to apply my skills and experiences to contribute to Meta's mission. I look forward to the possibility of discussing my application with you further.\n\nThank you for considering my application.\n\nBest Regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Unknown Job Title",
+        "company_name": "Meta",
+        "url": "",
+        "generated_at": "2025-03-29 18:54:33.965788"
+      },
+      "created_at": "2025-03-29 18:54:33.966543",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Data Scientist, Product Analytics position at a Scientist. As a Master of Engineering graduate with a specialization in Industrial Engineering & Operational Research, I'm excited about the opportunity to apply my skills in your dynamic environment. \n\nMy experience as a Data Science Intern at VIP.com has equipped me with a deep understanding of data analytics, as well as the technical skills required for this role. I successfully led the integration of the DeepSeek RAG zero-shot classifier, achieving human-level accuracy (98%) in predicting return responsibilities. This project demanded a keen understanding of data mining and analytical problem-solving. \n\nFurther, my experience in developing a distributed LightGBM forecasting model on AWS SageMaker at VIP.com, which improved accuracy by 5.2%, demonstrates my capacity for using quantitative approaches to understand long-term product trends. This aligns directly with your need for a professional who can identify and measure the success of product efforts through goal setting and monitoring of key product metrics.\n\nIn addition to my work experience, I bring a robust technical toolkit. My proficiency in Python, SQL, TensorFlow, and other scripting languages aligns with your job requirements. Moreover, my ability to use these tools to generate actionable insights and drive data-driven projects from definition to execution is a testament to my readiness for this role.\n\nI am drawn to a Scientist because of your commitment to using data to solve complex problems and inform strategy decisions. I am excited about the prospect of working with your cross-functional teams to leverage data in creating innovative solutions. \n\nIn conclusion, I am confident that my strong technical abilities, coupled with my passion for analytics and proven track record, make me a compelling candidate for this role. I am eager to contribute to your team and look forward to the possibility of discussing my application with you further.\n\nThank you for considering my application.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Data Scientist, Product Analytics",
+        "company_name": "a Scientist",
+        "url": "",
+        "generated_at": "2025-03-29 18:55:45.711208"
+      },
+      "created_at": "2025-03-29 18:55:45.712493",
+      "status": "generated"
+    }
+  ]
+}

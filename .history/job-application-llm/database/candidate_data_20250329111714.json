@@ -1,0 +1,128 @@
+{
+  "personal_info": {
+    "name": "Zikai (Kerry) Liu",
+    "email": "zikailiu@berkeley.edu",
+    "phone": "650-613-8398",
+    "linkedin": "linkedin.com/in/zikailiu",
+    "github": "github.com/kerryzl77",
+    "current_role": "MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May"
+  },
+  "resume": {
+    "summary": "Data Scientist / Machine Learning Engineer with strong skills in NLP, machine learning, and forecasting. Proven track record in e-commerce analytics, forecasting, and operational optimization.",
+    "experience": [
+      {
+        "title": "Graduate Teaching Assistant",
+        "company": "University of California, Berkeley",
+        "location": "Berkeley, US",
+        "start_date": "2025-01",
+        "end_date": "2025-05",
+        "description": "Designed and taught a graduate-level course on Natural Language Processing (include LLM Agent, Pre-trained LLM, and LLM-based applications)."
+      },
+      {
+        "title": "Data Science Intern",
+        "company": "VIP.com",
+        "location": "Singapore (Remote)",
+        "start_date": "2024-06",
+        "end_date": "2024-08",
+        "description": "Implemented multimodal RAG classifier achieving 98% accuracy, optimized PySpark notebooks reducing shipment time by 27%."
+      },
+      {
+        "title": "Business Analyst Intern",
+        "company": "Amazon",
+        "location": "London, UK",
+        "start_date": "2023-05",
+        "end_date": "2023-09",
+        "description": "Developed distributed forecasting models with 5.2% MAPE; automated data pipelines, reducing query time by 70%."
+      },
+      {
+        "title": "Data Engineer Intern",
+        "company": "Dark Matter Artificial Intelligence (DMAI)",
+        "location": "Los Angeles, US (Remote)",
+        "start_date": "2022-07",
+        "end_date": "2022-08",
+        "description": "Prepared 10GB calligraphy dataset; created ETL pipelines and ensured data quality, reducing errors by 20%."
+      },
+      {
+        "title": "Intern",
+        "company": "SCOR Ventures",
+        "location": "London, UK (Hybrid)",
+        "start_date": "2021-10",
+        "end_date": "2022-06",
+        "description": "Built VBA-driven valuation models using 10,000+ data points; visualized insights in Tableau."
+      }
+    ],
+    "education": [
+      {
+        "degree": "Master of Engineering in Industrial Engineering & Operational Research",
+        "institution": "University of California, Berkeley",
+        "location": "Berkeley, US",
+        "graduation_date": "2025-05"
+      },
+      {
+        "degree": "Master of Arts (Honours) in Mathematics",
+        "institution": "University of St Andrews",
+        "location": "St Andrews, UK",
+        "graduation_date": "2024-06"
+      }
+    ],
+    "skills": [
+      "Python",
+      "PyTorch",
+      "TensorFlow",
+      "HuggingFace",
+      "AWS (SageMaker, EC2, Lambda)",
+      "Java",
+      "C++",
+      "CUDA",
+      "Docker",
+      "SQL",
+      "Git",
+      "Spark",
+      "VBA",
+      "Power BI",
+      "Julia",
+      "RESTful APIs"
+    ]
+  },
+  "story_bank": [
+    {
+      "title": "VIP.com Return Classification Success",
+      "content": "Successfully led the integration of DeepSeek RAG zero-shot classifier at VIP.com, achieving human-level accuracy (98%) in predicting return responsibilities using multimodal embeddings and FAISS."
+    },
+    {
+      "title": "Amazon Forecasting Optimization",
+      "content": "Engineered a distributed LightGBM forecasting model on AWS SageMaker, significantly improving forecasting accuracy (5.2% MAPE) and database integration for informed demand planning decisions."
+    },
+    {
+      "title": "Automated Data Pipeline",
+      "content": "At Amazon, developed an automated AWS EC2 data pipeline, reducing daily reporting query time by 70% and enhancing decision-making efficiency for over 100 stakeholders."
+    }
+  ],
+  "templates": {
+    "linkedin_messages": [
+      {
+        "title": "General Connection",
+        "template": "Hi {{name}}, I noticed your work at {{company}} and was impressed by {{specific_detail}}. I'd love to connect and learn more about your experience in {{industry}}."
+      }
+    ],
+    "connection_emails": [
+      {
+        "title": "Mutual Connection Intro",
+        "template": "Hi {{name}},\n\nI'm {{your_name}}, currently an MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May. With over 3 years in data science and ML, including roles at Amazon and expertise in Spark, LLM, and NLP, I was excited to find the {{position}} at {{company}}.\n\nI'd greatly appreciate your insights about the team or any advice or referrals you might offer regarding the position. Thanks so much, and have a great day!\n\nBest,\n{{your_name}}\nLinkedIn"
+      }
+    ],
+    "hiring_manager_emails": [
+      {
+        "title": "Job Application Follow-up",
+        "template": "Hi {{name}},\n\nI'm {{your_name}}, currently an MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May. I've recently applied for the {{position}} at {{company}} and am particularly excited about this role. My experience with forecasting models at Amazon, NLP teaching, and PySpark-based RAG solutions at VIP.com aligns closely with the job requirements.\n\nI'd greatly appreciate the opportunity to discuss how my skills might fit with your team's needs. Thanks so much for your time.\n\nBest regards,\n{{your_name}}\nLinkedIn"
+      }
+    ],
+    "cover_letters": [
+      {
+        "title": "Standard Cover Letter",
+        "template": "Hi {{hiring_manager_name}},\n\nI'm {{your_name}}, currently an MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May. With over 3 years of hands-on data science and ML experience, including developing forecasting models at Amazon London and building RAG solutions using PySpark at VIP.com, I'm excited to apply for the {{position}} at {{company}}.\n\nMy recent work on multimodal classification achieving 98% accuracy and my research into job categorization using large language models closely align with the analytical rigor and innovation your team emphasizes. My teaching experience in graduate NLP courses further demonstrates my ability to effectively communicate complex solutions.\n\nI'd love the opportunity to discuss further how my background and passion align with your team's objectives at {{company}}. Thank you so much for your consideration.\n\nBest,\n{{your_name}}\nLinkedIn"
+      }
+    ]
+  },
+  "generated_content": []
+}
