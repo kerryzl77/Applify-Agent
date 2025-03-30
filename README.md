@@ -2,10 +2,7 @@
 
 A tool to automate the creation of tailored job application materials using LLMs.
 
-<video width="640" height="360" controls>
-  <source src="./videos/Applify-Demo-V1 1.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[![Watch the video](https://raw.githubusercontent.com/kerryzl77/Applify-Agent/main/videos/thumbnail.jpg)](https://raw.githubusercontent.com/kerryzl77/Applify-Agent/main/videos/Applify-Demo-V1%201.mp4)
 
 
 ## Features
