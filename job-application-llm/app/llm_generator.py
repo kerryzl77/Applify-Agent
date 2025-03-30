@@ -10,14 +10,14 @@ class LLMGenerator:
         # Initialize OpenAI client with API key from environment variable
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
-    def generate_linkedin_message(self, job_data, candidate_data):
+    def generate_linkedin_message(self, job_data, candidate_data, profile_data=None):
         """Generate a LinkedIn connection message (200 characters max)."""
-        prompt = self._build_linkedin_message_prompt(job_data, candidate_data)
+        prompt = self._build_linkedin_message_prompt(job_data, candidate_data, profile_data)
         return self._generate_text(prompt, max_tokens=100)  # ~200 characters
     
-    def generate_connection_email(self, job_data, candidate_data):
+    def generate_connection_email(self, job_data, candidate_data, profile_data=None):
         """Generate a connection email (200 words max)."""
-        prompt = self._build_connection_email_prompt(job_data, candidate_data)
+        prompt = self._build_connection_email_prompt(job_data, candidate_data, profile_data)
         return self._generate_text(prompt, max_tokens=300)  # ~200 words
     
     def generate_hiring_manager_email(self, job_data, candidate_data):
@@ -46,66 +46,130 @@ class LLMGenerator:
         except Exception as e:
             return f"Error generating text: {str(e)}"
     
-    def _build_linkedin_message_prompt(self, job_data, candidate_data):
+    def _build_linkedin_message_prompt(self, job_data, candidate_data, profile_data=None):
         """Build prompt for LinkedIn connection message."""
         # Get values with defaults for missing keys
         company_name = job_data.get('company_name', 'the company')
         job_title = job_data.get('job_title', 'the position')
-        current_role = candidate_data['personal_info'].get('current_role', 
-            f"{candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}" 
-            if candidate_data['resume']['experience'] else "Current Student")
+        recipient_name = profile_data.get('name', '') if profile_data else ''
+        recipient_title = profile_data.get('title', '') if profile_data else ''
+        recipient_company = profile_data.get('company', '') if profile_data else ''
+        
+        # Get candidate's current role
+        current_role = f"MEng IEOR Fung Scholar at Berkeley"
         
         return f"""
-        Create a LinkedIn connection message from {candidate_data['personal_info']['name']} to someone at {company_name}.
+        Create a LinkedIn connection message from {candidate_data['personal_info']['name']} to {recipient_name} at {recipient_company}.
         
-        About the job:
-        - Title: {job_title}
-        - Company: {company_name}
+        About the recipient:
+        - Name: {recipient_name}
+        - Title: {recipient_title}
+        - Company: {recipient_company}
         
         About the candidate:
         - Current role: {current_role}
         - Key skills: {', '.join(candidate_data['resume']['skills'][:5])}
         
         The message should:
-        - Be personalized and specific to the job/company
-        - Show genuine interest
-        - Be concise and professional
+        - Start with "Hi [Name]"
+        - Introduce yourself as Kerry, current MEng IEOR at Berkeley
+        - Express interest in their specific role/work at their company
+        - Be concise and friendly
         - Be MAXIMUM 200 CHARACTERS (this is critical)
         - Not include salutations or signatures
+        - Follow the format of these examples:
+          "Hi Shae, I am Kerry, current MEng IEOR at Berkeley. Would love to connect and learn more about your Data Engineer work at Salesforce. Have a great day!"
+          "Hi Matthew - I am Kerry current MEng at Cal. Would love to connect and learn more Data Scientist / Analytics work & opportunity at RAPP."
+          "Hi Juntao, I am Kerry - current MEng IEOR at Cal. Would love to connect and learn about your AI product work at OpusClip!"
         
         Write only the message content.
         """
     
-    def _build_connection_email_prompt(self, job_data, candidate_data):
+    def _build_connection_email_prompt(self, job_data, candidate_data, profile_data=None):
         """Build prompt for connection email."""
         # Get values with defaults for missing keys
         company_name = job_data.get('company_name', 'the company')
         job_title = job_data.get('job_title', 'the position')
-        job_description = job_data.get('job_description', 'The job involves working with data and technology.')
-        current_role = candidate_data['personal_info'].get('current_role',
-            f"{candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}"
-            if candidate_data['resume']['experience'] else "Current Student")
+        recipient_name = profile_data.get('name', '') if profile_data else ''
+        recipient_title = profile_data.get('title', '') if profile_data else ''
+        recipient_company = profile_data.get('company', '') if profile_data else ''
+        recipient_about = profile_data.get('about', '') if profile_data else ''
+        
+        # Get candidate's experience summary
+        experience_summary = candidate_data['resume']['summary']
+        key_skills = ', '.join(candidate_data['resume']['skills'])
+        
+        # Get most relevant experience
+        relevant_experience = []
+        for exp in candidate_data['resume']['experience'][:2]:  # Get top 2 experiences
+            relevant_experience.append(f"{exp['title']} at {exp['company']}")
+        
+        # Find commonalities between candidate and recipient
+        commonalities = []
+        if profile_data:
+            # Check for common skills
+            recipient_skills = set(profile_data.get('skills', []))
+            candidate_skills = set(candidate_data['resume']['skills'])
+            common_skills = recipient_skills.intersection(candidate_skills)
+            if common_skills:
+                commonalities.append(f"shared skills in {', '.join(list(common_skills)[:3])}")
+            
+            # Check for common education
+            recipient_education = profile_data.get('education', [])
+            candidate_education = candidate_data['resume']['education']
+            for rec_edu in recipient_education:
+                for cand_edu in candidate_education:
+                    if rec_edu.get('school') == cand_edu.get('institution'):
+                        commonalities.append(f"alumni of {rec_edu['school']}")
+                        break
+            
+            # Check for common interests
+            recipient_interests = set(profile_data.get('interests', []))
+            candidate_interests = set(candidate_data.get('interests', []))
+            common_interests = recipient_interests.intersection(candidate_interests)
+            if common_interests:
+                commonalities.append(f"shared interests in {', '.join(list(common_interests)[:2])}")
+        
+        # Build connection points
+        connection_points = []
+        if commonalities:
+            connection_points.append(f"I noticed we have {', '.join(commonalities)}")
+        
+        # Add relevant experience points
+        if profile_data and profile_data.get('experience'):
+            recipient_experience = profile_data['experience'][0]  # Get current role
+            if recipient_experience.get('company') in [exp['company'] for exp in candidate_data['resume']['experience']]:
+                connection_points.append(f"I see you're currently at {recipient_experience['company']}")
         
         return f"""
-        Create a connection email from {candidate_data['personal_info']['name']} to someone at {company_name}.
+        Create a connection email from {candidate_data['personal_info']['name']} to {recipient_name} at {recipient_company}.
         
-        About the job:
-        - Title: {job_title}
-        - Company: {company_name}
-        - Description: {job_description[:300]}...
+        About the recipient:
+        - Name: {recipient_name}
+        - Title: {recipient_title}
+        - Company: {recipient_company}
+        - About: {recipient_about}
+        - Current role: {profile_data['experience'][0]['title'] if profile_data and profile_data.get('experience') else 'Unknown'}
         
         About the candidate:
-        - Current role: {current_role}
-        - Experience: {candidate_data['resume']['summary']}
-        - Key skills: {', '.join(candidate_data['resume']['skills'][:5])}
+        - Current role: MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May
+        - Experience summary: {experience_summary}
+        - Key experiences: {', '.join(relevant_experience)}
+        - Key skills: {key_skills}
+        
+        Connection points to highlight:
+        {chr(10).join(connection_points) if connection_points else 'No specific connection points found'}
         
         The email should:
-        - Be personalized and specific to the job/company
-        - Briefly highlight relevant skills/experience
-        - Express interest in learning more about opportunities
-        - Be professional and concise
+        - Start with "Hi [Name]"
+        - Introduce yourself as Kerry Liu, MEng IEOR Fung Scholar at Berkeley
+        - Highlight relevant experience and skills that align with the recipient's role/company
+        - Use the connection points above to create a personal touch
+        - Express genuine interest in their work and company
+        - Ask for insights or advice about the role/team
+        - Be professional but friendly
+        - Include "Best, Kerry LinkedIn" as signature
         - Be MAXIMUM 200 WORDS (this is critical)
-        - Include appropriate salutation and signature
         
         Write the complete email.
         """

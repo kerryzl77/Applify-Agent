@@ -61,9 +61,30 @@ def generate_content():
     
     # Generate content based on type
     if content_type == 'linkedin_message':
-        content = llm_generator.generate_linkedin_message(job_data, candidate_data)
+        # For LinkedIn messages, we need both job data and profile data
+        if input_type == 'manual':
+            profile_data = data_retriever.parse_manual_linkedin_profile(manual_text)
+        else:
+            profile_data = data_retriever.scrape_linkedin_profile(url)
+            
+        # Check if profile data was successfully retrieved
+        if 'error' in profile_data:
+            return jsonify({'error': f"Failed to get profile data: {profile_data['error']}"}), 400
+            
+        content = llm_generator.generate_linkedin_message(job_data, candidate_data, profile_data)
     elif content_type == 'connection_email':
-        content = llm_generator.generate_connection_email(job_data, candidate_data)
+        # For connection emails, we need both job data and profile data
+        if input_type == 'manual':
+            profile_data = data_retriever.parse_manual_linkedin_profile(manual_text)
+        else:
+            profile_data = data_retriever.scrape_linkedin_profile(url)
+            
+        # Check if profile data was successfully retrieved
+        if 'error' in profile_data:
+            return jsonify({'error': f"Failed to get profile data: {profile_data['error']}"}), 400
+            
+        # Generate connection email with both job and profile data
+        content = llm_generator.generate_connection_email(job_data, candidate_data, profile_data)
     elif content_type == 'hiring_manager_email':
         content = llm_generator.generate_hiring_manager_email(job_data, candidate_data)
     elif content_type == 'cover_letter':
