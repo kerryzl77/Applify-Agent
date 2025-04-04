@@ -2,8 +2,11 @@
 
 A tool to automate the creation of tailored job application materials using LLMs.
 
-[![Watch the video](https://raw.githubusercontent.com/kerryzl77/Applify-Agent/main/videos/thumbnail.jpg)](https://raw.githubusercontent.com/kerryzl77/Applify-Agent/main/videos/Applify-Demo-V1%201.mp4)
+## Edit Your Profile Section
+![Edit Profile Demo](https://raw.githubusercontent.com/kerryzl77/Applify-Agent/main/videos/Applify-DemoV21-ezgif.com-video-to-gif-converter.gif)
 
+## Apply for Job Section
+![Apply for Job Demo](https://raw.githubusercontent.com/kerryzl77/Applify-Agent/main/videos/Applify-DemoV21-ezgif.com-video-to-gif-converter%20(1).gif)
 
 ## Features
 
