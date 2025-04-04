@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentFilePath = null;
     let candidateData = null;
     
+    // Add to the top of the file, after DOM Elements
+    const logoutButton = document.getElementById('logoutButton');
+    
     // Load candidate data
     loadCandidateData();
     
@@ -61,14 +64,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Event Listeners
+    if (logoutButton) {
+        logoutButton.addEventListener('click', handleLogout);
+    }
+    
     // Functions
-    function handleGenerate(e) {
+    async function handleGenerate(e) {
         e.preventDefault();
         
         const contentType = document.getElementById('contentType').value;
         const inputType = document.querySelector('input[name="inputType"]:checked').value;
         const jobUrl = document.getElementById('jobUrl').value;
         const manualText = document.getElementById('manualText').value;
+        const jobTitle = document.getElementById('jobTitle').value;
+        const companyName = document.getElementById('companyName').value;
         
         if (!contentType || (inputType === 'url' && !jobUrl) || (inputType === 'manual' && !manualText)) {
             showError('Please fill in all required fields.');
@@ -83,34 +93,42 @@ document.addEventListener('DOMContentLoaded', function() {
         downloadButtons.classList.add('d-none');
         
         // Make API request
-        fetch('/api/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                content_type: contentType,
-                input_type: inputType,
-                url: jobUrl,
-                manual_text: manualText
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            loadingIndicator.classList.add('d-none');
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    content_type: contentType,
+                    input_type: inputType,
+                    url: jobUrl,
+                    manual_text: manualText,
+                    job_title: jobTitle,
+                    company_name: companyName
+                })
+            });
             
-            if (data.error) {
-                showError(data.error);
+            if (response.redirected) {
+                window.location.href = response.url;
                 return;
             }
             
+            const result = await response.json();
+            if (result.error) {
+                throw new Error(result.error);
+            }
+            
+            // Hide loading indicator
+            loadingIndicator.classList.add('d-none');
+            
             // Display the generated content
-            generatedText.textContent = data.content;
+            generatedText.textContent = result.content;
             resultContent.classList.remove('d-none');
             
             // Show download buttons if file was generated
-            if (data.file_path) {
-                currentFilePath = data.file_path;
+            if (result.file_path) {
+                currentFilePath = result.file_path;
                 downloadButtons.classList.remove('d-none');
                 downloadDocxBtn.classList.remove('d-none');
                 downloadPdfBtn.classList.remove('d-none');
@@ -123,11 +141,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Update history
             loadGenerationHistory();
-        })
-        .catch(error => {
+        } catch (error) {
             loadingIndicator.classList.add('d-none');
-            showError('An error occurred: ' + error.message);
-        });
+            if (error.message === 'Unauthorized') {
+                window.location.href = '/login';
+            } else {
+                showError('Error generating content: ' + error.message);
+            }
+        }
     }
     
     function showError(message) {
@@ -162,18 +183,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function loadCandidateData() {
-        fetch('/api/candidate-data')
-            .then(response => response.json())
-            .then(data => {
-                candidateData = data;
-                updateCandidateDisplay();
-                populateProfileForm();
-                loadGenerationHistory();
-            })
-            .catch(error => {
-                console.error('Error loading candidate data:', error);
-            });
+    async function loadCandidateData() {
+        try {
+            const response = await fetch('/api/candidate-data');
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+            const data = await response.json();
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            candidateData = data;
+            updateCandidateDisplay();
+            populateProfileForm();
+            loadGenerationHistory();
+        } catch (error) {
+            console.error('Error loading candidate data:', error);
+            if (error.message === 'Unauthorized') {
+                window.location.href = '/login';
+            }
+        }
     }
     
     function updateCandidateDisplay() {
@@ -237,6 +267,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (candidateData.story_bank && candidateData.story_bank.length > 0) {
             candidateData.story_bank.forEach((story, index) => {
                 addStoryItem(null, story, index);
+            });
+        }
+        
+        // Populate templates
+        if (candidateData.templates) {
+            const templateTypes = ['connection_emails', 'cover_letters', 'hiring_manager_emails', 'linkedin_messages'];
+            templateTypes.forEach(type => {
+                if (candidateData.templates[type]) {
+                    addTemplateItem(type, candidateData.templates[type]);
+                }
             });
         }
     }
@@ -342,6 +382,37 @@ document.addEventListener('DOMContentLoaded', function() {
         container.appendChild(itemDiv);
     }
     
+    function addTemplateItem(type, data = null) {
+        const containerMap = {
+            'connection_emails': 'connectionEmailContainer',
+            'cover_letters': 'coverLetterContainer',
+            'hiring_manager_emails': 'hiringManagerEmailContainer',
+            'linkedin_messages': 'linkedinMessageContainer'
+        };
+        
+        const container = document.getElementById(containerMap[type]);
+        container.innerHTML = '';  // Clear any existing template
+        
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'template-item mb-3 border p-3 position-relative';
+        itemDiv.dataset.type = type;
+        
+        itemDiv.innerHTML = `
+            <div class="mb-2">
+                <label class="form-label">Title</label>
+                <input type="text" class="form-control" name="templates[${type}][title]" 
+                    value="${data ? data.title : ''}">
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Template Content</label>
+                <textarea class="form-control" name="templates[${type}][template]" 
+                    rows="5" placeholder="Enter template with placeholders like {{name}}, {{company}}, etc.">${data ? data.template : ''}</textarea>
+            </div>
+        `;
+        
+        container.appendChild(itemDiv);
+    }
+    
     // Make removeItem function available globally
     window.removeItem = function(element, type) {
         const itemDiv = element.parentNode;
@@ -365,7 +436,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 skills: document.getElementById('skills').value.split(',').map(s => s.trim()).filter(s => s)
             },
             story_bank: [],
-            templates: candidateData.templates,
+            templates: {
+                connection_emails: {
+                    title: "",
+                    template: ""
+                },
+                cover_letters: {
+                    title: "",
+                    template: ""
+                },
+                hiring_manager_emails: {
+                    title: "",
+                    template: ""
+                },
+                linkedin_messages: {
+                    title: "",
+                    template: ""
+                }
+            },
             generated_content: candidateData.generated_content
         };
         
@@ -406,6 +494,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 content: item.querySelector(`textarea[name="story_bank[${index}][content]"]`).value
             };
             formData.story_bank.push(story);
+        });
+        
+        // Collect template items
+        const containerMap = {
+            'connection_emails': 'connectionEmailContainer',
+            'cover_letters': 'coverLetterContainer',
+            'hiring_manager_emails': 'hiringManagerEmailContainer',
+            'linkedin_messages': 'linkedinMessageContainer'
+        };
+        
+        Object.entries(containerMap).forEach(([type, containerId]) => {
+            const container = document.getElementById(containerId);
+            if (container) {
+                const titleInput = container.querySelector(`input[name="templates[${type}][title]"]`);
+                const templateInput = container.querySelector(`textarea[name="templates[${type}][template]"]`);
+                
+                if (titleInput && templateInput) {
+                    formData.templates[type] = {
+                        title: titleInput.value,
+                        template: templateInput.value
+                    };
+                }
+            }
         });
         
         // Save to server
@@ -480,5 +591,18 @@ document.addEventListener('DOMContentLoaded', function() {
             
             historyList.appendChild(historyItem);
         });
+    }
+
+    // Add this new function
+    async function handleLogout(e) {
+        e.preventDefault();
+        try {
+            const response = await fetch('/logout');
+            if (response.redirected) {
+                window.location.href = response.url;
+            }
+        } catch (error) {
+            console.error('Error during logout:', error);
+        }
     }
 }); 

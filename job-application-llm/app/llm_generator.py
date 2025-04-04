@@ -58,6 +58,12 @@ class LLMGenerator:
         # Get candidate's current role
         current_role = f"MEng IEOR Fung Scholar at Berkeley"
         
+        # Get user's template if available
+        template_example = ""
+        if candidate_data.get('templates', {}).get('linkedin_messages', {}).get('template'):
+            template = candidate_data['templates']['linkedin_messages']
+            template_example = f"\nHere is an example template to follow:\nTitle: {template['title']}\nContent:\n{template['template']}\n"
+        
         return f"""
         Create a LinkedIn connection message from {candidate_data['personal_info']['name']} to {recipient_name} at {recipient_company}.
         
@@ -72,15 +78,12 @@ class LLMGenerator:
         
         The message should:
         - Start with "Hi [Name]"
-        - Introduce yourself as Kerry, current MEng IEOR at Berkeley
+        - Introduce yourself as {candidate_data['personal_info']['name']}, current MEng IEOR at Berkeley
         - Express interest in their specific role/work at their company
         - Be concise and friendly
         - Be MAXIMUM 200 CHARACTERS (this is critical)
         - Not include salutations or signatures
-        - Follow the format of these examples:
-          "Hi Shae, I am Kerry, current MEng IEOR at Berkeley. Would love to connect and learn more about your Data Engineer work at Salesforce. Have a great day!"
-          "Hi Matthew - I am Kerry current MEng at Cal. Would love to connect and learn more Data Scientist / Analytics work & opportunity at RAPP."
-          "Hi Juntao, I am Kerry - current MEng IEOR at Cal. Would love to connect and learn about your AI product work at OpusClip!"
+        {template_example}
         
         Write only the message content.
         """
@@ -141,6 +144,12 @@ class LLMGenerator:
             if recipient_experience.get('company') in [exp['company'] for exp in candidate_data['resume']['experience']]:
                 connection_points.append(f"I see you're currently at {recipient_experience['company']}")
         
+        # Get user's template if available
+        template_example = ""
+        if candidate_data.get('templates', {}).get('connection_emails', {}).get('template'):
+            template = candidate_data['templates']['connection_emails']
+            template_example = f"\nHere is an example template to follow:\nTitle: {template['title']}\nContent:\n{template['template']}\n"
+        
         return f"""
         Create a connection email from {candidate_data['personal_info']['name']} to {recipient_name} at {recipient_company}.
         
@@ -162,14 +171,15 @@ class LLMGenerator:
         
         The email should:
         - Start with "Hi [Name]"
-        - Introduce yourself as Kerry Liu, MEng IEOR Fung Scholar at Berkeley
+        - Introduce yourself as {candidate_data['personal_info']['name']}, MEng IEOR Fung Scholar at Berkeley
         - Highlight relevant experience and skills that align with the recipient's role/company
         - Use the connection points above to create a personal touch
         - Express genuine interest in their work and company
         - Ask for insights or advice about the role/team
         - Be professional but friendly
-        - Include "Best, Kerry LinkedIn" as signature
+        - Include "Best, [Your Name] LinkedIn" as signature
         - Be MAXIMUM 200 WORDS (this is critical)
+        {template_example}
         
         Write the complete email.
         """
@@ -184,6 +194,12 @@ class LLMGenerator:
         current_role = candidate_data['personal_info'].get('current_role',
             f"{candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}"
             if candidate_data['resume']['experience'] else "Current Student")
+        
+        # Get user's template if available
+        template_example = ""
+        if candidate_data.get('templates', {}).get('hiring_manager_emails', {}).get('template'):
+            template = candidate_data['templates']['hiring_manager_emails']
+            template_example = f"\nHere is an example template to follow:\nTitle: {template['title']}\nContent:\n{template['template']}\n"
         
         return f"""
         Create an email from {candidate_data['personal_info']['name']} to the hiring manager for the {job_title} position at {company_name}.
@@ -208,6 +224,7 @@ class LLMGenerator:
         - Include a call to action
         - Be MAXIMUM 200 WORDS (this is critical)
         - Include appropriate salutation and signature
+        {template_example}
         
         Write the complete email.
         """
@@ -223,6 +240,12 @@ class LLMGenerator:
         current_role = candidate_data['personal_info'].get('current_role',
             f"{candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}"
             if candidate_data['resume']['experience'] else "Current Student")
+        
+        # Get user's template if available
+        template_example = ""
+        if candidate_data.get('templates', {}).get('cover_letters', {}).get('template'):
+            template = candidate_data['templates']['cover_letters']
+            template_example = f"\nHere is an example template to follow:\nTitle: {template['title']}\nContent:\n{template['template']}\n"
         
         return f"""
         Create a cover letter from {candidate_data['personal_info']['name']} for the {job_title} position at {company_name}.
@@ -255,6 +278,7 @@ class LLMGenerator:
         - Have a strong closing paragraph with a call to action
         - Be MAXIMUM 350 WORDS (this is critical)
         - Be professional but show personality
+        {template_example}
         
         Write the complete cover letter.
         """

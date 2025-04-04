@@ -40,6 +40,16 @@
                                     <label class="form-check-label" for="manualInput">Manual Input</label>
                                 </div>
                             </div>
+                            <div class="mb-3">
+                                <label for="jobTitle" class="form-label">Job Title (Optional)</label>
+                                <input type="text" class="form-control" id="jobTitle" placeholder="e.g. Software Engineer">
+                                <small class="form-text text-muted">Enter the job title directly to improve accuracy</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="companyName" class="form-label">Company Name (Optional)</label>
+                                <input type="text" class="form-control" id="companyName" placeholder="e.g. Google">
+                                <small class="form-text text-muted">Enter the company name directly to improve accuracy</small>
+                            </div>
                             <div id="urlInputGroup" class="mb-3">
                                 <label for="jobUrl" class="form-label">Job Posting or LinkedIn Profile URL</label>
                                 <input type="url" class="form-control" id="jobUrl" placeholder="https://...">
@@ -130,6 +140,9 @@
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="stories-tab" data-bs-toggle="tab" data-bs-target="#stories" type="button" role="tab">Story Bank</button>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="templates-tab" data-bs-toggle="tab" data-bs-target="#templates" type="button" role="tab">Templates</button>
+                            </li>
                         </ul>
                         <div class="tab-content p-3" id="profileTabsContent">
                             <div class="tab-pane fade show active" id="personal" role="tabpanel">
@@ -183,6 +196,24 @@
                                     <!-- Story items will be added here dynamically -->
                                 </div>
                                 <button type="button" id="addStoryBtn" class="btn btn-sm btn-outline-secondary mt-2">Add Story</button>
+                            </div>
+                            <div class="tab-pane fade" id="templates" role="tabpanel">
+                                <div class="mb-3">
+                                    <label class="form-label">Connection Emails</label>
+                                    <div id="connectionEmailContainer"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Cover Letters</label>
+                                    <div id="coverLetterContainer"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Hiring Manager Emails</label>
+                                    <div id="hiringManagerEmailContainer"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">LinkedIn Messages</label>
+                                    <div id="linkedinMessageContainer"></div>
+                                </div>
                             </div>
                         </div>
                     </form>

@@ -12,7 +12,7 @@ class DataRetriever:
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
-    def scrape_job_posting(self, url):
+    def scrape_job_posting(self, url, job_title=None, company_name=None):
         """Scrape job posting details from a given URL using Jina Reader API."""
         try:
             # Prepare Jina Reader URL
@@ -43,7 +43,7 @@ class DataRetriever:
                 return {'error': "No content found in API response"}
             
             # Use GPT to extract structured information from the content
-            extracted_data = self._extract_job_data_with_gpt(text_content, url)
+            extracted_data = self._extract_job_data_with_gpt(text_content, url, job_title, company_name)
             
             # Print confirmation with key info
             print(f"Scraped job posting: {extracted_data['company_name']} - {extracted_data['job_title']} - {extracted_data['location']}")
@@ -53,8 +53,8 @@ class DataRetriever:
             print(f"Error scraping job posting: {str(e)}")
             return {'error': str(e)}
     
-    def scrape_linkedin_profile(self, url):
-        """Simplified LinkedIn profile scraper that extracts minimal information."""
+    def scrape_linkedin_profile(self, url, job_title=None, company_name=None):
+        """Scrape LinkedIn profile details from a given URL using Jina Reader API."""
         try:
             # Prepare Jina Reader URL
             jina_url = f"https://r.jina.ai/{url}"
@@ -71,33 +71,23 @@ class DataRetriever:
             # Parse the JSON response
             content_data = response.json()
             
-            # Basic response validation
+            # Check response structure
             if content_data.get('code') != 200 or 'data' not in content_data:
-                print(f"Unexpected API response structure")
+                print(f"Unexpected API response structure: {content_data}")
                 return {'error': "Unexpected API response structure"}
             
-            # Extract content
+            # Extract content from the response
             if 'content' in content_data['data']:
                 text_content = content_data['data']['content']
             else:
-                print(f"No content found in API response")
+                print(f"No content found in API response: {content_data}")
                 return {'error': "No content found in API response"}
             
-            # Get the title from the data if available
-            title = content_data['data'].get('title', 'Unknown Profile')
-            
-            # Create a minimal filtered content that's just enough for _extract_profile_data_with_gpt
-            filtered_content = f"Title: {title}\nURL Source: {url}\n"
-            filtered_content += f"Markdown Content: {text_content[:500]}\n"  # Just grab the first 500 chars
-            
-            # Use GPT to extract structured information
-            extracted_data = self._extract_profile_data_with_gpt(filtered_content, url)
+            # Use GPT to extract structured information from the content
+            extracted_data = self._extract_profile_data_with_gpt(text_content, url, job_title, company_name)
             
             # Print confirmation with key info
-            if 'name' in extracted_data and 'title' in extracted_data and 'company' in extracted_data:
-                print(f"Scraped LinkedIn profile: {extracted_data['name']} - {extracted_data['title']} at {extracted_data['company']}")
-            else:
-                print(f"Scraped LinkedIn profile with limited information")
+            print(f"Scraped LinkedIn profile: {extracted_data['name']} - {extracted_data['title']} at {extracted_data['company']}")
             
             return extracted_data
             
@@ -116,13 +106,13 @@ class DataRetriever:
                 'error': str(e)
             }
     
-    def parse_manual_job_posting(self, text):
-        """Parse job posting details from manually entered text using GPT-4o-mini."""
+    def parse_manual_job_posting(self, text, job_title=None, company_name=None):
+        """Parse job posting details from manually entered text."""
         try:
-            # Use the existing _extract_job_data_with_gpt method
-            extracted_data = self._extract_job_data_with_gpt(text, None)  # None for URL since it's manual input
+            # Use GPT to extract structured information from the content
+            extracted_data = self._extract_job_data_with_gpt(text, None, job_title, company_name)
             
-            # Print confirmation
+            # Print confirmation with key info
             print(f"Parsed job posting: {extracted_data['company_name']} - {extracted_data['job_title']}")
             
             return extracted_data
@@ -131,13 +121,13 @@ class DataRetriever:
             print(f"Error parsing manual job posting: {str(e)}")
             return {'error': str(e)}
             
-    def parse_manual_linkedin_profile(self, text):
-        """Parse LinkedIn profile details from manually entered text using GPT-4o-mini."""
+    def parse_manual_linkedin_profile(self, text, job_title=None, company_name=None):
+        """Parse LinkedIn profile details from manually entered text."""
         try:
-            # Use the existing _extract_profile_data_with_gpt method
-            extracted_data = self._extract_profile_data_with_gpt(text, None)  # None for URL since it's manual input
+            # Use GPT to extract structured information from the content
+            extracted_data = self._extract_profile_data_with_gpt(text, None, job_title, company_name)
             
-            # Print confirmation
+            # Print confirmation with key info
             print(f"Parsed LinkedIn profile: {extracted_data['name']} - {extracted_data['title']} at {extracted_data['company']}")
             
             return extracted_data
@@ -146,7 +136,7 @@ class DataRetriever:
             print(f"Error parsing manual LinkedIn profile: {str(e)}")
             return {'error': str(e)}
     
-    def _extract_job_data_with_gpt(self, content_text, url):
+    def _extract_job_data_with_gpt(self, content_text, url, job_title=None, company_name=None):
         """Use GPT to extract structured job posting data from text content."""
         try:
             # Create prompt for GPT-4o-mini
@@ -159,10 +149,15 @@ class DataRetriever:
 
             Job Posting Content:
             {content_text[:8000]}  # Limit content length to avoid token limits
-
-            Return ONLY a valid JSON object. Do not include any other text or explanation.
-            If a field is not found, use null or an empty string as appropriate.
             """
+            
+            # Add user-provided information to the prompt if available
+            if job_title:
+                prompt += f"\n\nUser-provided job title: {job_title}"
+            if company_name:
+                prompt += f"\nUser-provided company name: {company_name}"
+            
+            prompt += "\n\nReturn ONLY a valid JSON object. Do not include any other text or explanation.\nIf a field is not found, use null or an empty string as appropriate."
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -183,8 +178,8 @@ class DataRetriever:
             
             # Format the results to match existing structure
             job_data = {
-                'job_title': parsed_data.get('job_title', "Unknown Job Title"),
-                'company_name': parsed_data.get('company_name', "Unknown Company"),
+                'job_title': parsed_data.get('job_title', job_title or "Unknown Job Title"),
+                'company_name': parsed_data.get('company_name', company_name or "Unknown Company"),
                 'job_description': parsed_data.get('job_description', "No job description found"),
                 'requirements': parsed_data.get('requirements', "No specific requirements found"),
                 'location': parsed_data.get('location', "Unknown Location"),
@@ -196,8 +191,8 @@ class DataRetriever:
         except Exception as e:
             print(f"Error extracting job data with GPT: {str(e)}")
             return {
-                'job_title': "Unknown Job Title",
-                'company_name': "Unknown Company",
+                'job_title': job_title or "Unknown Job Title",
+                'company_name': company_name or "Unknown Company",
                 'job_description': "Error extracting job description",
                 'requirements': "Error extracting requirements",
                 'location': "Unknown Location",
@@ -233,7 +228,7 @@ class DataRetriever:
             # Return just the first 100 characters as a fallback
             return content[:100] + "\n(Content truncated due to processing error)"
 
-    def _extract_profile_data_with_gpt(self, content_text, url):
+    def _extract_profile_data_with_gpt(self, content_text, url, job_title=None, company_name=None):
         """Use GPT to extract structured LinkedIn profile data from text content."""
         try:
             # Create prompt for GPT-4o-mini
@@ -256,11 +251,16 @@ class DataRetriever:
             - skills: List of key skills mentioned
 
             Profile Content:
-            {content_text}
-
-            Return ONLY a valid JSON object with these fields. Do not include any other text or explanation.
-            If a field is not found, use null or an empty string as appropriate.
+            {content_text[:8000]}  # Limit content length to avoid token limits
             """
+            
+            # Add user-provided information to the prompt if available
+            if job_title:
+                prompt += f"\n\nUser-provided job title: {job_title}"
+            if company_name:
+                prompt += f"\nUser-provided company name: {company_name}"
+            
+            prompt += "\n\nReturn ONLY a valid JSON object with these fields. Do not include any other text or explanation.\nIf a field is not found, use null or an empty string as appropriate."
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -288,8 +288,8 @@ class DataRetriever:
             # Validate and format the results
             profile_data = {
                 'name': parsed_data.get('name', "Unknown Name"),
-                'title': parsed_data.get('title', "Unknown Title"),
-                'company': parsed_data.get('company', "Unknown Company"),
+                'title': parsed_data.get('title', job_title or "Unknown Title"),
+                'company': parsed_data.get('company', company_name or "Unknown Company"),
                 'location': parsed_data.get('location', "Unknown Location"),
                 'about': parsed_data.get('about', ""),
                 'experience': parsed_data.get('experience', []),
@@ -304,8 +304,8 @@ class DataRetriever:
             print(f"Error extracting profile data with GPT: {str(e)}")
             return {
                 'name': "Unknown Name",
-                'title': "Unknown Title",
-                'company': "Unknown Company",
+                'title': job_title or "Unknown Title",
+                'company': company_name or "Unknown Company",
                 'location': "Unknown Location",
                 'about': "",
                 'experience': [],

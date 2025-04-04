@@ -941,6 +941,102 @@
       },
       "created_at": "2025-03-30 20:54:29.570919",
       "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Data Scientist, Product Analytics role at Meta, as advertised. As a Master of Engineering graduate in Industrial Engineering & Operational Research from the University of California, Berkeley, with a proven track record in e-commerce analytics, I believe I can bring a unique blend of technical skills, analytical mindset, and product intuition to Meta.\n\nAt VIP.com, my work as a data science intern gave me hands-on experience in analytics and data querying. A key achievement during my tenure was leading the integration of the DeepSeek RAG zero-shot classifier, where I successfully achieved human-level accuracy (98%) in predicting return responsibilities. This was made possible through my proficiency in Python, PyTorch, TensorFlow, and HuggingFace, which are essential tools in your job requirements.\n\nFurthermore, my experience in operational optimization was honed when I engineered a distributed LightGBM forecasting model on AWS SageMaker. This initiative significantly improved forecasting accuracy to a 5.2% MAPE, thereby enhancing database integration for informed demand planning decisions. This achievement underscored my ability to solve analytical problems using quantitative approaches, a skill that is critical for the Data Scientist role at Meta.\n\nI am drawn to this role at Meta because of the opportunity to collaborate with cross-functional teams to influence product strategy with data. I am eager to apply my skills to help shape the future of products that impact billions of people and hundreds of millions of businesses. \n\nIn conclusion, I am confident that my technical abilities, coupled with my passion for leveraging data to influence product strategy, align perfectly with the requirements of the Data Scientist role at Meta. I would greatly appreciate the opportunity to further discuss how my background and skills would make me a strong fit for your team.\n\nThank you for considering my application. I look forward to the possibility of contributing to Meta.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Data Scientist, Product Analytics",
+        "company_name": "Meta",
+        "url": "",
+        "generated_at": "2025-04-03 00:13:49.260431"
+      },
+      "created_at": "2025-04-03 00:13:49.262080",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Data Scientist, Product Analytics position at Meta. With a Master's degree in Industrial Engineering & Operational Research from the University of California, Berkeley, and a background in data science and machine learning, I am confident that I can bring technical expertise, analytical rigor, and innovative problem-solving skills to your team.\n\nMy experience at VIP.com as a Data Science Intern equipped me with hands-on experience in analytics, data querying languages, and statistical software. I successfully led the integration of the DeepSeek RAG zero-shot classifier, achieving 98% accuracy in predicting return responsibilities. This project required a strong command of Python and TensorFlow, which are among the key technical skills required for your role.\n\nIn my current role as a Graduate Teaching Assistant at UC Berkeley, I have been honing my skills in Python, SQL, and various machine learning frameworks by teaching and mentoring undergraduate students. I engineered a distributed LightGBM forecasting model on AWS SageMaker, enhancing forecasting accuracy to a 5.2% MAPE. This project demonstrates my ability to leverage quantitative approaches to solve analytical problems, a skill that is essential for the Data Scientist role at Meta.\n\nWhat draws me to Meta is the opportunity to apply my skills to shape the future of people-facing and business-facing products. I am excited by the possibility of collaborating with cross-functional partners to influence product strategy with data. I believe in Meta\u2019s mission to bring the world closer together, and I am eager to contribute my expertise in data science and machine learning towards this goal.\n\nIn conclusion, I am confident that my technical skills, analytical mindset, and product intuition make me a strong candidate for the Data Scientist, Product Analytics role at Meta. I am eager to contribute to your team and help shape Meta's product strategy with data. I look forward to the possibility of discussing my application further.\n\nThank you for considering my application.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Data Scientist, Product Analytics",
+        "company_name": "Meta",
+        "url": "",
+        "generated_at": "2025-04-03 00:40:13.982047"
+      },
+      "created_at": "2025-04-03 00:40:13.983661",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI wish to express my sincere interest in applying for the position at your esteemed organization. As a Data Scientist and Machine Learning Engineer with a Master's degree in Industrial Engineering & Operational Research from the University of California, Berkeley, I have honed my skills in a variety of technical areas, making me a versatile and adaptable asset to any team.\n\nOne of the key qualifications I bring to the table is my extensive experience in e-commerce analytics and forecasting. During my tenure as a Data Science Intern at VIP.com, I successfully integrated the DeepSeek RAG zero-shot classifier, achieving a human-level accuracy of 98% in predicting return responsibilities. This accomplishment was made possible through my proficiency in Python, PyTorch, TensorFlow, and HuggingFace, which I believe would be invaluable in the role I am applying for.\n\nIn addition to this, I have demonstrated capability in operational optimization. As a Graduate Teaching Assistant at UC Berkeley, I engineered a distributed LightGBM forecasting model on AWS SageMaker, significantly improving forecasting accuracy to a 5.2% MAPE. This initiative led to more informed demand planning decisions, highlighting my ability to leverage my technical skills to drive strategic business outcomes.\n\nMy interest in your organization lies in the alignment of my skills and experiences with the core values and objectives of your company. I am particularly excited about the opportunity to contribute to the growth and success of your team, and I am confident that my unique blend of skills and experiences would make me a strong fit for the position.\n\nIn closing, I am eager to bring my strong problem-solving skills, commitment to excellence, and passion for data science to your organization. I look forward to the possibility of discussing my application with you further. Please feel free to contact me at your earliest convenience to arrange a meeting.\n\nThank you for considering my application.\n\nBest Regards,\nZikai (Kerry) Liu\n650-613-8398\nzikailiu@berkeley.edu",
+      "metadata": {
+        "job_title": null,
+        "company_name": null,
+        "url": "https://wellfound.com/company/quantifind",
+        "generated_at": "2025-04-03 01:43:44.703391"
+      },
+      "created_at": "2025-04-03 01:43:44.705091",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the position at your esteemed company. With a Master's degree in Engineering from UC Berkeley and experience as a Data Scientist, I am confident that I possess the required skills and experience to make a significant contribution to your team.\n\nIn my current role as a Graduate Teaching Assistant at UC Berkeley, I have honed my skills in Python, PyTorch, TensorFlow, and other key machine learning technologies, demonstrating my ability to apply these skills in an educational setting. Prior to this, as a Data Science Intern at VIP.com, I led the successful integration of the DeepSeek RAG zero-shot classifier, achieving a 98% accuracy rate. This was a remarkable accomplishment that underscores my technical competence and leadership skills.\n\nFurthermore, I engineered a distributed LightGBM forecasting model on AWS SageMaker during my stint at VIP.com. This substantially improved forecasting accuracy by 5.2% MAPE, streamlining the decision-making process for demand planning. My experience in operational optimization and e-commerce analytics, coupled with a strong foundation in machine learning and NLP, aligns perfectly with the role's requirements.\n\nI am particularly drawn to your company because of its reputation for innovation and excellence. I am eager to bring my unique blend of skills and experience to your team, and I am confident that I can contribute to the ongoing success and growth of your company.\n\nIn closing, I am excited about the prospect of becoming a part of your team and would welcome the opportunity to discuss how my background, skills, and drive for results can meet your needs. Please feel free to contact me at your earliest convenience. Thank you for considering my application.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": null,
+        "company_name": null,
+        "url": "https://wellfound.com/jobs/3124887-associate-data-scientist",
+        "generated_at": "2025-04-03 01:44:51.883755"
+      },
+      "created_at": "2025-04-03 01:44:51.885748",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Associate Data Scientist position at Quantifind. As a data science enthusiast with a Master of Engineering degree in Industrial Engineering & Operational Research from University of California, Berkeley and hands-on experience in e-commerce analytics, I am confident in my ability to contribute effectively to your team.\n\nIn my current role as a Graduate Teaching Assistant at UC Berkeley, I've honed my skills in Python, TensorFlow, AWS, and other key data science tools. In my previous role as a Data Science Intern at VIP.com, I led the successful integration of the DeepSeek RAG zero-shot classifier, achieving human-level accuracy (98%) in predicting return responsibilities. This project not only showcased my strong skills in machine learning and NLP but also highlighted my ability to collaborate and lead.\n\nMy experience at VIP.com also included the engineering of a distributed LightGBM forecasting model on AWS SageMaker. This significantly improved forecasting accuracy to a 5.2% MAPE and enhanced database integration for informed demand planning decisions. I believe my track record in improving operational efficiency through data-driven insights would be valuable to Quantifind.\n\nWhat particularly attracts me to Quantifind is the opportunity to apply data science in a strategic context. I have a deep interest in using data to drive business decisions and strategy, and Quantifind's data-driven approach resonates with me.\n\nIn closing, I am excited about the possibility of bringing my unique blend of skills and experience to the Quantifind team. I am confident in my ability to deliver innovative solutions and look forward to the opportunity to discuss how I can contribute to your company's success.\n\nThank you for considering my application. I look forward to the possibility of discussing this exciting opportunity with you.\n\nSincerely,\nZikai (Kerry) Liu\n650-613-8398\nzikailiu@berkeley.edu",
+      "metadata": {
+        "job_title": "Associate Data Scientist",
+        "company_name": "Quantifind",
+        "url": "https://wellfound.com/jobs/3124887-associate-data-scientist",
+        "generated_at": "2025-04-03 01:45:25.777914"
+      },
+      "created_at": "2025-04-03 01:45:25.779668",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Associate Data Scientist position at Quantifind. As a professional with a Master's in Engineering focusing on Industrial Engineering & Operational Research from UC Berkeley and a track record of success in e-commerce analytics and forecasting, I am confident in my ability to contribute meaningfully to your team.\n\nMy experience as a Data Science Intern at VIP.com allowed me to develop a strong foundation in applying machine learning and NLP techniques to real-world problems. I spearheaded the integration of the DeepSeek RAG zero-shot classifier, achieving a near-perfect accuracy of 98% in predicting return responsibilities. This project not only honed my skills in Python, PyTorch, and TensorFlow, but also demonstrated my ability to lead and execute complex projects.\n\nMoreover, my technical proficiency extends to my strong programming skills in Java, C++, and SQL, which I understand are key to the role. At UC Berkeley, as a Graduate Teaching Assistant, I've had the opportunity to not only deepen my understanding of these languages but also to teach them, further cementing my knowledge.\n\nIn your role, the ability to create predictive models and make data-driven decisions is critical. In my previous role, I engineered a distributed LightGBM forecasting model on AWS SageMaker that significantly improved forecasting accuracy to a 5.2% MAPE. This experience will be invaluable in helping Quantifind identify financial crimes.\n\nI am particularly drawn to Quantifind because of your commitment to leveraging data to solve business challenges. I share this passion and am excited about the opportunity to apply my expertise in machine learning and analytics to help Quantifind's clients detect and prevent financial crimes.\n\nThank you for considering my application. I am eager to further discuss how my background and skills would make me a strong fit for your team. I look forward to the possibility of contributing to Quantifind.\n\nBest regards,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Associate Data Scientist",
+        "company_name": "Quantifind",
+        "url": "https://wellfound.com/jobs/3124887-associate-data-scientist",
+        "generated_at": "2025-04-03 01:46:27.109640"
+      },
+      "created_at": "2025-04-03 01:46:27.111640",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am thrilled to apply for the Data Science Intern position at Faire, as advertised. Currently, I am a Graduate Teaching Assistant at the University of California, Berkeley, pursuing a Master's in Industrial Engineering & Operational Research. My academic focus, coupled with my practical experience, aligns with the requirements you seek. Your team's commitment to creating models that foster customer success resonates with me, and I am eager to contribute.\n\nMy previous role as a Data Science Intern at VIP.com provided me with a rich understanding of e-commerce analytics and operational optimization. I spearheaded the integration of DeepSeek RAG zero-shot classifier, achieving an impressive 98% accuracy in predicting return responsibilities. This experience honed my skills in Python, sklearn, numpy, and pandas, which are crucial for this role.\n\nWhile at the University of California, Berkeley, I utilized my knowledge in machine learning techniques and statistical methodologies to engineer a distributed LightGBM forecasting model on AWS SageMaker. This project significantly improved forecasting accuracy (5.2% MAPE), facilitating informed demand planning decisions. I am confident that these hands-on experiences with real datasets will be valuable in delivering data-driven solutions at Faire.\n\nBeyond my technical skills, I have a strong track record in developing end-to-end Data Science projects. My academic papers have been well-received, showcasing my ability to communicate complex data in an accessible way\u2014an essential skill when collaborating with diverse teams.\n\nFaire's mission to empower local retailers and level the playing field in the marketplace is inspiring. I am particularly attracted to the innovative ways your Data Science team uses machine learning models to help customers thrive. I am excited about the possibility of bringing my passion for data and problem-solving to your dynamic team.\n\nI welcome the opportunity to further discuss how my skills and experiences align with the goals of your Data Science team. Thank you for considering my application. I look forward to the possibility of contributing to Faire's continued success.\n\nSincerely,\nZikai (Kerry) Liu",
+      "metadata": {
+        "job_title": "Data Science Intern",
+        "company_name": "Faire",
+        "url": "https://wellfound.com/jobs/3124887-associate-data-scientist",
+        "generated_at": "2025-04-03 01:56:07.777601"
+      },
+      "created_at": "2025-04-03 01:56:07.779142",
+      "status": "generated"
+    },
+    {
+      "type": "cover_letter",
+      "content": "Dear Hiring Manager,\n\nI am writing to express my interest in the Data Scientist position at Sia Partners, as posted. As a Data Scientist with a Master's degree in Industrial Engineering & Operational Research from the University of California, Berkeley, and a proven track record in e-commerce analytics, forecasting, and operational optimization, I believe I am well-equipped to make a significant contribution to your Data Science Business Unit.\n\nIn my previous role as a Data Science Intern at VIP.com, I led the integration of the DeepSeek RAG zero-shot classifier, achieving a remarkable 98% accuracy in predicting return responsibilities. This success was a result of my strong skills in NLP, machine learning, and using tools such as Python, PyTorch, TensorFlow, and HuggingFace. This experience perfectly aligns with your requirement for a candidate with a strong background in model creation and machine learning.\n\nI also excel in data visualization and have over a year's experience using Power BI, among other tools. My ability to present complex data in an easily understandable format would enable me to effectively present results to stakeholders at Sia Partners. My experience with AWS, coupled with my proficiency in R, SQL, and Python, would also be beneficial in data acquisition and exploration activities within the unit.\n\nI am particularly drawn to Sia Partners because of your reputation for fostering innovation and encouraging collaboration. I am confident that my problem-solving aptitude and excellent communication skills, coupled with my technical expertise, would make me a valuable addition to your team.\n\nIn closing, I would like to express my eagerness to further discuss how I can contribute to the innovative work being done at Sia Partners. I appreciate your time and consideration, and I look forward to the possibility of contributing my skills and experiences to your esteemed firm.\n\nSincerely,\nZikai (Kerry) Liu\n650-613-8398\nzikailiu@berkeley.edu",
+      "metadata": {
+        "job_title": "Data Scientist",
+        "company_name": "Sia Partners",
+        "url": "",
+        "generated_at": "2025-04-03 21:03:11.407594"
+      },
+      "created_at": "2025-04-03 21:03:11.409436",
+      "status": "generated"
     }
   ]
 }
