@@ -1,1 +1,1 @@
-# This file makes the database directory a proper Python package 
+# This file makes the database directory a Python package 

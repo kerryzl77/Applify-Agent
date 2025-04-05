@@ -1,8 +1,14 @@
 import os
+import sys
 import redis
 from rq import Worker, Queue, Connection
 from app.resume_parser import ResumeParser
-from app.database.db_manager import DatabaseManager
+
+# Add parent directory to path to import modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Fix imports to use relative imports instead of absolute imports
+from database.db_manager import DatabaseManager
 
 # Initialize components
 resume_parser = ResumeParser()
