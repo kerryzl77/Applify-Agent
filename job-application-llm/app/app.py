@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash, send_from_directory
 import os
 import sys
 import datetime
 from functools import wraps
+from werkzeug.utils import secure_filename
+from app.resume_parser import ResumeParser
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,6 +23,7 @@ data_retriever = DataRetriever()
 db_manager = DatabaseManager()
 llm_generator = LLMGenerator()
 output_formatter = OutputFormatter()
+resume_parser = ResumeParser()
 
 def login_required(f):
     @wraps(f)
@@ -162,15 +165,15 @@ def generate_content():
     content_id = db_manager.save_generated_content(content_type, formatted_content, metadata, session['user_id'])
     
     # Create document file if needed
-    file_path = None
+    file_info = None
     if content_type in ['cover_letter', 'connection_email', 'hiring_manager_email']:
-        file_path = output_formatter.create_docx(formatted_content, job_data, candidate_data, content_type)
+        file_info = output_formatter.create_docx(formatted_content, job_data, candidate_data, content_type)
     
     # Return the generated content
     response = {
         'content': formatted_content,
         'content_id': content_id,
-        'file_path': file_path
+        'file_info': file_info
     }
     
     return jsonify(response)
@@ -179,18 +182,23 @@ def generate_content():
 @login_required
 def download_file(file_path):
     """Download a generated file."""
-    # Fix the directory path to avoid duplication
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    output_dir = os.path.join(base_dir, 'output')
-    file_full_path = os.path.join(output_dir, file_path)
-    
-    # Check if file exists
-    if not os.path.exists(file_full_path):
-        return jsonify({'error': f'File not found: {file_path}'}), 404
-        
     try:
-        return send_file(file_full_path, as_attachment=True)
+        # Get the file from the temp directory
+        file_full_path = os.path.join(output_formatter.output_dir, file_path)
+        
+        # Check if file exists
+        if not os.path.exists(file_full_path):
+            return jsonify({'error': f'File not found: {file_path}'}), 404
+            
+        # Send the file
+        return send_file(
+            file_full_path,
+            as_attachment=True,
+            download_name=file_path,
+            mimetype='application/octet-stream'
+        )
     except Exception as e:
+        print(f"Error downloading file: {str(e)}")
         return jsonify({'error': f'Error downloading file: {str(e)}'}), 500
 
 @app.route('/api/convert-to-pdf/<path:file_path>')
@@ -198,19 +206,27 @@ def download_file(file_path):
 def convert_to_pdf(file_path):
     """Convert a DOCX file to PDF and download it."""
     try:
-        # Fix the directory path to avoid duplication
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        output_dir = os.path.join(base_dir, 'output')
-        docx_path = os.path.join(output_dir, file_path)
+        # Get the file from the temp directory
+        docx_path = os.path.join(output_formatter.output_dir, file_path)
         
         # Check if source file exists
         if not os.path.exists(docx_path):
             return jsonify({'error': f'Source file not found: {file_path}'}), 404
         
         # Convert to PDF
-        pdf_path = output_formatter.convert_to_pdf(docx_path)
-        if pdf_path and os.path.exists(pdf_path):
-            return send_file(pdf_path, as_attachment=True)
+        docx_info = {
+            'filename': file_path,
+            'filepath': docx_path
+        }
+        pdf_info = output_formatter.convert_to_pdf(docx_info)
+        
+        if pdf_info and os.path.exists(pdf_info['filepath']):
+            return send_file(
+                pdf_info['filepath'],
+                as_attachment=True,
+                download_name=pdf_info['filename'],
+                mimetype='application/pdf'
+            )
         else:
             error_msg = "PDF conversion failed. Please try downloading the DOCX file instead."
             return jsonify({'error': error_msg}), 500
@@ -232,6 +248,30 @@ def update_candidate_data():
     data = request.json
     db_manager.update_candidate_data(data, session['user_id'])
     return jsonify({'success': True})
+
+@app.route('/api/upload-resume', methods=['POST'])
+def upload_resume():
+    if 'resume' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['resume']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    try:
+        # Save the uploaded file
+        file_path = resume_parser.save_uploaded_file(file)
+        
+        # Extract text from the file
+        text = resume_parser.extract_text(file_path)
+        
+        # Parse the resume text
+        parsed_data = resume_parser.parse_resume(text)
+        
+        return jsonify(parsed_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     import os

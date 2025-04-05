@@ -69,6 +69,9 @@ document.addEventListener('DOMContentLoaded', function() {
         logoutButton.addEventListener('click', handleLogout);
     }
     
+    // Add event listener for resume upload
+    document.getElementById('uploadResumeBtn').addEventListener('click', handleResumeUpload);
+    
     // Functions
     async function handleGenerate(e) {
         e.preventDefault();
@@ -127,8 +130,8 @@ document.addEventListener('DOMContentLoaded', function() {
             resultContent.classList.remove('d-none');
             
             // Show download buttons if file was generated
-            if (result.file_path) {
-                currentFilePath = result.file_path;
+            if (result.file_info) {
+                currentFilePath = result.file_info.filename;
                 downloadButtons.classList.remove('d-none');
                 downloadDocxBtn.classList.remove('d-none');
                 downloadPdfBtn.classList.remove('d-none');
@@ -173,13 +176,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function downloadDocx() {
         if (currentFilePath) {
-            window.location.href = '/api/download/' + currentFilePath;
+            downloadFile({ filename: currentFilePath });
         }
     }
     
     function downloadPdf() {
         if (currentFilePath) {
-            window.location.href = '/api/convert-to-pdf/' + currentFilePath;
+            convertToPdf({ filename: currentFilePath });
         }
     }
     
@@ -604,5 +607,125 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error during logout:', error);
         }
+    }
+
+    async function handleResumeUpload() {
+        const fileInput = document.getElementById('resumeUpload');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            showError('Please select a resume file');
+            return;
+        }
+
+        // Show loading state in the generated content area
+        initialMessage.classList.add('d-none');
+        resultContent.classList.add('d-none');
+        errorMessage.classList.add('d-none');
+        loadingIndicator.classList.remove('d-none');
+        loadingIndicator.querySelector('p').textContent = 'Processing resume...';
+        
+        const formData = new FormData();
+        formData.append('resume', file);
+        
+        try {
+            const response = await fetch('/api/upload-resume', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to upload resume');
+            }
+            
+            const parsedData = await response.json();
+            
+            // Populate personal info
+            document.getElementById('name').value = parsedData.personal_info.name || '';
+            document.getElementById('email').value = parsedData.personal_info.email || '';
+            document.getElementById('phone').value = parsedData.personal_info.phone || '';
+            document.getElementById('linkedin').value = parsedData.personal_info.linkedin || '';
+            document.getElementById('github').value = parsedData.personal_info.github || '';
+            
+            // Populate resume summary
+            document.getElementById('summary').value = parsedData.resume.summary || '';
+            
+            // Populate skills
+            document.getElementById('skills').value = parsedData.resume.skills.join(', ') || '';
+            
+            // Clear existing experience and education items
+            document.getElementById('experienceContainer').innerHTML = '';
+            document.getElementById('educationContainer').innerHTML = '';
+            
+            // Add experience items
+            parsedData.resume.experience.forEach(exp => {
+                addExperienceItem(null, exp);
+            });
+            
+            // Add education items
+            parsedData.resume.education.forEach(edu => {
+                addEducationItem(null, edu);
+            });
+
+            // Clear existing story bank items
+            document.getElementById('storyBankContainer').innerHTML = '';
+            
+            // Add story bank items
+            if (parsedData.story_bank && parsedData.story_bank.length > 0) {
+                parsedData.story_bank.forEach(story => {
+                    addStoryItem(null, story);
+                });
+            }
+            
+            // Hide loading indicator and show success message
+            loadingIndicator.classList.add('d-none');
+            resultContent.classList.remove('d-none');
+            generatedText.textContent = 'Resume processed successfully! Your profile has been updated with the extracted information.';
+            generatedText.classList.add('text-success');
+            
+        } catch (error) {
+            // Hide loading indicator and show error
+            loadingIndicator.classList.add('d-none');
+            showError(error.message);
+        }
+    }
+
+    // Function to handle file downloads
+    function downloadFile(fileInfo) {
+        if (!fileInfo || !fileInfo.filename) {
+            showError('No file available for download');
+            return;
+        }
+
+        // Create a temporary link element
+        const link = document.createElement('a');
+        link.href = `/api/download/${fileInfo.filename}`;
+        link.download = fileInfo.filename;
+        link.target = '_blank';
+        
+        // Append to body, click, and remove
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // Function to convert DOCX to PDF
+    function convertToPdf(fileInfo) {
+        if (!fileInfo || !fileInfo.filename) {
+            showError('No file available for conversion');
+            return;
+        }
+
+        // Create a temporary link element
+        const link = document.createElement('a');
+        link.href = `/api/convert-to-pdf/${fileInfo.filename}`;
+        link.download = fileInfo.filename.replace('.docx', '.pdf');
+        link.target = '_blank';
+        
+        // Append to body, click, and remove
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 }); 

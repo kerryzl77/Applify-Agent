@@ -55,8 +55,8 @@ class LLMGenerator:
         recipient_title = profile_data.get('title', '') if profile_data else ''
         recipient_company = profile_data.get('company', '') if profile_data else ''
         
-        # Get candidate's current role
-        current_role = f"MEng IEOR Fung Scholar at Berkeley"
+        # Get candidate's professional summary
+        current_role = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
         
         # Get user's template if available
         template_example = ""
@@ -73,12 +73,12 @@ class LLMGenerator:
         - Company: {recipient_company}
         
         About the candidate:
-        - Current role: {current_role}
+        - Professional Summary: {current_role}
         - Key skills: {', '.join(candidate_data['resume']['skills'][:5])}
         
         The message should:
         - Start with "Hi [Name]"
-        - Introduce yourself as {candidate_data['personal_info']['name']}, current MEng IEOR at Berkeley
+        - Introduce yourself as {candidate_data['personal_info']['name']}, {current_role}
         - Express interest in their specific role/work at their company
         - Be concise and friendly
         - Be MAXIMUM 200 CHARACTERS (this is critical)
@@ -99,7 +99,7 @@ class LLMGenerator:
         recipient_about = profile_data.get('about', '') if profile_data else ''
         
         # Get candidate's experience summary
-        experience_summary = candidate_data['resume']['summary']
+        experience_summary = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
         key_skills = ', '.join(candidate_data['resume']['skills'])
         
         # Get most relevant experience
@@ -161,8 +161,7 @@ class LLMGenerator:
         - Current role: {profile_data['experience'][0]['title'] if profile_data and profile_data.get('experience') else 'Unknown'}
         
         About the candidate:
-        - Current role: MEng IEOR Fung Scholar at Berkeley (Go Bears!), graduating this May
-        - Experience summary: {experience_summary}
+        - Professional Summary: {experience_summary}
         - Key experiences: {', '.join(relevant_experience)}
         - Key skills: {key_skills}
         
@@ -171,7 +170,7 @@ class LLMGenerator:
         
         The email should:
         - Start with "Hi [Name]"
-        - Introduce yourself as {candidate_data['personal_info']['name']}, MEng IEOR Fung Scholar at Berkeley
+        - Introduce yourself as {candidate_data['personal_info']['name']}, {experience_summary}
         - Highlight relevant experience and skills that align with the recipient's role/company
         - Use the connection points above to create a personal touch
         - Express genuine interest in their work and company
@@ -191,9 +190,9 @@ class LLMGenerator:
         job_title = job_data.get('job_title', 'the position')
         job_description = job_data.get('job_description', 'The job involves working with data and technology.')
         requirements = job_data.get('requirements', 'Skills in data analysis, programming, and communication.')
-        current_role = candidate_data['personal_info'].get('current_role',
-            f"{candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}"
-            if candidate_data['resume']['experience'] else "Current Student")
+        
+        # Get candidate's professional summary
+        current_role = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
         
         # Get user's template if available
         template_example = ""
@@ -211,10 +210,10 @@ class LLMGenerator:
         - Requirements: {requirements[:300]}...
         
         About the candidate:
-        - Current role: {current_role}
+        - Professional Summary: {current_role}
         - Experience: {candidate_data['resume']['summary']}
         - Key skills: {', '.join(candidate_data['resume']['skills'])}
-        - Relevant story: {candidate_data['story_bank'][0]['content'] if candidate_data['story_bank'] else 'Experienced in delivering results.'}
+        - Relevant story: {candidate_data['story_bank'][1]['content'] if candidate_data['story_bank'] else 'Experienced in delivering results.'}
         
         The email should:
         - Be addressed to the hiring manager
@@ -237,9 +236,9 @@ class LLMGenerator:
         job_description = job_data.get('job_description', 'The job involves working with data and technology.')
         requirements = job_data.get('requirements', 'Skills in data analysis, programming, and communication.')
         location = job_data.get('location', 'the location')
-        current_role = candidate_data['personal_info'].get('current_role',
-            f"{candidate_data['resume']['experience'][0]['title']} at {candidate_data['resume']['experience'][0]['company']}"
-            if candidate_data['resume']['experience'] else "Current Student")
+        
+        # Get candidate's professional summary
+        current_role = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
         
         # Get user's template if available
         template_example = ""
@@ -259,7 +258,7 @@ class LLMGenerator:
         
         About the candidate:
         - Contact: {candidate_data['personal_info']['email']} | {candidate_data['personal_info']['phone']}
-        - Current role: {current_role}
+        - Professional Summary: {current_role}
         - Previous role: {candidate_data['resume']['experience'][1]['title'] if len(candidate_data['resume']['experience']) > 1 else 'Previous role'} at {candidate_data['resume']['experience'][1]['company'] if len(candidate_data['resume']['experience']) > 1 else 'Previous company'}
         - Education: {candidate_data['resume']['education'][0]['degree']} from {candidate_data['resume']['education'][0]['institution']}
         - Summary: {candidate_data['resume']['summary']}
@@ -276,6 +275,7 @@ class LLMGenerator:
         - Include specific achievements with measurable results
         - Explain why the candidate is interested in this specific company
         - Have a strong closing paragraph with a call to action
+        - Do not include Title, Exclude any header or closing that explicitly includes the candidate's name
         - Be MAXIMUM 350 WORDS (this is critical)
         - Be professional but show personality
         {template_example}

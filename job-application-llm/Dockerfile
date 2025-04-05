@@ -1,10 +1,11 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9-slim
 
-# Install LibreOffice and other dependencies
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
@@ -27,10 +28,9 @@ ENV PYTHONPATH=/app
 
 RUN echo "OPENAI_API_KEY=your_api_key_here" > .env
 
-
-# Create output directory and set permissions
-RUN mkdir -p /app/output && \
-    chmod 777 /app/output
+# Create necessary directories and set permissions
+RUN mkdir -p /app/output /app/uploads && \
+    chmod 777 /app/output /app/uploads
 
 # Run the application
 CMD ["python", "-m", "app.app"]
