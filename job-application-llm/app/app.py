@@ -5,9 +5,6 @@ import datetime
 from functools import wraps
 from werkzeug.utils import secure_filename
 from app.resume_parser import ResumeParser
-import redis
-from rq import Queue
-from rq.job import Job
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,7 +14,6 @@ from scraper.retriever import DataRetriever
 from database.db_manager import DatabaseManager
 from app.llm_generator import LLMGenerator
 from app.output_formatter import OutputFormatter
-from app.worker import process_resume
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 app.secret_key = os.urandom(24)  # For session management
@@ -28,11 +24,6 @@ db_manager = DatabaseManager()
 llm_generator = LLMGenerator()
 output_formatter = OutputFormatter()
 resume_parser = ResumeParser()
-
-# Initialize Redis connection
-redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
-redis_conn = redis.from_url(redis_url)
-q = Queue(connection=redis_conn)
 
 def login_required(f):
     @wraps(f)
@@ -261,7 +252,7 @@ def update_candidate_data():
 @app.route('/api/upload-resume', methods=['POST'])
 @login_required
 def upload_resume():
-    """Handle resume upload and start background processing."""
+    """Handle resume upload and parsing."""
     try:
         if 'resume' not in request.files:
             return jsonify({'error': 'No file uploaded'}), 400
@@ -276,54 +267,32 @@ def upload_resume():
         except Exception as e:
             return jsonify({'error': f'Error saving file: {str(e)}'}), 500
             
-        # Enqueue the job
-        job = q.enqueue(
-            process_resume,
-            args=(file_path, session['user_id']),
-            job_timeout='5m'  # 5 minute timeout
-        )
-        
-        return jsonify({
-            'status': 'processing',
-            'job_id': job.id,
-            'message': 'Resume processing started. Please check back in a few moments.'
-        })
+        # Extract text from the file
+        try:
+            text = resume_parser.extract_text(file_path)
+        except TimeoutError:
+            return jsonify({'error': 'Resume processing timed out. Please try again with a smaller file.'}), 408
+        except Exception as e:
+            return jsonify({'error': f'Error extracting text: {str(e)}'}), 500
+            
+        # Parse the resume
+        try:
+            parsed_data = resume_parser.parse_resume(text)
+        except TimeoutError:
+            return jsonify({'error': 'Resume parsing timed out. Please try again with a smaller file.'}), 408
+        except Exception as e:
+            return jsonify({'error': f'Error parsing resume: {str(e)}'}), 500
+            
+        # Update candidate data in database
+        try:
+            db_manager.update_candidate_data(session['user_id'], parsed_data)
+        except Exception as e:
+            return jsonify({'error': f'Error updating database: {str(e)}'}), 500
+            
+        return jsonify(parsed_data)
         
     except Exception as e:
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
-
-@app.route('/api/job-status/<job_id>', methods=['GET'])
-@login_required
-def get_job_status(job_id):
-    """Check the status of a background job."""
-    try:
-        job = Job.fetch(job_id, connection=redis_conn)
-        
-        if job.is_finished:
-            result = job.result
-            if result['status'] == 'success':
-                return jsonify({
-                    'status': 'completed',
-                    'data': result['data']
-                })
-            else:
-                return jsonify({
-                    'status': 'error',
-                    'error': result['error']
-                }), 500
-        elif job.is_failed:
-            return jsonify({
-                'status': 'error',
-                'error': 'Job failed'
-            }), 500
-        else:
-            return jsonify({
-                'status': 'processing',
-                'message': 'Resume is still being processed'
-            })
-            
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     import os

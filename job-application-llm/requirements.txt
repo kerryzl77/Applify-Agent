@@ -8,5 +8,3 @@ docx2pdf==0.1.8
 python-dotenv==1.0.0
 PyPDF2==3.0.1
 python-magic==0.4.27
-redis==5.0.1
-rq==1.15.1

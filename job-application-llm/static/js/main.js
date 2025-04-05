@@ -652,96 +652,61 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(error.error || 'Failed to upload resume');
             }
             
-            const result = await response.json();
+            const parsedData = await response.json();
             
-            if (result.status === 'processing') {
-                // Start polling for job status
-                await pollJobStatus(result.job_id);
-            } else {
-                throw new Error('Unexpected response from server');
+            // Populate personal info
+            document.getElementById('name').value = parsedData.personal_info.name || '';
+            document.getElementById('email').value = parsedData.personal_info.email || '';
+            document.getElementById('phone').value = parsedData.personal_info.phone || '';
+            document.getElementById('linkedin').value = parsedData.personal_info.linkedin || '';
+            document.getElementById('github').value = parsedData.personal_info.github || '';
+            
+            // Populate resume summary
+            document.getElementById('summary').value = parsedData.resume.summary || '';
+            
+            // Populate skills
+            document.getElementById('skills').value = parsedData.resume.skills.join(', ') || '';
+            
+            // Clear existing experience and education items
+            document.getElementById('experienceContainer').innerHTML = '';
+            document.getElementById('educationContainer').innerHTML = '';
+            
+            // Add experience items
+            parsedData.resume.experience.forEach(exp => {
+                addExperienceItem(null, exp);
+            });
+            
+            // Add education items
+            parsedData.resume.education.forEach(edu => {
+                addEducationItem(null, edu);
+            });
+
+            // Clear existing story bank items
+            document.getElementById('storyBankContainer').innerHTML = '';
+            
+            // Add story bank items
+            if (parsedData.story_bank && parsedData.story_bank.length > 0) {
+                parsedData.story_bank.forEach(story => {
+                    addStoryItem(null, story);
+                });
             }
+            
+            // Hide loading indicator and show success message
+            loadingIndicator.classList.add('d-none');
+            resultContent.classList.remove('d-none');
+            generatedText.textContent = 'Resume processed successfully! Your profile has been updated with the extracted information.';
+            generatedText.classList.add('text-success');
             
         } catch (error) {
             // Hide loading indicator and show error
             loadingIndicator.classList.add('d-none');
             showError(error.message);
-        }
-    }
-
-    async function pollJobStatus(jobId) {
-        const maxAttempts = 30; // 30 attempts with 2-second intervals = 1 minute total
-        let attempts = 0;
-        
-        const checkStatus = async () => {
-            try {
-                const response = await fetch(`/api/job-status/${jobId}`);
-                const result = await response.json();
-                
-                if (result.status === 'completed') {
-                    // Hide loading indicator
-                    loadingIndicator.classList.add('d-none');
-                    
-                    // Populate form with parsed data
-                    const parsedData = result.data;
-                    
-                    // Populate personal info
-                    document.getElementById('name').value = parsedData.personal_info.name || '';
-                    document.getElementById('email').value = parsedData.personal_info.email || '';
-                    document.getElementById('phone').value = parsedData.personal_info.phone || '';
-                    document.getElementById('linkedin').value = parsedData.personal_info.linkedin || '';
-                    document.getElementById('github').value = parsedData.personal_info.github || '';
-                    
-                    // Populate resume summary
-                    document.getElementById('summary').value = parsedData.resume.summary || '';
-                    
-                    // Populate skills
-                    document.getElementById('skills').value = parsedData.resume.skills.join(', ') || '';
-                    
-                    // Clear existing experience and education items
-                    document.getElementById('experienceContainer').innerHTML = '';
-                    document.getElementById('educationContainer').innerHTML = '';
-                    
-                    // Add experience items
-                    parsedData.resume.experience.forEach(exp => {
-                        addExperienceItem(null, exp);
-                    });
-                    
-                    // Add education items
-                    parsedData.resume.education.forEach(edu => {
-                        addEducationItem(null, edu);
-                    });
-
-                    // Clear existing story bank items
-                    document.getElementById('storyBankContainer').innerHTML = '';
-                    
-                    // Add story bank items
-                    if (parsedData.story_bank && parsedData.story_bank.length > 0) {
-                        parsedData.story_bank.forEach(story => {
-                            addStoryItem(null, story);
-                        });
-                    }
-                    
-                    // Show success message
-                    resultContent.classList.remove('d-none');
-                    generatedText.textContent = 'Resume processed successfully! Your profile has been updated with the extracted information.';
-                    generatedText.classList.add('text-success');
-                    
-                } else if (result.status === 'error') {
-                    throw new Error(result.error);
-                } else if (result.status === 'processing') {
-                    attempts++;
-                    if (attempts >= maxAttempts) {
-                        throw new Error('Resume processing timed out. Please try again.');
-                    }
-                    setTimeout(checkStatus, 2000); // Check again in 2 seconds
-                }
-            } catch (error) {
-                loadingIndicator.classList.add('d-none');
-                showError(error.message);
+            
+            // If timeout error, suggest trying with a smaller file
+            if (error.message.includes('timed out')) {
+                showError('The resume processing took too long. Please try again with a smaller file or fewer pages.');
             }
-        };
-        
-        await checkStatus();
+        }
     }
 
     // Function to handle file downloads
