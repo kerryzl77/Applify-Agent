@@ -15,6 +15,7 @@ A tool to automate the creation of tailored job application materials using LLMs
 - Write emails to hiring managers (200 words)
 - Produce cover letters (350 words)
 - Automatically scrape job postings and LinkedIn profiles
+- Autofill Profile Detail with Resume Upload
 - Store and manage your personal information, resume, and story bank
 - Export documents as DOCX or PDF
 
