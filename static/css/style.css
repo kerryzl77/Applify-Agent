@@ -1,0 +1,41 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+#generatedText {
+    white-space: pre-wrap;
+    max-height: 500px;
+    overflow-y: auto;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 0.9rem;
+}
+
+.history-item {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.history-item:hover {
+    background-color: #f0f0f0;
+}
+
+.experience-item, .education-item, .story-item {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.remove-btn {
+    float: right;
+    color: #dc3545;
+    cursor: pointer;
+}
+
+.remove-btn:hover {
+    color: #b02a37;
+} 

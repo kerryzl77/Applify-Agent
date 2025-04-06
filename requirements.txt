@@ -1,0 +1,12 @@
+Flask==2.3.3
+beautifulsoup4==4.12.2
+requests==2.31.0
+python-docx==0.8.11
+openai==1.3.5
+httpx==0.24.1
+docx2pdf==0.1.8
+python-dotenv==1.0.0
+PyPDF2==3.0.1
+python-magic==0.4.27
+rq==1.15.1
+redis==5.0.1

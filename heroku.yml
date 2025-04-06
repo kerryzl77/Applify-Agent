@@ -1,0 +1,8 @@
+build:
+  docker:
+    web: Dockerfile
+    worker: Dockerfile.worker
+
+run:
+  web: gunicorn app.app:app
+  worker: rq worker -c app.worker_config 
