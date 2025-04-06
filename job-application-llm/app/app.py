@@ -267,32 +267,22 @@ def upload_resume():
         except Exception as e:
             return jsonify({'error': f'Error saving file: {str(e)}'}), 500
             
-        # Extract text from the file
-        try:
-            text = resume_parser.extract_text(file_path)
-        except TimeoutError:
-            return jsonify({'error': 'Resume processing timed out. Please try again with a smaller file.'}), 408
-        except Exception as e:
-            return jsonify({'error': f'Error extracting text: {str(e)}'}), 500
-            
-        # Parse the resume
-        try:
-            parsed_data = resume_parser.parse_resume(text)
-        except TimeoutError:
-            return jsonify({'error': 'Resume parsing timed out. Please try again with a smaller file.'}), 408
-        except Exception as e:
-            return jsonify({'error': f'Error parsing resume: {str(e)}'}), 500
-            
-        # Update candidate data in database
-        try:
-            db_manager.update_candidate_data(session['user_id'], parsed_data)
-        except Exception as e:
-            return jsonify({'error': f'Error updating database: {str(e)}'}), 500
-            
-        return jsonify(parsed_data)
+        # Start background processing
+        background_processor.start_processing(file_path, session['user_id'])
+        
+        return jsonify({
+            'status': 'processing',
+            'message': 'Resume is being processed. You will be notified when complete.'
+        })
         
     except Exception as e:
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+
+@app.route('/api/processing-status')
+@login_required
+def check_processing_status():
+    status = background_processor.get_status(session['user_id'])
+    return jsonify(status)
 
 if __name__ == '__main__':
     import os
