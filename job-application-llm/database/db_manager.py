@@ -301,6 +301,10 @@ class DatabaseManager:
         """Save generated content with metadata."""
         data = self.get_candidate_data(user_id)
         
+        # Initialize generated_content if it doesn't exist
+        if "generated_content" not in data:
+            data["generated_content"] = []
+        
         new_content = {
             "type": content_type,
             "content": content,

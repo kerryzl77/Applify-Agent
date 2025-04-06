@@ -72,7 +72,7 @@ class ResumeParser:
                 "github": "GitHub URL if available"
             },
             "resume": {
-                "summary": "Professional summary or objective",
+                "summary": "Professional summary or objective if not provided in the resume, generate one based on the resume content",
                 "experience": [
                     {
                         "title": "Job title",
