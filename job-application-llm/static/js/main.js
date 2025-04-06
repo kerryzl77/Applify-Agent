@@ -273,15 +273,17 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // Populate templates
-        if (candidateData.templates) {
-            const templateTypes = ['connection_emails', 'cover_letters', 'hiring_manager_emails', 'linkedin_messages'];
-            templateTypes.forEach(type => {
-                if (candidateData.templates[type]) {
-                    addTemplateItem(type, candidateData.templates[type]);
-                }
-            });
-        }
+        // Templates
+        const templateTypes = ['connection_emails', 'cover_letters', 'hiring_manager_emails', 'linkedin_messages'];
+        templateTypes.forEach(type => {
+            const containerId = `${type.replace('_', '')}Container`;
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = ''; // Clear existing content
+                const templateData = candidateData.templates && candidateData.templates[type] ? candidateData.templates[type] : { title: '', template: '' };
+                addTemplateItem(type, templateData);
+            }
+        });
     }
     
     function addExperienceItem(e, data = null, index = null) {
