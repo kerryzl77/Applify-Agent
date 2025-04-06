@@ -19,7 +19,7 @@ class BackgroundProcessor:
             parsed_data = self.resume_parser.parse_resume(text, timeout=120)
             
             # Update candidate data in database
-            self.db_manager.update_candidate_data(user_id, parsed_data)
+            self.db_manager.update_candidate_data(parsed_data, user_id)
             
             # Mark processing as complete
             self.processing_queue[user_id] = {
