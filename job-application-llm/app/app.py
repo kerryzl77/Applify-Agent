@@ -5,6 +5,7 @@ import datetime
 from functools import wraps
 from werkzeug.utils import secure_filename
 from app.resume_parser import ResumeParser
+from app.background_tasks import BackgroundProcessor
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,6 +25,7 @@ db_manager = DatabaseManager()
 llm_generator = LLMGenerator()
 output_formatter = OutputFormatter()
 resume_parser = ResumeParser()
+background_processor = BackgroundProcessor()
 
 def login_required(f):
     @wraps(f)

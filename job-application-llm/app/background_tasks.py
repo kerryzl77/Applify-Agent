@@ -12,11 +12,11 @@ class BackgroundProcessor:
     def process_resume(self, file_path, user_id):
         """Process resume in background and update database when complete."""
         try:
-            # Extract text from the file
-            text = self.resume_parser.extract_text(file_path)
+            # Extract text from the file with longer timeout
+            text = self.resume_parser.extract_text(file_path, timeout=120)
             
-            # Parse the resume
-            parsed_data = self.resume_parser.parse_resume(text)
+            # Parse the resume with longer timeout
+            parsed_data = self.resume_parser.parse_resume(text, timeout=120)
             
             # Update candidate data in database
             self.db_manager.update_candidate_data(user_id, parsed_data)
