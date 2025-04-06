@@ -243,9 +243,12 @@ class DatabaseManager:
             conn = sqlite3.connect(self.sqlite_path)
             cursor = conn.cursor()
             
+            # Ensure user_id is a string
+            user_id_str = str(user_id)
+            
             cursor.execute(
                 "UPDATE user_profiles SET profile_data = ? WHERE user_id = ?",
-                (json.dumps(data), user_id)
+                (json.dumps(data), user_id_str)
             )
             
             conn.commit()
