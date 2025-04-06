@@ -246,13 +246,28 @@ class DatabaseManager:
             # Ensure user_id is a string
             user_id_str = str(user_id)
             
-            cursor.execute(
-                "UPDATE user_profiles SET profile_data = ? WHERE user_id = ?",
-                (json.dumps(data), user_id_str)
-            )
+            # Check if user profile exists
+            cursor.execute("SELECT COUNT(*) FROM user_profiles WHERE user_id = ?", (user_id_str,))
+            count = cursor.fetchone()[0]
+            
+            if count == 0:
+                print(f"Creating new profile for user {user_id_str}")
+                # Create new profile if it doesn't exist
+                cursor.execute(
+                    "INSERT INTO user_profiles (user_id, profile_data) VALUES (?, ?)",
+                    (user_id_str, json.dumps(data))
+                )
+            else:
+                print(f"Updating existing profile for user {user_id_str}")
+                # Update existing profile
+                cursor.execute(
+                    "UPDATE user_profiles SET profile_data = ? WHERE user_id = ?",
+                    (json.dumps(data), user_id_str)
+                )
             
             conn.commit()
             conn.close()
+            print(f"Database operation completed for user {user_id_str}")
         else:
             # Update default data
             with open(self.db_path, 'w') as f:
