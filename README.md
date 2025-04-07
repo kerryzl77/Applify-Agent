@@ -54,18 +54,18 @@ Start the Flask server:
    python -m app.app
    ```
 
-Then open your browser and navigate to `http://localhost:5000`.
+Then open your browser and navigate to `http://localhost:5001`.
 
 ### Using Docker
 
 You can also run the application using Docker:
 
-1. Clean up exsisting Docker image:
+1. Stop and remove any existing containers:
    ```bash
    docker-compose down
    ```
 
-2. Run the container:
+2. Build and start the containers:
    ```bash
    docker-compose up --build
    ```
