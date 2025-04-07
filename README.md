@@ -60,17 +60,17 @@ Then open your browser and navigate to `http://localhost:5000`.
 
 You can also run the application using Docker:
 
-1. Build the Docker image:
+1. Clean up exsisting Docker image:
    ```bash
-   docker build -t job-application-llm .
+   docker-compose down
    ```
 
 2. Run the container:
    ```bash
-   docker run -p 5000:5000 -e OPENAI_API_KEY=your_api_key_here job-application-llm
+   docker-compose up --build
    ```
 
-3. Access the application at `http://localhost:5000`.
+3. Access the application at `http://localhost:5001`.
 
 ## Usage
 
