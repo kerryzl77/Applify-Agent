@@ -18,6 +18,7 @@ from app.output_formatter import OutputFormatter
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 app.secret_key = os.urandom(24)  # For session management
+app.permanent_session_lifetime = datetime.timedelta(days=1)  # Session expires after 1 day
 
 # Initialize components
 data_retriever = DataRetriever()
@@ -80,7 +81,8 @@ def register():
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id', None)
+    """Handle user logout."""
+    session.clear()  # Clear all session data
     return redirect(url_for('login'))
 
 @app.route('/api/generate', methods=['POST'])

@@ -8,4 +8,5 @@ services:
       - .env
     volumes:
       - ./output:/app/output
+      - ./database:/app/database
       - .:/app
