@@ -2,10 +2,10 @@
 
 A tool to automate the creation of tailored job application materials using LLMs.
 
-## Edit Your Profile Section
+## AutoFill Profile with Résumé
 ![Edit Profile Demo](https://raw.githubusercontent.com/kerryzl77/Applify-Agent/main/videos/Applify-DemoV21-ezgif.com-video-to-gif-converter.gif)
 
-## Apply for Job Section
+## One Click Generation of Application Supplement
 ![Apply for Job Demo](https://raw.githubusercontent.com/kerryzl77/Applify-Agent/main/videos/Applify-DemoV21-ezgif.com-video-to-gif-converter%20(1).gif)
 
 ## Features
@@ -15,6 +15,7 @@ A tool to automate the creation of tailored job application materials using LLMs
 - Write emails to hiring managers (200 words)
 - Produce cover letters (350 words)
 - Automatically scrape job postings and LinkedIn profiles
+- Autofill Profile Detail with Resume Upload
 - Store and manage your personal information, resume, and story bank
 - Export documents as DOCX or PDF
 
@@ -53,23 +54,23 @@ Start the Flask server:
    python -m app.app
    ```
 
-Then open your browser and navigate to `http://localhost:5000`.
+Then open your browser and navigate to `http://localhost:5001`.
 
 ### Using Docker
 
 You can also run the application using Docker:
 
-1. Build the Docker image:
+1. Stop and remove any existing containers:
    ```bash
-   docker build -t job-application-llm .
+   docker-compose down
    ```
 
-2. Run the container:
+2. Build and start the containers:
    ```bash
-   docker run -p 5000:5000 -e OPENAI_API_KEY=your_api_key_here job-application-llm
+   docker-compose up --build
    ```
 
-3. Access the application at `http://localhost:5000`.
+3. Access the application at `http://localhost:5001`.
 
 ## Usage
 
