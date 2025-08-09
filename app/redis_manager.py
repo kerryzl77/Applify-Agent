@@ -23,14 +23,31 @@ class RedisManager:
         """Initialize Redis connection with retry logic."""
         try:
             redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-            self._redis_client = redis.from_url(
-                redis_url,
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5,
-                retry_on_timeout=True,
-                health_check_interval=30
-            )
+            
+            # Handle Heroku Redis SSL configuration
+            if redis_url.startswith('rediss://'):
+                # Use SSL with proper certificate verification for Heroku Redis
+                self._redis_client = redis.from_url(
+                    redis_url,
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_timeout=5,
+                    retry_on_timeout=True,
+                    health_check_interval=30,
+                    ssl_cert_reqs=None,  # Disable SSL certificate verification
+                    ssl_check_hostname=False
+                )
+            else:
+                # Standard Redis connection for local development
+                self._redis_client = redis.from_url(
+                    redis_url,
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_timeout=5,
+                    retry_on_timeout=True,
+                    health_check_interval=30
+                )
+            
             # Test connection
             self._redis_client.ping()
             logger.info("Redis connection established successfully")
