@@ -97,6 +97,7 @@ class EnhancedResumeProcessor:
                 # Parse with AI
                 self._update_progress(user_id, 'ai_parsing', 60, 'AI is analyzing your resume...')
                 parsed_data = self.resume_parser.parse_resume_enhanced(text, timeout=120)
+                logger.info(f"Parsed resume data for user {user_id}: {json.dumps(parsed_data, indent=2, default=str)}")
                 
                 # Cache the result
                 self._cache_parsed_resume(file_hash, parsed_data, user_id)
@@ -107,10 +108,15 @@ class EnhancedResumeProcessor:
             
             # Update database
             self._update_progress(user_id, 'saving', 90, 'Saving to database...')
-            self.db_manager.update_candidate_data(merged_data, user_id)
+            save_success = self.db_manager.update_candidate_data(merged_data, user_id)
+            logger.info(f"Database update success: {save_success} for user {user_id}")
             
             # Invalidate user cache to force fresh data
             self.redis_manager.invalidate_user_cache(user_id)
+            logger.info(f"Cache invalidated for user {user_id}")
+            
+            # Log the merged data for debugging
+            logger.info(f"Merged data for user {user_id}: {json.dumps(merged_data, indent=2, default=str)}")
             
             # Complete
             completion_data = {
@@ -143,13 +149,15 @@ class EnhancedResumeProcessor:
                 'connection_emails': {'title': '', 'template': ''},
                 'hiring_manager_emails': {'title': '', 'template': ''},
                 'cover_letters': {'title': '', 'template': ''}
-            })
+            }),
+            'generated_content': current_data.get('generated_content', [])
         }
         
         # Merge personal info (only update empty fields)
         for key, value in new_data.get('personal_info', {}).items():
-            if value and (not merged['personal_info'].get(key) or merged['personal_info'].get(key) == ''):
+            if value and (not merged['personal_info'].get(key) or merged['personal_info'].get(key) == '' or merged['personal_info'].get(key) is None):
                 merged['personal_info'][key] = value
+                logger.info(f"Updated personal_info.{key} = {value} for user {user_id}")
         
         # Update resume data (replace with new data)
         merged['resume'] = new_data.get('resume', {})

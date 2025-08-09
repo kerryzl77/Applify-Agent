@@ -155,11 +155,25 @@ class RedisManager:
             if not self.is_available():
                 return
             
-            pattern = f"*:{user_id}:*"
-            keys = self._redis_client.keys(pattern)
-            if keys:
-                self._redis_client.delete(*keys)
-                logger.info(f"Invalidated {len(keys)} cache keys for user {user_id}")
+            # Get all patterns that contain user_id
+            patterns = [
+                f"*:{user_id}:*",  # Original pattern
+                f"*:{user_id}",    # Pattern like candidate_data:user_id
+                f"{user_id}:*",    # Pattern like user_id:something
+                f"*{user_id}*"     # Any pattern containing user_id
+            ]
+            
+            all_keys = []
+            for pattern in patterns:
+                keys = self._redis_client.keys(pattern)
+                all_keys.extend(keys)
+            
+            # Remove duplicates
+            unique_keys = list(set(all_keys))
+            
+            if unique_keys:
+                self._redis_client.delete(*unique_keys)
+                logger.info(f"Invalidated {len(unique_keys)} cache keys for user {user_id}: {unique_keys}")
         except Exception as e:
             logger.error(f"Error invalidating cache for user {user_id}: {str(e)}")
 
