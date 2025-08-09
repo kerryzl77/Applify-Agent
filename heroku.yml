@@ -3,6 +3,3 @@ build:
     web: Dockerfile
 run:
   web: gunicorn app.app:app --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
-addons:
-  - plan: heroku-postgresql:mini
-  - plan: heroku-redis:mini
