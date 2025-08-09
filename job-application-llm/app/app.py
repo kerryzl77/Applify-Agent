@@ -346,7 +346,15 @@ def health_check():
     """Health check endpoint for container monitoring."""
     try:
         # Check database connection
-        db_healthy = db_manager._get_connection() is not None
+        try:
+            conn = db_manager._get_connection()
+            if conn:
+                db_manager._return_connection(conn)
+                db_healthy = True
+            else:
+                db_healthy = False
+        except:
+            db_healthy = False
         
         # Check Redis connection
         redis_healthy = redis_manager.is_available()
