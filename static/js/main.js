@@ -41,6 +41,17 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addEducationBtn').addEventListener('click', addEducationItem);
     document.getElementById('addStoryBtn').addEventListener('click', addStoryItem);
     
+    // Enhanced resume upload functionality
+    const resumeUpload = document.getElementById('resumeUpload');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressDetails = document.getElementById('progressDetails');
+    
+    if (resumeUpload) {
+        resumeUpload.addEventListener('change', handleResumeUpload);
+    }
+    
     // Input type toggle handling
     const urlInput = document.getElementById('urlInput');
     const manualInput = document.getElementById('manualInput');
@@ -611,6 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Enhanced Resume Upload with Real-time Progress
     async function handleResumeUpload() {
         const fileInput = document.getElementById('resumeUpload');
         const file = fileInput.files[0];
@@ -620,25 +632,26 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            showError('File size must be less than 5MB');
+        // Client-side validation
+        if (file.size > 10 * 1024 * 1024) {
+            showError('File size must be less than 10MB');
             return;
         }
 
-        // Validate file type
-        const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-        if (!allowedTypes.includes(file.type)) {
-            showError('Please upload a PDF or DOCX file');
+        if (file.size < 1000) {
+            showError('File is too small. Please upload a valid resume.');
             return;
         }
 
-        // Show loading state
-        initialMessage.classList.add('d-none');
-        resultContent.classList.remove('d-none');
-        errorMessage.classList.add('d-none');
-        loadingIndicator.classList.remove('d-none');
-        loadingIndicator.querySelector('p').textContent = 'Processing resume...';
+        const allowedExtensions = ['.pdf', '.docx'];
+        const fileExtension = file.name.toLowerCase().substr(file.name.lastIndexOf('.'));
+        if (!allowedExtensions.includes(fileExtension)) {
+            showError('Please upload a PDF or DOCX file only');
+            return;
+        }
+
+        showProgressBar();
+        updateProgress(0, 'uploading', 'Uploading resume...', `File: ${file.name} (${formatFileSize(file.size)})`);
         
         const formData = new FormData();
         formData.append('resume', file);
@@ -656,44 +669,139 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const result = await response.json();
+            updateProgress(5, 'queued', 'Resume uploaded successfully', 'Starting AI analysis...');
             
-            if (result.status === 'processing') {
-                // Start polling for status
-                pollProcessingStatus();
-            } else {
-                throw new Error('Unexpected response from server');
-            }
+            // Start polling for detailed progress
+            pollEnhancedProgress();
             
         } catch (error) {
-            loadingIndicator.classList.add('d-none');
+            hideProgressBar();
             showError(error.message);
         }
     }
 
-    async function pollProcessingStatus() {
+    async function pollEnhancedProgress() {
         try {
-            const response = await fetch('/api/processing-status');
+            const response = await fetch('/api/resume-progress');
             const status = await response.json();
             
-            if (status.status === 'complete') {
-                // Processing complete, update UI
-                loadingIndicator.classList.add('d-none');
-                resultContent.classList.remove('d-none');
-                generatedText.textContent = 'Resume processed successfully! Your profile has been updated with the extracted information.';
-                generatedText.classList.add('text-success');
+            if (status.step === 'complete') {
+                updateProgress(100, 'complete', 'Resume processed successfully!', 
+                    status.data?.cached ? 'Used cached data for faster processing' : 'Profile updated with new information');
                 
-                // Update profile form with new data
-                populateProfileForm();
-            } else if (status.status === 'error') {
-                loadingIndicator.classList.add('d-none');
-                showError(status.error || 'Error processing resume');
-            } else if (status.status === 'processing') {
-                // Continue polling
-                setTimeout(pollProcessingStatus, 2000);
+                // Wait a bit then hide progress and refresh profile
+                setTimeout(() => {
+                    hideProgressBar();
+                    loadCandidateData(); // Refresh the profile data
+                    showSuccess('Your profile has been updated with resume information!');
+                }, 2000);
+                
+            } else if (status.step === 'error') {
+                hideProgressBar();
+                showError(status.message || 'Error processing resume');
+                
+            } else if (status.progress !== undefined) {
+                // Update progress with detailed information
+                updateProgress(
+                    status.progress, 
+                    status.step, 
+                    status.message,
+                    getProgressDetails(status.step, status.data)
+                );
+                
+                // Continue polling if not complete
+                setTimeout(pollEnhancedProgress, 1000);
+            } else {
+                // Continue polling if status is not clear
+                setTimeout(pollEnhancedProgress, 2000);
             }
         } catch (error) {
-            loadingIndicator.classList.add('d-none');
-            showError('Error checking processing status');
+            console.error('Error checking progress:', error);
+            setTimeout(pollEnhancedProgress, 3000); // Retry in 3 seconds
+        }
+    }
+
+    function showProgressBar() {
+        if (uploadProgress) {
+            uploadProgress.classList.remove('d-none');
+        }
+        if (initialMessage) {
+            initialMessage.classList.add('d-none');
+        }
+        if (errorMessage) {
+            errorMessage.classList.add('d-none');
+        }
+    }
+
+    function hideProgressBar() {
+        if (uploadProgress) {
+            uploadProgress.classList.add('d-none');
+        }
+    }
+
+    function updateProgress(percentage, step, message, details = '') {
+        if (progressBar) {
+            progressBar.style.width = `${percentage}%`;
+            progressBar.setAttribute('aria-valuenow', percentage);
+            progressBar.textContent = `${percentage}%`;
+        }
+        
+        if (progressText) {
+            progressText.textContent = message;
+        }
+        
+        if (progressDetails && details) {
+            progressDetails.textContent = details;
+        }
+
+        // Update progress bar color based on status
+        if (progressBar) {
+            progressBar.className = 'progress-bar';
+            if (step === 'error') {
+                progressBar.classList.add('bg-danger');
+            } else if (step === 'complete') {
+                progressBar.classList.add('bg-success');
+            } else if (step === 'ai_parsing') {
+                progressBar.classList.add('bg-info');
+            } else {
+                progressBar.classList.add('bg-primary');
+            }
+        }
+    }
+
+    function getProgressDetails(step, data) {
+        const details = {
+            'initializing': 'Preparing for processing...',
+            'analyzing': 'Examining file structure and content...',
+            'cache_hit': 'Found previously processed resume data',
+            'extracting': 'Reading text from your resume...',
+            'text_extracted': data?.text_length ? `Extracted ${data.text_length} characters` : 'Text extraction complete',
+            'ai_parsing': 'AI is analyzing your skills and experience...',
+            'merging': 'Intelligently updating your profile...',
+            'saving': 'Saving your updated profile...',
+            'complete': 'All done! Your profile is updated.',
+            'error': 'Something went wrong during processing'
+        };
+        return details[step] || 'Processing...';
+    }
+
+    function formatFileSize(bytes) {
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        if (bytes === 0) return '0 Byte';
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    function showSuccess(message) {
+        if (errorMessage) {
+            errorMessage.className = 'alert alert-success';
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('d-none');
+            
+            // Auto-hide success message after 5 seconds
+            setTimeout(() => {
+                errorMessage.classList.add('d-none');
+            }, 5000);
         }
     }
 

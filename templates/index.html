@@ -165,6 +165,15 @@
                                     <label class="form-label">Upload Resume (PDF or DOCX)</label>
                                     <input type="file" class="form-control" id="resumeUpload" accept=".pdf,.docx">
                                     <button type="button" id="uploadResumeBtn" class="btn btn-primary mt-2">Upload Resume</button>
+                                    
+                                    <!-- Progress Bar for Resume Upload -->
+                                    <div id="uploadProgress" class="mt-3 d-none">
+                                        <div class="progress mb-2">
+                                            <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                        </div>
+                                        <div id="progressText" class="text-primary fw-bold mb-1">Processing...</div>
+                                        <div id="progressDetails" class="small text-muted"></div>
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="name" class="form-label">Full Name</label>

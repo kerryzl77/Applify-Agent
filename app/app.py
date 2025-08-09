@@ -7,6 +7,7 @@ from functools import wraps
 from werkzeug.utils import secure_filename
 from app.resume_parser import ResumeParser
 from app.background_tasks import BackgroundProcessor
+from app.enhanced_resume_processor import enhanced_resume_processor
 from app.redis_manager import RedisManager
 
 # Add parent directory to path to import modules
@@ -300,7 +301,7 @@ def update_candidate_data():
 @app.route('/api/upload-resume', methods=['POST'])
 @login_required
 def upload_resume():
-    """Handle resume upload and parsing."""
+    """Enhanced resume upload with progress tracking and caching."""
     try:
         if 'resume' not in request.files:
             return jsonify({'error': 'No file uploaded'}), 400
@@ -308,6 +309,23 @@ def upload_resume():
         file = request.files['resume']
         if not file or file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'.pdf', '.docx'}
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': f'File type {file_ext} not supported. Please upload PDF or DOCX files only.'}), 400
+        
+        # Validate file size (10MB max)
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > 10 * 1024 * 1024:  # 10MB
+            return jsonify({'error': 'File too large. Maximum size is 10MB.'}), 400
+        
+        if file_size < 1000:  # 1KB minimum
+            return jsonify({'error': 'File too small. Please upload a valid resume file.'}), 400
             
         # Save the uploaded file
         try:
@@ -315,22 +333,48 @@ def upload_resume():
         except Exception as e:
             return jsonify({'error': f'Error saving file: {str(e)}'}), 500
             
-        # Start background processing
-        background_processor.start_processing(file_path, session['user_id'])
+        # Start enhanced background processing
+        enhanced_resume_processor.start_processing(file_path, session['user_id'], file.filename)
         
         return jsonify({
-            'status': 'processing',
-            'message': 'Resume is being processed. You will be notified when complete.'
+            'status': 'queued',
+            'message': 'Resume queued for processing. Check progress with /api/resume-progress',
+            'filename': file.filename,
+            'size': file_size
         })
         
     except Exception as e:
+        logging.error(f"Upload error for user {session.get('user_id')}: {str(e)}")
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
 
+@app.route('/api/resume-progress')
+@login_required
+def get_resume_progress():
+    """Get detailed resume processing progress."""
+    try:
+        status = enhanced_resume_processor.get_status(session['user_id'])
+        return jsonify(status)
+    except Exception as e:
+        logging.error(f"Progress check error for user {session.get('user_id')}: {str(e)}")
+        return jsonify({'error': 'Failed to get progress'}), 500
+
+@app.route('/api/clear-resume-progress', methods=['POST'])
+@login_required
+def clear_resume_progress():
+    """Clear resume processing status."""
+    try:
+        enhanced_resume_processor.clear_status(session['user_id'])
+        return jsonify({'success': True})
+    except Exception as e:
+        logging.error(f"Clear progress error for user {session.get('user_id')}: {str(e)}")
+        return jsonify({'error': 'Failed to clear progress'}), 500
+
+# Keep legacy endpoint for backward compatibility
 @app.route('/api/processing-status')
 @login_required
 def check_processing_status():
-    status = background_processor.get_status(session['user_id'])
-    return jsonify(status)
+    """Legacy processing status endpoint."""
+    return get_resume_progress()
 
 @app.route('/health')
 def health_check():

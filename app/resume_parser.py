@@ -60,68 +60,144 @@ class ResumeParser:
 
     def parse_resume(self, text, timeout=120):
         """Parse resume text using GPT-4 with timeout handling."""
+        return self.parse_resume_enhanced(text, timeout)
+    
+    def parse_resume_enhanced(self, text, timeout=120):
+        """Enhanced resume parsing with better prompts and error handling."""
         start_time = time.time()
         
-        prompt = """Extract the following information from this resume and return it as a JSON object:
-        {
-            "personal_info": {
-                "name": "Full name",
+        # Clean and preprocess text
+        cleaned_text = self._preprocess_text(text)
+        
+        system_prompt = """You are an expert resume parser with deep understanding of professional documents. 
+        Extract information accurately and generate compelling professional summaries when needed.
+        Always return valid JSON with all required fields, using empty strings or arrays if information is not available."""
+        
+        user_prompt = f"""Parse this resume and extract the following information in JSON format:
+
+        {{
+            "personal_info": {{
+                "name": "Full name (required)",
                 "email": "Email address",
-                "phone": "Phone number",
-                "linkedin": "LinkedIn URL if available",
-                "github": "GitHub URL if available"
-            },
-            "resume": {
-                "summary": "Professional summary or objective if not provided in the resume, generate one based on the resume content",
+                "phone": "Phone number with proper formatting",
+                "linkedin": "Full LinkedIn URL if available",
+                "github": "Full GitHub URL if available"
+            }},
+            "resume": {{
+                "summary": "Generate a compelling 2-3 sentence professional summary based on the resume content if not explicitly provided",
                 "experience": [
-                    {
+                    {{
                         "title": "Job title",
                         "company": "Company name",
-                        "location": "Location",
-                        "start_date": "Start date",
-                        "end_date": "End date or 'Present'",
-                        "description": "Job description"
-                    }
+                        "location": "City, State/Country",
+                        "start_date": "Start date (MM/YYYY format)",
+                        "end_date": "End date (MM/YYYY format) or 'Present'",
+                        "description": "Concise description highlighting key achievements and responsibilities"
+                    }}
                 ],
                 "education": [
-                    {
-                        "degree": "Degree name",
+                    {{
+                        "degree": "Degree type and field of study",
                         "institution": "Institution name",
-                        "location": "Location",
-                        "graduation_date": "Graduation date"
-                    }
+                        "location": "City, State/Country",
+                        "graduation_date": "Graduation date (MM/YYYY format) or expected date"
+                    }}
                 ],
-                "skills": ["List of skills"]
-            },
+                "skills": ["Technical skills, tools, programming languages, etc."]
+            }},
             "story_bank": [
-                {
-                    "title": "Story title based on a significant achievement or project",
-                    "content": "Detailed story about the achievement, including context, actions taken, and results achieved"
-                }
+                {{
+                    "title": "Achievement or project title",
+                    "content": "STAR format story: Situation, Task, Action, Result. Focus on quantifiable achievements and impact."
+                }}
             ]
-        }"""
+        }}
+
+        Resume Content:
+        {cleaned_text}
+
+        Important:
+        - Extract ALL contact information available
+        - Generate professional summary if none exists
+        - Include quantifiable achievements in experience descriptions
+        - Create 2-3 compelling stories for the story bank
+        - Ensure all dates are properly formatted
+        - Return valid JSON only"""
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo-16k",  # Faster and cheaper than GPT-4
                 messages=[
-                    {"role": "system", "content": "You are a precise resume parser. Extract only the requested information and format it as a valid JSON object."},
-                    {"role": "user", "content": f"{prompt}\n\nResume Text:\n{text}"}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.1,
-                max_tokens=2000
+                max_tokens=4000
             )
 
             if time.time() - start_time > timeout:
                 raise TimeoutError("Resume parsing timed out")
 
-            parsed_data = json.loads(response.choices[0].message.content)
-            return parsed_data
+            response_content = response.choices[0].message.content.strip()
+            
+            # Clean JSON response
+            json_start = response_content.find('{')
+            json_end = response_content.rfind('}') + 1
+            if json_start == -1 or json_end == 0:
+                raise ValueError("No JSON found in response")
+            
+            json_content = response_content[json_start:json_end]
+            parsed_data = json.loads(json_content)
+            
+            # Validate and clean the parsed data
+            return self._validate_and_clean_parsed_data(parsed_data)
 
-        except json.JSONDecodeError:
-            raise ValueError("Failed to parse resume data")
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse resume data: Invalid JSON - {str(e)}")
         except Exception as e:
             raise Exception(f"Error parsing resume: {str(e)}")
+    
+    def _preprocess_text(self, text):
+        """Clean and preprocess resume text for better parsing."""
+        if not text:
+            return ""
+        
+        # Remove excessive whitespace and normalize
+        cleaned = ' '.join(text.split())
+        
+        # Remove common OCR artifacts
+        cleaned = cleaned.replace('•', '-').replace('◦', '-')
+        
+        return cleaned[:8000]  # Limit to prevent token overflow
+    
+    def _validate_and_clean_parsed_data(self, data):
+        """Validate and clean the parsed resume data."""
+        # Ensure required structure
+        cleaned_data = {
+            "personal_info": {
+                "name": data.get("personal_info", {}).get("name", ""),
+                "email": data.get("personal_info", {}).get("email", ""),
+                "phone": data.get("personal_info", {}).get("phone", ""),
+                "linkedin": data.get("personal_info", {}).get("linkedin", ""),
+                "github": data.get("personal_info", {}).get("github", "")
+            },
+            "resume": {
+                "summary": data.get("resume", {}).get("summary", ""),
+                "experience": data.get("resume", {}).get("experience", []),
+                "education": data.get("resume", {}).get("education", []),
+                "skills": data.get("resume", {}).get("skills", [])
+            },
+            "story_bank": data.get("story_bank", [])
+        }
+        
+        # Clean URLs
+        if cleaned_data["personal_info"]["linkedin"] and not cleaned_data["personal_info"]["linkedin"].startswith("http"):
+            cleaned_data["personal_info"]["linkedin"] = "https://linkedin.com/in/" + cleaned_data["personal_info"]["linkedin"]
+        
+        if cleaned_data["personal_info"]["github"] and not cleaned_data["personal_info"]["github"].startswith("http"):
+            cleaned_data["personal_info"]["github"] = "https://github.com/" + cleaned_data["personal_info"]["github"]
+        
+        return cleaned_data
 
     def save_uploaded_file(self, file):
         """Save uploaded file and return its path."""
