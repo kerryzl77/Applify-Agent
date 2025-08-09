@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash, send_from_directory
-from flask_session import Session
 import os
 import sys
 import datetime
@@ -21,24 +20,16 @@ from app.output_formatter import OutputFormatter
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 
-# Redis session configuration
+# Simple session configuration - use built-in Flask sessions
+app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
+app.permanent_session_lifetime = datetime.timedelta(days=1)
+
+# Initialize Redis for caching only, not sessions
 redis_manager = RedisManager()
 if redis_manager.is_available():
-    app.config['SESSION_TYPE'] = 'redis'
-    app.config['SESSION_REDIS'] = redis_manager._redis_client
-    app.config['SESSION_USE_SIGNER'] = True
-    app.config['SESSION_KEY_PREFIX'] = 'session:'
-    app.config['SESSION_PERMANENT'] = True
-    app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=1)
-    logging.info("Using Redis for session management")
+    logging.info("Redis available for caching")
 else:
-    # Fallback to file sessions if Redis unavailable
-    app.config['SESSION_TYPE'] = 'filesystem'
-    app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
-    logging.warning("Redis unavailable, using filesystem sessions")
-
-app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
-Session(app)
+    logging.warning("Redis unavailable, caching disabled")
 
 # Initialize components
 data_retriever = DataRetriever()
@@ -346,7 +337,15 @@ def health_check():
     """Health check endpoint for container monitoring."""
     try:
         # Check database connection
-        db_healthy = db_manager._get_connection() is not None
+        try:
+            conn = db_manager._get_connection()
+            if conn:
+                db_manager._return_connection(conn)
+                db_healthy = True
+            else:
+                db_healthy = False
+        except:
+            db_healthy = False
         
         # Check Redis connection
         redis_healthy = redis_manager.is_available()
