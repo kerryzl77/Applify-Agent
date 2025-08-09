@@ -34,7 +34,7 @@ class LLMGenerator:
         """Call the OpenAI API to generate text."""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",  # or another appropriate model
+                model="gpt-4o-mini",  # or another appropriate model
                 messages=[
                     {"role": "system", "content": "You are a professional writer helping a job applicant create tailored application materials."},
                     {"role": "user", "content": prompt}
@@ -191,8 +191,14 @@ class LLMGenerator:
         job_description = job_data.get('job_description', 'The job involves working with data and technology.')
         requirements = job_data.get('requirements', 'Skills in data analysis, programming, and communication.')
         
-        # Get candidate's professional summary
+        # Get candidate's professional summary and experience
         current_role = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
+        
+        # Format past experience for the prompt
+        past_experience = []
+        for exp in candidate_data['resume'].get('experience', []):
+            exp_str = f"- {exp['title']} at {exp['company']} ({exp['start_date']} - {exp['end_date']}): {exp['description']}"
+            past_experience.append(exp_str)
         
         # Get user's template if available
         template_example = ""
@@ -213,12 +219,14 @@ class LLMGenerator:
         - Professional Summary: {current_role}
         - Experience: {candidate_data['resume']['summary']}
         - Key skills: {', '.join(candidate_data['resume']['skills'])}
-        - Relevant story: {candidate_data['story_bank'][1]['content'] if candidate_data['story_bank'] else 'Experienced in delivering results.'}
+        - Past Experience:
+        {chr(10).join(past_experience)}
+        - Relevant story: {candidate_data['story_bank'][0]['content'] if candidate_data['story_bank'] else 'Experienced in delivering results.'}
         
         The email should:
         - Be addressed to the hiring manager
         - Express interest in the specific position
-        - Highlight 2-3 most relevant qualifications/experiences
+        - Highlight 2-3 most relevant qualifications/experiences from past roles
         - Connect candidate's background to job requirements
         - Include a call to action
         - Be MAXIMUM 200 WORDS (this is critical)
@@ -237,8 +245,14 @@ class LLMGenerator:
         requirements = job_data.get('requirements', 'Skills in data analysis, programming, and communication.')
         location = job_data.get('location', 'the location')
         
-        # Get candidate's professional summary
+        # Get candidate's professional summary and experience
         current_role = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
+        
+        # Format past experience for the prompt
+        past_experience = []
+        for exp in candidate_data['resume'].get('experience', []):
+            exp_str = f"- {exp['title']} at {exp['company']} ({exp['start_date']} - {exp['end_date']}): {exp['description']}"
+            past_experience.append(exp_str)
         
         # Get user's template if available
         template_example = ""
@@ -259,10 +273,10 @@ class LLMGenerator:
         About the candidate:
         - Contact: {candidate_data['personal_info']['email']} | {candidate_data['personal_info']['phone']}
         - Professional Summary: {current_role}
-        - Previous role: {candidate_data['resume']['experience'][1]['title'] if len(candidate_data['resume']['experience']) > 1 else 'Previous role'} at {candidate_data['resume']['experience'][1]['company'] if len(candidate_data['resume']['experience']) > 1 else 'Previous company'}
         - Education: {candidate_data['resume']['education'][0]['degree']} from {candidate_data['resume']['education'][0]['institution']}
-        - Summary: {candidate_data['resume']['summary']}
         - Key skills: {', '.join(candidate_data['resume']['skills'])}
+        - Past Experience:
+        {chr(10).join(past_experience)}
         - Stories: 
           1. {candidate_data['story_bank'][0]['content'] if candidate_data['story_bank'] else 'Experienced in delivering results.'}
           2. {candidate_data['story_bank'][1]['content'] if len(candidate_data['story_bank']) > 1 else ''}
@@ -272,7 +286,7 @@ class LLMGenerator:
         - Be addressed to the hiring manager
         - Have a compelling introduction that mentions the specific position
         - Highlight 3-4 most relevant qualifications/experiences that match job requirements
-        - Include specific achievements with measurable results
+        - Include specific achievements with measurable results from past roles
         - Explain why the candidate is interested in this specific company
         - Have a strong closing paragraph with a call to action
         - Do not include Title, Exclude any header or closing that explicitly includes the candidate's name

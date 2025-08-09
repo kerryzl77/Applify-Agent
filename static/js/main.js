@@ -273,15 +273,17 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // Populate templates
-        if (candidateData.templates) {
-            const templateTypes = ['connection_emails', 'cover_letters', 'hiring_manager_emails', 'linkedin_messages'];
-            templateTypes.forEach(type => {
-                if (candidateData.templates[type]) {
-                    addTemplateItem(type, candidateData.templates[type]);
-                }
-            });
-        }
+        // Templates
+        const templateTypes = ['connection_emails', 'cover_letters', 'hiring_manager_emails', 'linkedin_messages'];
+        templateTypes.forEach(type => {
+            const containerId = `${type.replace('_', '')}Container`;
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = ''; // Clear existing content
+                const templateData = candidateData.templates && candidateData.templates[type] ? candidateData.templates[type] : { title: '', template: '' };
+                addTemplateItem(type, templateData);
+            }
+        });
     }
     
     function addExperienceItem(e, data = null, index = null) {
@@ -633,7 +635,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Show loading state
         initialMessage.classList.add('d-none');
-        resultContent.classList.add('d-none');
+        resultContent.classList.remove('d-none');
         errorMessage.classList.add('d-none');
         loadingIndicator.classList.remove('d-none');
         loadingIndicator.querySelector('p').textContent = 'Processing resume...';
@@ -642,6 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('resume', file);
         
         try {
+            // Upload file and start processing
             const response = await fetch('/api/upload-resume', {
                 method: 'POST',
                 body: formData
@@ -652,60 +655,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(error.error || 'Failed to upload resume');
             }
             
-            const parsedData = await response.json();
+            const result = await response.json();
             
-            // Populate personal info
-            document.getElementById('name').value = parsedData.personal_info.name || '';
-            document.getElementById('email').value = parsedData.personal_info.email || '';
-            document.getElementById('phone').value = parsedData.personal_info.phone || '';
-            document.getElementById('linkedin').value = parsedData.personal_info.linkedin || '';
-            document.getElementById('github').value = parsedData.personal_info.github || '';
-            
-            // Populate resume summary
-            document.getElementById('summary').value = parsedData.resume.summary || '';
-            
-            // Populate skills
-            document.getElementById('skills').value = parsedData.resume.skills.join(', ') || '';
-            
-            // Clear existing experience and education items
-            document.getElementById('experienceContainer').innerHTML = '';
-            document.getElementById('educationContainer').innerHTML = '';
-            
-            // Add experience items
-            parsedData.resume.experience.forEach(exp => {
-                addExperienceItem(null, exp);
-            });
-            
-            // Add education items
-            parsedData.resume.education.forEach(edu => {
-                addEducationItem(null, edu);
-            });
-
-            // Clear existing story bank items
-            document.getElementById('storyBankContainer').innerHTML = '';
-            
-            // Add story bank items
-            if (parsedData.story_bank && parsedData.story_bank.length > 0) {
-                parsedData.story_bank.forEach(story => {
-                    addStoryItem(null, story);
-                });
+            if (result.status === 'processing') {
+                // Start polling for status
+                pollProcessingStatus();
+            } else {
+                throw new Error('Unexpected response from server');
             }
-            
-            // Hide loading indicator and show success message
-            loadingIndicator.classList.add('d-none');
-            resultContent.classList.remove('d-none');
-            generatedText.textContent = 'Resume processed successfully! Your profile has been updated with the extracted information.';
-            generatedText.classList.add('text-success');
             
         } catch (error) {
-            // Hide loading indicator and show error
             loadingIndicator.classList.add('d-none');
             showError(error.message);
+        }
+    }
+
+    async function pollProcessingStatus() {
+        try {
+            const response = await fetch('/api/processing-status');
+            const status = await response.json();
             
-            // If timeout error, suggest trying with a smaller file
-            if (error.message.includes('timed out')) {
-                showError('The resume processing took too long. Please try again with a smaller file or fewer pages.');
+            if (status.status === 'complete') {
+                // Processing complete, update UI
+                loadingIndicator.classList.add('d-none');
+                resultContent.classList.remove('d-none');
+                generatedText.textContent = 'Resume processed successfully! Your profile has been updated with the extracted information.';
+                generatedText.classList.add('text-success');
+                
+                // Update profile form with new data
+                populateProfileForm();
+            } else if (status.status === 'error') {
+                loadingIndicator.classList.add('d-none');
+                showError(status.error || 'Error processing resume');
+            } else if (status.status === 'processing') {
+                // Continue polling
+                setTimeout(pollProcessingStatus, 2000);
             }
+        } catch (error) {
+            loadingIndicator.classList.add('d-none');
+            showError('Error checking processing status');
         }
     }
 

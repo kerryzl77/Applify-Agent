@@ -1,8 +1,8 @@
 build:
   docker:
     web: Dockerfile
-    worker: Dockerfile.worker
-
 run:
-  web: gunicorn app.app:app
-  worker: rq worker -c app.worker_config 
+  web: gunicorn app.app:app --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
+addons:
+  - plan: heroku-postgresql:mini
+  - plan: heroku-redis:mini

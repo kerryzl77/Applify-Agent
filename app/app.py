@@ -1,13 +1,14 @@
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash, send_from_directory
+from flask_session import Session
 import os
 import sys
 import datetime
+import logging
 from functools import wraps
 from werkzeug.utils import secure_filename
 from app.resume_parser import ResumeParser
-from rq import Queue
-from app.worker_config import redis_conn
-from app.tasks import process_resume_task
+from app.background_tasks import BackgroundProcessor
+from app.redis_manager import RedisManager
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -15,21 +16,37 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Fix imports to use relative imports instead of absolute imports
 from scraper.retriever import DataRetriever
 from database.db_manager import DatabaseManager
-from app.llm_generator import LLMGenerator
+from app.cached_llm import CachedLLMGenerator
 from app.output_formatter import OutputFormatter
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
-app.secret_key = os.urandom(24)  # For session management
+
+# Redis session configuration
+redis_manager = RedisManager()
+if redis_manager.is_available():
+    app.config['SESSION_TYPE'] = 'redis'
+    app.config['SESSION_REDIS'] = redis_manager._redis_client
+    app.config['SESSION_USE_SIGNER'] = True
+    app.config['SESSION_KEY_PREFIX'] = 'session:'
+    app.config['SESSION_PERMANENT'] = True
+    app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=1)
+    logging.info("Using Redis for session management")
+else:
+    # Fallback to file sessions if Redis unavailable
+    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
+    logging.warning("Redis unavailable, using filesystem sessions")
+
+app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
+Session(app)
 
 # Initialize components
 data_retriever = DataRetriever()
 db_manager = DatabaseManager()
-llm_generator = LLMGenerator()
+llm_generator = CachedLLMGenerator()
 output_formatter = OutputFormatter()
 resume_parser = ResumeParser()
-
-# Initialize RQ queue
-q = Queue(connection=redis_conn)
+background_processor = BackgroundProcessor()
 
 def login_required(f):
     @wraps(f)
@@ -84,13 +101,14 @@ def register():
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id', None)
+    """Handle user logout."""
+    session.clear()  # Clear all session data
     return redirect(url_for('login'))
 
 @app.route('/api/generate', methods=['POST'])
 @login_required
 def generate_content():
-    """Generate content based on user input."""
+    """Generate content based on user input with Redis caching."""
     data = request.json
     
     # Get content type and input data
@@ -104,6 +122,23 @@ def generate_content():
     # Validate input
     if not content_type or (not url and not manual_text):
         return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Create job data for cache key generation
+    temp_job_data = {
+        'company_name': user_company_name,
+        'job_title': user_job_title,
+        'url': url or 'manual_input'
+    }
+    
+    # Check cache first
+    cached_content = redis_manager.get_cached_content(content_type, temp_job_data, session['user_id'])
+    if cached_content:
+        logging.info(f"Cache hit for content generation: {content_type}")
+        return jsonify({
+            'content': cached_content['content'],
+            'cached': True,
+            'generated_at': cached_content.get('generated_at')
+        })
     
     # Get job/profile data based on input type
     if input_type == 'url':
@@ -160,6 +195,9 @@ def generate_content():
     # Format the content
     formatted_content = output_formatter.format_text(content, content_type)
     
+    # Cache the generated content
+    redis_manager.cache_generated_content(content_type, formatted_content, job_data, session['user_id'])
+    
     # Save generated content to database
     metadata = {
         'job_title': job_data.get('job_title', ''),
@@ -179,7 +217,8 @@ def generate_content():
     response = {
         'content': formatted_content,
         'content_id': content_id,
-        'file_info': file_info
+        'file_info': file_info,
+        'cached': False
     }
     
     return jsonify(response)
@@ -244,83 +283,89 @@ def convert_to_pdf(file_path):
 @app.route('/api/candidate-data', methods=['GET'])
 @login_required
 def get_candidate_data():
-    """Get candidate data for the frontend."""
-    return jsonify(db_manager.get_candidate_data(session['user_id']))
+    """Get candidate data for the frontend with caching."""
+    cache_key = f"candidate_data:{session['user_id']}"
+    cached_data = redis_manager.get(cache_key)
+    
+    if cached_data:
+        return jsonify(cached_data)
+    
+    data = db_manager.get_candidate_data(session['user_id'])
+    redis_manager.set(cache_key, data, 300)  # Cache for 5 minutes
+    return jsonify(data)
 
 @app.route('/api/update-candidate-data', methods=['POST'])
 @login_required
 def update_candidate_data():
-    """Update candidate data."""
+    """Update candidate data and invalidate cache."""
     data = request.json
     db_manager.update_candidate_data(data, session['user_id'])
+    
+    # Invalidate user cache when profile is updated
+    redis_manager.invalidate_user_cache(session['user_id'])
+    
     return jsonify({'success': True})
 
 @app.route('/api/upload-resume', methods=['POST'])
 @login_required
 def upload_resume():
-    """Handle resume upload and start background processing."""
-    if 'resume' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-        
-    file = request.files['resume']
-    job_description = request.form.get('job_description', '')
-    
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-        
-    if file:
-        filename = secure_filename(file.filename)
-        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(upload_path)
-        
-        # Enqueue the job
-        job = q.enqueue(
-            process_resume_task,
-            args=(upload_path, job_description),
-            job_timeout='30m'
-        )
+    """Handle resume upload and parsing."""
+    try:
+        if 'resume' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+            
+        file = request.files['resume']
+        if not file or file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+            
+        # Save the uploaded file
+        try:
+            file_path = resume_parser.save_uploaded_file(file)
+        except Exception as e:
+            return jsonify({'error': f'Error saving file: {str(e)}'}), 500
+            
+        # Start background processing
+        background_processor.start_processing(file_path, session['user_id'])
         
         return jsonify({
-            'message': 'Resume processing started',
-            'job_id': job.id
-        }), 202
-
-@app.route('/api/resume-status/<job_id>', methods=['GET'])
-@login_required
-def get_resume_status(job_id):
-    """Get the status of a resume processing job."""
-    job = q.fetch_job(job_id)
-    
-    if job is None:
-        return jsonify({'status': 'not_found'}), 404
-        
-    if job.is_failed:
-        return jsonify({
-            'status': 'failed',
-            'error': str(job.exc_info)
-        }), 500
-        
-    if job.is_finished:
-        return jsonify({
-            'status': 'completed',
-            'result': job.result
+            'status': 'processing',
+            'message': 'Resume is being processed. You will be notified when complete.'
         })
         
-    return jsonify({'status': 'processing'})
+    except Exception as e:
+        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
 
-@app.route('/api/candidate-data/<job_id>', methods=['GET'])
+@app.route('/api/processing-status')
 @login_required
-def get_candidate_data_by_job(job_id):
-    """Get candidate data for a specific job."""
-    job = q.fetch_job(job_id)
-    
-    if job is None or not job.is_finished:
-        return jsonify({'error': 'Job not found or not completed'}), 404
+def check_processing_status():
+    status = background_processor.get_status(session['user_id'])
+    return jsonify(status)
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint for container monitoring."""
+    try:
+        # Check database connection
+        db_healthy = db_manager._get_connection() is not None
         
-    if job.is_failed:
-        return jsonify({'error': 'Job failed'}), 500
+        # Check Redis connection
+        redis_healthy = redis_manager.is_available()
         
-    return jsonify(job.result)
+        status = {
+            'status': 'healthy' if db_healthy and redis_healthy else 'unhealthy',
+            'database': 'up' if db_healthy else 'down',
+            'redis': 'up' if redis_healthy else 'down',
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+        
+        return jsonify(status), 200 if status['status'] == 'healthy' else 503
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.datetime.now().isoformat()
+        }), 503
 
 if __name__ == '__main__':
     import os

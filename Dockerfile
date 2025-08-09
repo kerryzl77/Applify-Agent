@@ -1,27 +1,44 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9-slim
 
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+# Install system dependencies including curl for health checks
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libreoffice \
     libmagic1 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first to leverage Docker cache
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Set the working directory in the container
+WORKDIR /app
 
-# Copy the rest of the application
-COPY . .
+# Copy requirements first for better Docker layer caching
+COPY requirements.txt /app/requirements.txt
 
-# Set environment variables
+# Install Python packages
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code
+COPY . /app
+
+# Define environment variables
+ENV FLASK_APP=app/app.py
 ENV PYTHONPATH=/app
-ENV REDIS_URL=${REDIS_URL}
+ENV FLASK_ENV=production
 
-# Expose the port the app runs on
-EXPOSE $PORT
+# Create necessary directories and set permissions
+RUN mkdir -p /app/output /app/uploads /tmp/flask_session && \
+    chmod 755 /app/output /app/uploads /tmp/flask_session
 
-# Run the web server
-CMD ["gunicorn", "app.app:app"]
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:$PORT/health || exit 1
+
+# Run the application with gunicorn (will be overridden by heroku.yml)
+CMD ["gunicorn", "app.app:app", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "2", "--timeout", "120"]

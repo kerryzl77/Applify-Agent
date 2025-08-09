@@ -27,10 +27,9 @@ class ResumeParser:
         except Exception as e:
             print(f"Error cleaning up temp directory: {e}")
 
-    def extract_text(self, file_path):
+    def extract_text(self, file_path, timeout=120):
         """Extract text from PDF or DOCX files with timeout handling."""
         start_time = time.time()
-        timeout = 25  # seconds, leaving 5 seconds buffer for Heroku's 30s limit
         
         mime = magic.Magic(mime=True)
         file_type = mime.from_file(file_path)
@@ -59,10 +58,9 @@ class ResumeParser:
         doc = Document(file_path)
         return "\n".join([paragraph.text for paragraph in doc.paragraphs])
 
-    def parse_resume(self, text):
+    def parse_resume(self, text, timeout=120):
         """Parse resume text using GPT-4 with timeout handling."""
         start_time = time.time()
-        timeout = 25  # seconds
         
         prompt = """Extract the following information from this resume and return it as a JSON object:
         {
@@ -74,7 +72,7 @@ class ResumeParser:
                 "github": "GitHub URL if available"
             },
             "resume": {
-                "summary": "Professional summary or objective",
+                "summary": "Professional summary or objective if not provided in the resume, generate one based on the resume content",
                 "experience": [
                     {
                         "title": "Job title",
