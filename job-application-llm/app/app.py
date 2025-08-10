@@ -200,10 +200,16 @@ def generate_content():
     }
     content_id = db_manager.save_generated_content(content_type, formatted_content, metadata, session['user_id'])
     
-    # Create document file if needed
+    # Create document file if needed - do this immediately for better UX
     file_info = None
     if content_type in ['cover_letter', 'connection_email', 'hiring_manager_email']:
-        file_info = output_formatter.create_docx(formatted_content, job_data, candidate_data, content_type)
+        try:
+            file_info = output_formatter.create_docx(formatted_content, job_data, candidate_data, content_type)
+            if file_info:
+                logging.info(f"Document created successfully: {file_info['filename']}")
+        except Exception as e:
+            logging.error(f"Error creating document: {str(e)}")
+            file_info = None
     
     # Return the generated content
     response = {
