@@ -283,16 +283,18 @@ class LLMGenerator:
         
         The cover letter should:
         - Follow standard cover letter format
-        - Be addressed to the hiring manager
+        - Start with "Dear Hiring Manager," or "Dear Hiring Team,"
         - Have a compelling introduction that mentions the specific position
         - Highlight 3-4 most relevant qualifications/experiences that match job requirements
         - Include specific achievements with measurable results from past roles
         - Explain why the candidate is interested in this specific company
         - Have a strong closing paragraph with a call to action
-        - Do not include Title, Exclude any header or closing that explicitly includes the candidate's name
+        - End with "Sincerely," followed by a blank line for signature
+        - Do NOT include the candidate's name in the closing signature - just end with "Sincerely,"
+        - Do NOT include any header with addresses or contact information
         - Be MAXIMUM 350 WORDS (this is critical)
         - Be professional but show personality
         {template_example}
         
-        Write the complete cover letter.
+        Write the complete cover letter content only (no header, no name in signature).
         """

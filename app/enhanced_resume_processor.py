@@ -162,11 +162,9 @@ class EnhancedResumeProcessor:
         # Update resume data (replace with new data)
         merged['resume'] = new_data.get('resume', {})
         
-        # Merge story bank (append new stories, avoid duplicates)
-        existing_stories = {story.get('title', '') for story in merged['story_bank']}
-        for story in new_data.get('story_bank', []):
-            if story.get('title') and story['title'] not in existing_stories:
-                merged['story_bank'].append(story)
+        # Replace story bank completely with new resume-generated stories
+        merged['story_bank'] = new_data.get('story_bank', [])
+        logger.info(f"Replaced story bank with {len(merged['story_bank'])} new stories for user {user_id}")
         
         return merged
     

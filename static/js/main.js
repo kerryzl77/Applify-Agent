@@ -136,21 +136,29 @@ document.addEventListener('DOMContentLoaded', function() {
             // Hide loading indicator
             loadingIndicator.classList.add('d-none');
             
-            // Display the generated content
+            // Display the generated content immediately
             generatedText.textContent = result.content;
             resultContent.classList.remove('d-none');
             
             // Show download buttons if file was generated
             if (result.file_info) {
                 currentFilePath = result.file_info.filename;
+                
+                // Show download buttons immediately
                 downloadButtons.classList.remove('d-none');
                 downloadDocxBtn.classList.remove('d-none');
                 downloadPdfBtn.classList.remove('d-none');
+                
+                // Show immediate feedback that document is ready
+                showSuccess('✅ Content generated! DOCX ready for download. PDF conversion available.');
             } else {
                 downloadDocxBtn.classList.add('d-none');
                 downloadPdfBtn.classList.add('d-none');
                 copyBtn.classList.remove('d-none');
                 downloadButtons.classList.remove('d-none');
+                
+                // Show feedback for non-document content
+                showSuccess('✅ Content generated successfully!');
             }
             
             // Update history

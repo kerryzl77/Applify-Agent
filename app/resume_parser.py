@@ -120,7 +120,9 @@ class ResumeParser:
         - Extract ALL contact information available
         - Generate professional summary if none exists
         - Include quantifiable achievements in experience descriptions
-        - Create 2-3 compelling stories for the story bank
+        - Create 3-5 compelling STAR format stories from work experience for the story bank
+        - Each story should highlight a specific achievement with measurable results
+        - Stories should cover different aspects (leadership, problem-solving, technical skills, teamwork)
         - Ensure all dates are properly formatted
         - Return valid JSON only"""
 
