@@ -1,1 +1,1 @@
-web: gunicorn app.app:app
+web: gunicorn app.app:app --timeout 180 --workers 2 --threads 2 --max-requests 1000

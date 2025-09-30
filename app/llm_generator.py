@@ -34,7 +34,7 @@ class LLMGenerator:
         """Call the OpenAI API to generate text."""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-5",  # Updated to latest GPT-5 model
+                model="gpt-4o",  # Using GPT-4o (latest stable model)
                 messages=[
                     {"role": "system", "content": "You are an expert professional writer and career advisor with deep understanding of modern job markets, hiring practices, and effective communication strategies. You create highly personalized, impactful application materials that resonate with hiring managers and decision makers."},
                     {"role": "user", "content": prompt}

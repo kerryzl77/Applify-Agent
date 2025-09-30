@@ -167,7 +167,10 @@ def generate_content():
     
     # Check if scraping was successful
     if 'error' in job_data:
-        return jsonify({'error': f"Failed to scrape data: {job_data['error']}"}), 400
+        error_msg = job_data['error']
+        if "temperature" in error_msg:
+            error_msg = "Model configuration error. Please try again or contact support."
+        return jsonify({'error': f"Failed to scrape data: {error_msg}"}), 400
     
     # Get candidate data
     candidate_data = db_manager.get_candidate_data(session['user_id'])
@@ -454,14 +457,14 @@ def refine_resume():
         if not candidate_data or not candidate_data.get('resume'):
             return jsonify({'error': 'Please upload your resume first before refining it'}), 400
         
-        # Analyze job requirements
+        # Analyze job requirements (fast analysis)
         job_analysis = resume_refiner.analyze_job_requirements(job_description)
         
-        # Analyze current resume
-        resume_analysis = resume_refiner.analyze_current_resume(candidate_data)
+        # Quick resume analysis (simplified for speed)
+        resume_analysis = resume_refiner.quick_resume_analysis(candidate_data, job_analysis)
         
-        # Generate optimized resume
-        optimized_resume = resume_refiner.generate_optimized_resume(
+        # Generate optimized resume (streamlined process)
+        optimized_resume = resume_refiner.generate_optimized_resume_fast(
             candidate_data, job_analysis, resume_analysis
         )
         

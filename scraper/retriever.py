@@ -162,12 +162,12 @@ class DataRetriever:
             prompt += "\n\nReturn ONLY a valid JSON object. Do not include any other text or explanation.\nIf a field is not found, use null or an empty string as appropriate."
 
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are a precise job posting parser. Your response must be a valid JSON object containing only the requested fields. Do not include any explanatory text or markdown formatting."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.1  # Lower temperature for more consistent output
+                temperature=0.3  # Lower temperature for more consistent output
             )
 
             # Parse the response
@@ -265,12 +265,12 @@ class DataRetriever:
             prompt += "\n\nReturn ONLY a valid JSON object with these fields. Do not include any other text or explanation.\nIf a field is not found, use null or an empty string as appropriate."
 
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are a precise LinkedIn profile parser. Extract only the requested information and format it as a valid JSON object. Do not include any explanatory text or markdown formatting."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.1  # Lower temperature for more consistent output
+                temperature=0.3  # Lower temperature for more consistent output
             )
 
             # Parse the response

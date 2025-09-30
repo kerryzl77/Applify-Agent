@@ -85,12 +85,12 @@ class ResumeRefiner:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are an expert job market analyst. Extract precise information from job descriptions for resume optimization. Return only valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.1
+                temperature=0.3
             )
             
             return json.loads(response.choices[0].message.content)
@@ -144,17 +144,60 @@ class ResumeRefiner:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are an expert resume analyst. Analyze resume content for optimization opportunities. Return only valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.1
+                temperature=0.3
             )
             
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             print(f"Error analyzing resume: {str(e)}")
+            return {"current_strengths": [], "improvement_areas": [], "ats_optimization_score": 70}
+    
+    def quick_resume_analysis(self, candidate_data, job_analysis):
+        """Fast resume analysis using local logic instead of API calls."""
+        try:
+            resume_data = candidate_data.get('resume', {})
+            candidate_skills = set(skill.lower() for skill in resume_data.get('skills', []))
+            required_skills = set(skill.lower() for skill in job_analysis.get('required_skills', []))
+            
+            # Calculate skills match
+            skills_overlap = candidate_skills & required_skills
+            skills_match = "high" if len(skills_overlap) >= 3 else "medium" if len(skills_overlap) >= 1 else "low"
+            
+            # Calculate base optimization score
+            base_score = 70
+            if skills_match == "high":
+                base_score += 20
+            elif skills_match == "medium":
+                base_score += 10
+            
+            # Check for quantified achievements
+            achievements_quantified = any(
+                any(char.isdigit() for char in exp.get('description', ''))
+                for exp in resume_data.get('experience', [])
+            )
+            if achievements_quantified:
+                base_score += 10
+            
+            return {
+                "current_strengths": list(skills_overlap)[:3],
+                "improvement_areas": ["keyword optimization", "quantified achievements"],
+                "keyword_gaps": list(required_skills - candidate_skills)[:5],
+                "skills_match": skills_match,
+                "experience_relevance": "medium",
+                "achievements_quantified": achievements_quantified,
+                "ats_optimization_score": min(base_score, 100),
+                "formatting_issues": [],
+                "content_suggestions": ["Add more quantified achievements", "Include relevant keywords"],
+                "recommended_reorder": ["professional_summary", "skills", "experience", "education"],
+                "word_count_status": "optimal"
+            }
+        except Exception as e:
+            print(f"Error in quick resume analysis: {str(e)}")
             return {"current_strengths": [], "improvement_areas": [], "ats_optimization_score": 70}
     
     def generate_optimized_resume(self, candidate_data, job_analysis, resume_analysis):
@@ -194,6 +237,139 @@ class ResumeRefiner:
             'word_count': self._estimate_word_count(optimized_sections)
         }
     
+    def generate_optimized_resume_fast(self, candidate_data, job_analysis, resume_analysis):
+        """Generate optimized resume with minimal API calls for speed."""
+        try:
+            # Use only one API call for the most critical section
+            optimized_summary = self._generate_professional_summary(
+                candidate_data, job_analysis, resume_analysis
+            )
+            
+            # Use local optimization for other sections to avoid API delays
+            optimized_skills = self._optimize_skills_local(candidate_data, job_analysis)
+            optimized_experience = self._optimize_experience_local(candidate_data, job_analysis)
+            optimized_education = self._optimize_education_section(candidate_data, job_analysis)
+            
+            optimized_sections = {
+                'professional_summary': optimized_summary,
+                'skills': optimized_skills,
+                'experience': optimized_experience,
+                'education': optimized_education
+            }
+            
+            template = self.resume_templates.get(job_analysis.get('resume_template', 'business'), self.resume_templates['business'])
+            
+            return {
+                'sections': optimized_sections,
+                'template': template,
+                'optimization_score': resume_analysis.get('ats_optimization_score', 75),
+                'formatting_rules': self.formatting_standards,
+                'word_count': self._estimate_word_count(optimized_sections)
+            }
+        except Exception as e:
+            print(f"Error in fast resume generation: {str(e)}")
+            return self._get_fallback_resume(candidate_data, job_analysis)
+    
+    def _optimize_skills_local(self, candidate_data, job_analysis):
+        """Local skills optimization without API calls."""
+        try:
+            candidate_skills = candidate_data['resume'].get('skills', [])
+            required_skills = job_analysis.get('required_skills', [])
+            preferred_skills = job_analysis.get('preferred_skills', [])
+            
+            # Prioritize skills that match job requirements
+            technical_skills = []
+            soft_skills = []
+            
+            # Add matching required skills first
+            for skill in candidate_skills:
+                if any(req.lower() in skill.lower() for req in required_skills):
+                    technical_skills.append(skill)
+                elif any(pref.lower() in skill.lower() for pref in preferred_skills):
+                    technical_skills.append(skill)
+                elif skill.lower() in ['communication', 'leadership', 'teamwork', 'problem solving']:
+                    soft_skills.append(skill)
+                else:
+                    technical_skills.append(skill)
+            
+            return {
+                "technical_skills": technical_skills[:8],
+                "soft_skills": soft_skills[:4] if soft_skills else ["Communication", "Problem Solving", "Leadership"],
+                "tools_technologies": [skill for skill in technical_skills if any(tech in skill.lower() for tech in ['python', 'sql', 'javascript', 'aws', 'docker', 'kubernetes'])][:6],
+                "certifications": []
+            }
+        except Exception as e:
+            print(f"Error in local skills optimization: {str(e)}")
+            return {
+                "technical_skills": candidate_data['resume']['skills'][:8],
+                "soft_skills": ["Communication", "Problem Solving", "Leadership"],
+                "tools_technologies": [],
+                "certifications": []
+            }
+    
+    def _optimize_experience_local(self, candidate_data, job_analysis):
+        """Local experience optimization without API calls."""
+        try:
+            experiences = candidate_data['resume'].get('experience', [])
+            required_skills = [skill.lower() for skill in job_analysis.get('required_skills', [])]
+            
+            optimized_experiences = []
+            for exp in experiences[:4]:  # Top 4 experiences
+                # Enhance description with keywords
+                description = exp.get('description', '')
+                
+                # Create bullet points from description
+                sentences = [s.strip() for s in description.split('.') if s.strip()]
+                bullet_points = []
+                
+                for sentence in sentences[:3]:  # Max 3 bullets per job
+                    # Add quantification if missing
+                    if not any(char.isdigit() for char in sentence):
+                        sentence = f"• Successfully {sentence.lower()}, contributing to team efficiency"
+                    else:
+                        sentence = f"• {sentence}"
+                    bullet_points.append(sentence)
+                
+                # Ensure at least 2 bullet points
+                if len(bullet_points) < 2:
+                    bullet_points.append(f"• Demonstrated expertise in {', '.join(required_skills[:2])} while maintaining high performance standards")
+                
+                optimized_exp = {
+                    "company": exp.get('company', ''),
+                    "title": exp.get('title', ''),
+                    "start_date": exp.get('start_date', ''),
+                    "end_date": exp.get('end_date', ''),
+                    "location": exp.get('location', ''),
+                    "description": description,
+                    "bullet_points": bullet_points
+                }
+                optimized_experiences.append(optimized_exp)
+            
+            return optimized_experiences
+        except Exception as e:
+            print(f"Error in local experience optimization: {str(e)}")
+            return candidate_data['resume'].get('experience', [])[:4]
+    
+    def _get_fallback_resume(self, candidate_data, job_analysis):
+        """Fallback resume structure if optimization fails."""
+        return {
+            'sections': {
+                'professional_summary': f"Experienced professional with expertise in {', '.join(candidate_data['resume']['skills'][:3])}",
+                'skills': {
+                    "technical_skills": candidate_data['resume']['skills'][:8],
+                    "soft_skills": ["Communication", "Problem Solving", "Leadership"],
+                    "tools_technologies": [],
+                    "certifications": []
+                },
+                'experience': candidate_data['resume']['experience'][:4],
+                'education': candidate_data['resume']['education'][:2]
+            },
+            'template': self.resume_templates['business'],
+            'optimization_score': 70,
+            'formatting_rules': self.formatting_standards,
+            'word_count': 400
+        }
+    
     def _generate_professional_summary(self, candidate_data, job_analysis, resume_analysis):
         """Generate an optimized professional summary."""
         prompt = f"""
@@ -218,12 +394,13 @@ class ResumeRefiner:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are a senior career coach specializing in ATS-optimized resume writing. Create compelling professional summaries that get results."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3
+                temperature=0.3,
+                timeout=30  # 30 second timeout
             )
             
             return response.choices[0].message.content.strip()
@@ -262,12 +439,12 @@ class ResumeRefiner:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are an expert in ATS optimization and skills categorization. Create skills sections that perfectly match job requirements."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.2
+                temperature=0.3
             )
             
             return json.loads(response.choices[0].message.content)
@@ -318,7 +495,7 @@ class ResumeRefiner:
             
             try:
                 response = self.client.chat.completions.create(
-                    model="gpt-5",
+                    model="gpt-4o",
                     messages=[
                         {"role": "system", "content": "You are an expert resume writer specializing in achievement-focused job descriptions. Create compelling experience entries that highlight quantifiable results."},
                         {"role": "user", "content": prompt}
