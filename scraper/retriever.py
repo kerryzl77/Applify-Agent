@@ -172,7 +172,10 @@ class DataRetriever:
 
             # Parse the response
             try:
-                parsed_data = json.loads(response.choices[0].message.content)
+                response_text = response.choices[0].message.content.strip()
+                response_text = re.sub(r'```json\s*', '', response_text)
+                response_text = re.sub(r'```\s*$', '', response_text)
+                parsed_data = json.loads(response_text)
             except json.JSONDecodeError as e:
                 print(f"Error parsing GPT response as JSON: {str(e)}")
                 print(f"Raw response: {response.choices[0].message.content}")

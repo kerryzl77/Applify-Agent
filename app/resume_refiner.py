@@ -93,7 +93,10 @@ class ResumeRefiner:
                 temperature=0.3
             )
             
-            return json.loads(response.choices[0].message.content)
+            response_text = response.choices[0].message.content.strip()
+            response_text = re.sub(r'```json\s*', '', response_text)
+            response_text = re.sub(r'```\s*$', '', response_text)
+            return json.loads(response_text)
         except Exception as e:
             print(f"Error analyzing job requirements: {str(e)}")
             return self._get_default_job_analysis()
@@ -152,7 +155,10 @@ class ResumeRefiner:
                 temperature=0.3
             )
             
-            return json.loads(response.choices[0].message.content)
+            response_text = response.choices[0].message.content.strip()
+            response_text = re.sub(r'```json\s*', '', response_text)
+            response_text = re.sub(r'```\s*$', '', response_text)
+            return json.loads(response_text)
         except Exception as e:
             print(f"Error analyzing resume: {str(e)}")
             return {"current_strengths": [], "improvement_areas": [], "ats_optimization_score": 70}
@@ -447,7 +453,10 @@ class ResumeRefiner:
                 temperature=0.3
             )
             
-            return json.loads(response.choices[0].message.content)
+            response_text = response.choices[0].message.content.strip()
+            response_text = re.sub(r'```json\s*', '', response_text)
+            response_text = re.sub(r'```\s*$', '', response_text)
+            return json.loads(response_text)
         except Exception as e:
             print(f"Error optimizing skills: {str(e)}")
             return {
@@ -503,7 +512,10 @@ class ResumeRefiner:
                     temperature=0.3
                 )
                 
-                optimized_exp = json.loads(response.choices[0].message.content)
+                response_text = response.choices[0].message.content.strip()
+                response_text = re.sub(r'```json\s*', '', response_text)
+                response_text = re.sub(r'```\s*$', '', response_text)
+                optimized_exp = json.loads(response_text)
                 optimized_experiences.append(optimized_exp)
             except Exception as e:
                 print(f"Error optimizing experience: {str(e)}")

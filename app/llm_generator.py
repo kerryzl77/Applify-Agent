@@ -8,7 +8,8 @@ load_dotenv()
 class LLMGenerator:
     def __init__(self):
         # Initialize OpenAI client with API key from environment variable
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        api_key = os.getenv("OPENAI_API_KEY", "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")
+        self.client = OpenAI(api_key=api_key)
         
     def generate_linkedin_message(self, job_data, candidate_data, profile_data=None):
         """Generate a LinkedIn connection message (200 characters max)."""
