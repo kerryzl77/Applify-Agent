@@ -76,38 +76,46 @@ document.addEventListener('DOMContentLoaded', function() {
     function toggleInputType() {
         const contentType = document.getElementById('contentType').value;
         const connectionTypes = ['linkedin_message', 'connection_email', 'hiring_manager_email'];
-        const needsDualUrl = connectionTypes.includes(contentType);
+        const needsConnectionInfo = connectionTypes.includes(contentType);
         
         if (urlInput.checked) {
             urlInputGroup.classList.remove('d-none');
             manualInputGroup.classList.add('d-none');
             
-            // Toggle between dual and single URL inputs
-            const dualUrlInputs = document.getElementById('dualUrlInputs');
+            // Toggle between connection and regular inputs
+            const linkedinUrlInput = document.getElementById('linkedinUrlInput');
             const singleUrlInput = document.getElementById('singleUrlInput');
-            const dualUrlInfo = document.getElementById('dualUrlInfo');
-            const profileUrl = document.getElementById('profileUrl');
+            const connectionInfo = document.getElementById('connectionInfo');
+            const personName = document.getElementById('personName');
+            const personPosition = document.getElementById('personPosition');
             
-            if (needsDualUrl) {
-                dualUrlInputs.classList.remove('d-none');
+            if (needsConnectionInfo) {
+                // Connection message mode - show person fields + optional LinkedIn URL
+                personName.parentElement.style.display = 'block';
+                personPosition.parentElement.style.display = 'block';
+                linkedinUrlInput.classList.remove('d-none');
                 singleUrlInput.classList.add('d-none');
-                dualUrlInfo.classList.remove('d-none');
-                profileUrl.required = true;
+                connectionInfo.classList.remove('d-none');
+                personName.required = true;
+                personPosition.required = true;
                 jobUrl.required = false;
             } else {
-                dualUrlInputs.classList.add('d-none');
+                // Cover letter mode - hide person fields
+                personName.parentElement.style.display = 'none';
+                personPosition.parentElement.style.display = 'none';
+                linkedinUrlInput.classList.add('d-none');
                 singleUrlInput.classList.remove('d-none');
-                dualUrlInfo.classList.add('d-none');
-                profileUrl.required = false;
+                connectionInfo.classList.add('d-none');
+                personName.required = false;
+                personPosition.required = false;
                 jobUrl.required = true;
             }
             manualText.required = false;
         } else {
             urlInputGroup.classList.add('d-none');
             manualInputGroup.classList.remove('d-none');
-            document.getElementById('dualUrlInfo').classList.add('d-none');
+            document.getElementById('connectionInfo').classList.add('d-none');
             jobUrl.required = false;
-            document.getElementById('profileUrl').required = false;
             manualText.required = true;
         }
     }
@@ -171,43 +179,48 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleContentTypeChange() {
         const contentType = document.getElementById('contentType').value;
         const manualInputLabel = document.querySelector('label[for="manualText"]');
-        const jobTitleDiv = document.getElementById('jobTitle').parentElement;
-        const companyNameDiv = document.getElementById('companyName').parentElement;
-        const dualUrlInputs = document.getElementById('dualUrlInputs');
+        const personNameDiv = document.getElementById('personName').parentElement;
+        const personPositionDiv = document.getElementById('personPosition').parentElement;
+        const linkedinUrlInput = document.getElementById('linkedinUrlInput');
         const singleUrlInput = document.getElementById('singleUrlInput');
-        const dualUrlInfo = document.getElementById('dualUrlInfo');
+        const connectionInfo = document.getElementById('connectionInfo');
         
-        // Determine if this content type needs connection messages (dual URL)
+        // Determine if this content type needs connection messages
         const connectionTypes = ['linkedin_message', 'connection_email', 'hiring_manager_email'];
-        const needsDualUrl = connectionTypes.includes(contentType);
+        const needsConnectionInfo = connectionTypes.includes(contentType);
         
-        // Toggle between dual and single URL inputs
-        if (needsDualUrl && urlInput.checked) {
-            dualUrlInputs.classList.remove('d-none');
+        // Toggle UI based on content type
+        if (needsConnectionInfo && urlInput.checked) {
+            // Show person info fields and LinkedIn URL
+            personNameDiv.style.display = 'block';
+            personPositionDiv.style.display = 'block';
+            linkedinUrlInput.classList.remove('d-none');
             singleUrlInput.classList.add('d-none');
-            dualUrlInfo.classList.remove('d-none');
+            connectionInfo.classList.remove('d-none');
             
-            // Update job title/company name to show they're helpful when no job URL provided
-            document.getElementById('jobTitleHelp').textContent = '💡 Provide job details if not using Job Posting URL above';
-            document.getElementById('companyNameHelp').textContent = '💡 Provide company details if not using Job Posting URL above';
+            // Make fields required
+            document.getElementById('personName').required = true;
+            document.getElementById('personPosition').required = true;
         } else if (urlInput.checked) {
-            dualUrlInputs.classList.add('d-none');
+            // Cover letter mode - hide person fields
+            personNameDiv.style.display = 'none';
+            personPositionDiv.style.display = 'none';
+            linkedinUrlInput.classList.add('d-none');
             singleUrlInput.classList.remove('d-none');
-            dualUrlInfo.classList.add('d-none');
+            connectionInfo.classList.add('d-none');
             
-            // Reset to default help text
-            document.getElementById('jobTitleHelp').textContent = 'Enter the job title directly to improve accuracy';
-            document.getElementById('companyNameHelp').textContent = 'Enter the company name directly to improve accuracy';
+            document.getElementById('personName').required = false;
+            document.getElementById('personPosition').required = false;
         } else {
             // Manual input mode
-            dualUrlInfo.classList.add('d-none');
+            connectionInfo.classList.add('d-none');
         }
         
         if (contentType === 'resume_refinement') {
             manualInputLabel.textContent = 'Job Description (Required for Resume Refinement)';
             document.getElementById('manualText').placeholder = 'Paste the complete job description here for optimal resume tailoring...';
-            jobTitleDiv.style.display = 'none';
-            companyNameDiv.style.display = 'none';
+            personNameDiv.style.display = 'none';
+            personPositionDiv.style.display = 'none';
             
             // Show resume refinement info
             if (!document.getElementById('resumeRefinementInfo')) {
@@ -231,24 +244,25 @@ document.addEventListener('DOMContentLoaded', function() {
             // Handle LinkedIn profile requirements for connection messages
             const connectionTypes = ['linkedin_message', 'connection_email', 'hiring_manager_email'];
             if (connectionTypes.includes(contentType)) {
-                manualInputLabel.textContent = 'LinkedIn Profile Information (Required)';
-                document.getElementById('manualText').placeholder = 'Paste LinkedIn profile information or use URL input above...';
-                jobTitleDiv.style.display = 'block';
-                companyNameDiv.style.display = 'block';
+                manualInputLabel.textContent = 'Person Information (if not provided above)';
+                document.getElementById('manualText').placeholder = 'Paste additional LinkedIn profile information if needed...';
+                personNameDiv.style.display = 'block';
+                personPositionDiv.style.display = 'block';
                 
                 // Show LinkedIn profile requirement info
                 if (!document.getElementById('linkedinRequirementInfo')) {
                     const infoDiv = document.createElement('div');
                     infoDiv.id = 'linkedinRequirementInfo';
-                    infoDiv.className = 'alert alert-warning mt-3';
+                    infoDiv.className = 'alert alert-info mt-3';
                     infoDiv.innerHTML = `
-                        <h6><i class="bi bi-linkedin text-primary"></i> LinkedIn Profile Required</h6>
-                        <p class="mb-1">For ${contentType.replace('_', ' ')}, you must provide:</p>
+                        <h6><i class="bi bi-person-circle text-primary"></i> Person Information Required</h6>
+                        <p class="mb-1">For ${contentType.replace('_', ' ')}, provide:</p>
                         <ul class="mb-1">
-                            <li><strong>URL Input:</strong> LinkedIn profile URL (e.g., linkedin.com/in/person-name)</li>
-                            <li><strong>Manual Input:</strong> Person's name, title, company, and background</li>
+                            <li><strong>Person's Name</strong> - Who you're contacting</li>
+                            <li><strong>Person's Position</strong> - Their title and company</li>
+                            <li><strong>LinkedIn URL (Optional)</strong> - For additional context</li>
                         </ul>
-                        <small class="text-muted">This ensures personalized, effective messaging to the right person.</small>
+                        <small class="text-muted">Manual entry ensures content always generates successfully.</small>
                     `;
                     generateForm.appendChild(infoDiv);
                 }
@@ -257,11 +271,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const resumeInfo = document.getElementById('resumeRefinementInfo');
                 if (resumeInfo) resumeInfo.remove();
             } else {
-                // Reset for other content types
-                manualInputLabel.textContent = 'Job Description or LinkedIn Profile';
-                document.getElementById('manualText').placeholder = 'Paste the full job description or LinkedIn profile content here...';
-                jobTitleDiv.style.display = 'block';
-                companyNameDiv.style.display = 'block';
+                // Reset for other content types (cover letters)
+                manualInputLabel.textContent = 'Job Description';
+                document.getElementById('manualText').placeholder = 'Paste the full job description here...';
+                personNameDiv.style.display = 'none';
+                personPositionDiv.style.display = 'none';
                 
                 // Remove all info boxes
                 const resumeInfo = document.getElementById('resumeRefinementInfo');
@@ -278,8 +292,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const contentType = document.getElementById('contentType').value;
         const inputType = document.querySelector('input[name="inputType"]:checked').value;
-        const jobTitle = document.getElementById('jobTitle').value;
-        const companyName = document.getElementById('companyName').value;
+        const personName = document.getElementById('personName').value;
+        const personPosition = document.getElementById('personPosition').value;
         const manualText = document.getElementById('manualText').value;
         
         // Handle resume refinement separately
@@ -288,17 +302,16 @@ document.addEventListener('DOMContentLoaded', function() {
             return handleResumeRefinement(inputType, jobUrl, manualText);
         }
         
-        // Determine which URLs to use based on content type
+        // Determine if connection message type
         const connectionTypes = ['linkedin_message', 'connection_email', 'hiring_manager_email'];
-        const needsDualUrl = connectionTypes.includes(contentType);
+        const needsConnectionInfo = connectionTypes.includes(contentType);
         
-        let primaryUrl, profileUrl, jobPostingUrl;
+        let primaryUrl, linkedinUrl;
         
         if (inputType === 'url') {
-            if (needsDualUrl) {
-                profileUrl = document.getElementById('profileUrl').value;
-                jobPostingUrl = document.getElementById('jobPostingUrl').value;
-                primaryUrl = profileUrl; // Use profile as primary for backward compatibility
+            if (needsConnectionInfo) {
+                linkedinUrl = document.getElementById('linkedinUrl').value; // Optional
+                primaryUrl = linkedinUrl || null; // Use LinkedIn URL if provided
             } else {
                 primaryUrl = document.getElementById('jobUrl').value;
             }
@@ -311,11 +324,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (inputType === 'url') {
-            if (needsDualUrl && !profileUrl) {
-                showError('Please provide a LinkedIn profile URL.');
-                return;
-            } else if (!needsDualUrl && !primaryUrl) {
-                showError('Please provide a URL.');
+            if (needsConnectionInfo) {
+                // Person name and position are required for connection messages
+                if (!personName || !personPosition) {
+                    showError('Please provide both person\'s name and position.');
+                    return;
+                }
+            } else if (!primaryUrl) {
+                showError('Please provide a job posting URL.');
                 return;
             }
         } else if (inputType === 'manual' && !manualText) {
@@ -334,18 +350,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const requestBody = {
             content_type: contentType,
             input_type: inputType,
-            job_title: jobTitle,
-            company_name: companyName,
+            person_name: personName,
+            person_position: personPosition,
             manual_text: manualText
         };
         
         // Add URLs based on content type
         if (inputType === 'url') {
-            if (needsDualUrl) {
-                requestBody.url = profileUrl;
-                requestBody.profile_url = profileUrl;
-                if (jobPostingUrl) {
-                    requestBody.job_url = jobPostingUrl;
+            if (needsConnectionInfo) {
+                // LinkedIn URL is optional - if provided, try to parse it
+                if (linkedinUrl) {
+                    requestBody.url = linkedinUrl;
+                    requestBody.linkedin_url = linkedinUrl;
+                } else {
+                    // No LinkedIn URL - will use manual person name/position
+                    requestBody.url = null;
                 }
             } else {
                 requestBody.url = primaryUrl;
@@ -520,6 +539,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status === 'completed') {
                     clearInterval(pollInterval);
                     
+                    console.log('Resume refinement completed! Data:', data);
+                    
                     // Small delay to show 100% completion
                     setTimeout(() => {
                         loadingIndicator.classList.add('d-none');
@@ -532,8 +553,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Display final results from data.data
                         if (data.data && data.data.file_info) {
+                            console.log('Displaying refinement results with file:', data.data.file_info.filename);
                             displayResumeRefinementResults(data.data);
                         } else {
+                            console.warn('No file_info in completion data:', data);
                             // Fallback: show success message
                             resultContent.classList.remove('d-none');
                             generatedText.innerHTML = '<div class="alert alert-success">✅ Resume refinement completed!</div>';
@@ -574,102 +597,145 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function displayResumeRefinementResults(result) {
-        // Clear previous content
-        resultContent.innerHTML = '';
-        
-        // Create results display
-        const resultsDiv = document.createElement('div');
-        resultsDiv.innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="bi bi-graph-up"></i> Optimization Results</h6>
+        try {
+            // Validate result structure
+            if (!result || !result.file_info || !result.file_info.filename) {
+                console.error('Invalid result structure:', result);
+                showError('Invalid resume refinement result. Please try again.');
+                return;
+            }
+            
+            // Clear previous content
+            resultContent.innerHTML = '';
+            
+            // Extract data with defaults
+            const analysis = result.analysis || {};
+            const jobAnalysis = analysis.job_analysis || {};
+            const requiredSkills = (jobAnalysis.required_skills || []).slice(0, 6);
+            const keyQualifications = (jobAnalysis.key_qualifications || []).slice(0, 4);
+            const recommendations = result.recommendations || [];
+            
+            // Create results display
+            const resultsDiv = document.createElement('div');
+            resultsDiv.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-graph-up"></i> Optimization Results</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>Match Score:</span>
+                                    <span class="badge bg-primary fs-6">${analysis.optimization_score || 0}/100</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>Word Count:</span>
+                                    <span class="badge bg-info">${analysis.word_count || 0} words</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Target Role:</span>
+                                    <span class="badge bg-success">${jobAnalysis.job_title || 'Position'}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Match Score:</span>
-                                <span class="badge bg-primary fs-6">${result.analysis.optimization_score}/100</span>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Key Improvements</h6>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Word Count:</span>
-                                <span class="badge bg-info">${result.analysis.word_count} words</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span>Target Role:</span>
-                                <span class="badge bg-success">${result.analysis.job_analysis.job_title || 'Position'}</span>
+                            <div class="card-body">
+                                <ul class="list-unstyled mb-0">
+                                    ${recommendations.length > 0 
+                                        ? recommendations.map(rec => `<li><i class="bi bi-check-circle text-success me-2"></i>${rec}</li>`).join('')
+                                        : '<li>Resume successfully optimized!</li>'
+                                    }
+                                </ul>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Key Improvements</h6>
-                        </div>
-                        <div class="card-body">
-                            <ul class="list-unstyled mb-0">
-                                ${result.recommendations.map(rec => `<li><i class="bi bi-check-circle text-success me-2"></i>${rec}</li>`).join('')}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="bi bi-bullseye"></i> Job Requirements Match</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <small class="text-muted">Required Skills Found:</small>
-                                <div class="mt-1">
-                                    ${result.analysis.job_analysis.required_skills.slice(0, 6).map(skill => 
-                                        `<span class="badge bg-primary me-1 mb-1">${skill}</span>`
-                                    ).join('')}
-                                </div>
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-bullseye"></i> Job Requirements Match</h6>
                             </div>
-                            <div class="mb-3">
-                                <small class="text-muted">Key Qualifications:</small>
-                                <div class="mt-1">
-                                    ${result.analysis.job_analysis.key_qualifications.slice(0, 4).map(qual => 
-                                        `<span class="badge bg-secondary me-1 mb-1">${qual}</span>`
-                                    ).join('')}
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <small class="text-muted">Required Skills Found:</small>
+                                    <div class="mt-1">
+                                        ${requiredSkills.length > 0
+                                            ? requiredSkills.map(skill => `<span class="badge bg-primary me-1 mb-1">${skill}</span>`).join('')
+                                            : '<span class="text-muted">Skills optimized for role</span>'
+                                        }
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <small class="text-muted">Key Qualifications:</small>
+                                    <div class="mt-1">
+                                        ${keyQualifications.length > 0
+                                            ? keyQualifications.map(qual => `<span class="badge bg-secondary me-1 mb-1">${qual}</span>`).join('')
+                                            : '<span class="text-muted">Qualifications highlighted</span>'
+                                        }
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="bi bi-download"></i> Download Options</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-3">Your optimized resume is ready for download:</p>
-                            <div class="d-grid gap-2">
-                                <button class="btn btn-primary" onclick="downloadFile({filename: '${result.file_info.filename}'}, this)">
-                                    <i class="bi bi-file-earmark-word"></i> Download DOCX
-                                </button>
-                                <button class="btn btn-outline-primary" onclick="convertToPdf({filename: '${result.file_info.filename}'}, this)">
-                                    <i class="bi bi-file-earmark-pdf"></i> Convert to PDF
-                                </button>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-download"></i> Download Options</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted mb-3">Your optimized resume is ready for download:</p>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-primary btn-download-docx" data-filename="${result.file_info.filename}">
+                                        <i class="bi bi-file-earmark-word"></i> Download DOCX
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-convert-pdf" data-filename="${result.file_info.filename}">
+                                        <i class="bi bi-file-earmark-pdf"></i> Convert to PDF
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
-        
-        resultContent.appendChild(resultsDiv);
-        resultContent.classList.remove('d-none');
-        
-        // Update current file path for legacy download buttons
-        currentFilePath = result.file_info.filename;
-        
-        // Show success message
-        showSuccess('✅ Resume optimized successfully! Download your tailored resume below.');
-        
-        // Update history
-        loadGenerationHistory();
+            `;
+            
+            resultContent.appendChild(resultsDiv);
+            resultContent.classList.remove('d-none');
+            
+            // Update current file path for legacy download buttons
+            currentFilePath = result.file_info.filename;
+            
+            // Add event listeners for download buttons
+            const downloadDocxBtn = resultsDiv.querySelector('.btn-download-docx');
+            const convertPdfBtn = resultsDiv.querySelector('.btn-convert-pdf');
+            
+            if (downloadDocxBtn) {
+                downloadDocxBtn.addEventListener('click', function() {
+                    window.location.href = `/api/download/${result.file_info.filename}`;
+                });
+            }
+            
+            if (convertPdfBtn) {
+                convertPdfBtn.addEventListener('click', function() {
+                    window.location.href = `/api/convert-to-pdf/${result.file_info.filename}`;
+                });
+            }
+            
+            // Show success message
+            showSuccess('✅ Resume optimized successfully! Download your tailored resume below.');
+            
+            // Update history
+            if (typeof loadGenerationHistory === 'function') {
+                loadGenerationHistory();
+            }
+            
+        } catch (error) {
+            console.error('Error displaying refinement results:', error);
+            showError('Error displaying results: ' + error.message);
+        }
     }
     
     function showError(message) {

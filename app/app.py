@@ -113,16 +113,25 @@ def generate_content():
     
     # Get content type and input data
     content_type = data.get('content_type')
-    url = data.get('url')  # Primary URL (job posting or profile)
-    profile_url = data.get('profile_url')  # Secondary URL for LinkedIn profile (connection messages)
-    job_url = data.get('job_url')  # Secondary URL for job posting (when profile_url is primary)
+    url = data.get('url')  # Primary URL (job posting or LinkedIn profile)
+    linkedin_url = data.get('linkedin_url')  # Optional LinkedIn URL
     manual_text = data.get('manual_text')
     input_type = data.get('input_type', 'url')  # 'url' or 'manual'
-    user_job_title = data.get('job_title', '')
-    user_company_name = data.get('company_name', '')
+    person_name = data.get('person_name', '')
+    person_position = data.get('person_position', '')
     
     # Validate input
-    if not content_type or (not url and not manual_text):
+    connection_types = ['linkedin_message', 'connection_email', 'hiring_manager_email']
+    needs_profile = content_type in connection_types
+    
+    if not content_type:
+        return jsonify({'error': 'Missing content type'}), 400
+    
+    if needs_profile and input_type == 'url':
+        # For connection messages, require person name and position
+        if not person_name or not person_position:
+            return jsonify({'error': 'Person name and position are required for connection messages'}), 400
+    elif not url and not manual_text:
         return jsonify({'error': 'Missing required fields'}), 400
     
     # Validate URL if provided
@@ -142,10 +151,10 @@ def generate_content():
         # Update URL if normalized
         url = url_validation['url']
     
-    # Create job data for cache key generation
+    # Create cache key data
     temp_job_data = {
-        'company_name': user_company_name,
-        'job_title': user_job_title,
+        'person_name': person_name,
+        'person_position': person_position,
         'url': url or 'manual_input'
     }
     
@@ -162,52 +171,56 @@ def generate_content():
     # Get candidate data first
     candidate_data = db_manager.get_candidate_data(session['user_id'])
     
-    # Determine if this content type needs both job and profile data
-    connection_types = ['linkedin_message', 'connection_email', 'hiring_manager_email']
-    needs_profile = content_type in connection_types
-    
     # Initialize job_data and profile_data
     job_data = None
     profile_data = None
     
     if input_type == 'url':
         if needs_profile:
-            # For connection messages: need BOTH job posting and LinkedIn profile
-            # Try to intelligently determine URLs
-            if profile_url:
-                # Two URLs provided (ideal case)
-                actual_job_url = job_url or url
-                actual_profile_url = profile_url
-            elif 'linkedin.com/in/' in url:
-                # Only LinkedIn profile provided - use job title/company for job context
-                actual_profile_url = url
-                actual_job_url = None
-                job_data = {
-                    'job_title': user_job_title or 'the position',
-                    'company_name': user_company_name or 'the company',
-                    'job_description': f'Opportunity at {user_company_name or "the company"} for {user_job_title or "the position"}',
-                    'requirements': '',
-                    'url': url
-                }
-            else:
-                # Job posting URL provided - need LinkedIn profile too
-                return jsonify({
-                    'error': f'{content_type.replace("_", " ").title()} requires a LinkedIn profile URL',
-                    'help': 'Please provide the LinkedIn profile URL of the person you want to contact',
-                    'example': 'https://linkedin.com/in/person-name'
-                }), 400
+            # For connection messages: use manual person name/position
+            # Optionally try to enhance with LinkedIn data if URL provided
+            profile_data = {
+                'name': person_name,
+                'title': person_position.split(' at ')[0] if ' at ' in person_position else person_position,
+                'company': person_position.split(' at ')[1] if ' at ' in person_position else '',
+                'location': '',
+                'about': '',
+                'experience': [],
+                'education': [],
+                'skills': [],
+                'url': linkedin_url or ''
+            }
             
-            # Scrape LinkedIn profile
-            if actual_profile_url:
-                profile_data = data_retriever.scrape_linkedin_profile(actual_profile_url, user_job_title, user_company_name)
-                if 'error' in profile_data:
-                    return jsonify({'error': f"Failed to get LinkedIn profile: {profile_data['error']}"}), 400
+            # Optionally try to scrape LinkedIn if URL provided (may fail with 451)
+            if linkedin_url and 'linkedin.com/in/' in linkedin_url:
+                try:
+                    logging.info(f"Attempting to scrape LinkedIn profile: {linkedin_url}")
+                    scraped_profile = data_retriever.scrape_linkedin_profile(linkedin_url)
+                    
+                    # If scraping succeeds, enhance profile_data
+                    if scraped_profile and 'error' not in scraped_profile:
+                        logging.info(f"LinkedIn scraping successful for {linkedin_url}")
+                        # Merge scraped data with manual data (manual takes precedence)
+                        profile_data['about'] = scraped_profile.get('about', '')
+                        profile_data['experience'] = scraped_profile.get('experience', [])
+                        profile_data['education'] = scraped_profile.get('education', [])
+                        profile_data['skills'] = scraped_profile.get('skills', [])
+                        if not profile_data['location']:
+                            profile_data['location'] = scraped_profile.get('location', '')
+                    else:
+                        logging.warning(f"LinkedIn scraping failed for {linkedin_url}: {scraped_profile.get('error', 'Unknown error')}")
+                except Exception as e:
+                    logging.warning(f"LinkedIn scraping exception for {linkedin_url}: {str(e)}")
+                    # Continue with manual data
             
-            # Scrape job posting if not already set
-            if not job_data and actual_job_url:
-                job_data = data_retriever.scrape_job_posting(actual_job_url, user_job_title, user_company_name)
-                if 'error' in job_data:
-                    return jsonify({'error': f"Failed to get job posting: {job_data['error']}"}), 400
+            # Create minimal job context
+            job_data = {
+                'job_title': 'the position',
+                'company_name': profile_data['company'] or 'the company',
+                'job_description': f'Opportunity at {profile_data["company"] or "the company"}',
+                'requirements': '',
+                'url': linkedin_url or ''
+            }
         else:
             # For cover letters: only need job posting
             if 'linkedin.com' in url:
@@ -215,26 +228,34 @@ def generate_content():
                     'error': 'Cover letters require a job posting URL, not a LinkedIn profile',
                     'help': 'Please provide the job posting URL'
                 }), 400
-            job_data = data_retriever.scrape_job_posting(url, user_job_title, user_company_name)
+            job_data = data_retriever.scrape_job_posting(url)
             if 'error' in job_data:
                 return jsonify({'error': f"Failed to get job posting: {job_data['error']}"}), 400
     else:  # manual input
         if needs_profile:
-            # Parse manual LinkedIn profile info
-            profile_data = data_retriever.parse_manual_linkedin_profile(manual_text, user_job_title, user_company_name)
+            # Parse manual LinkedIn profile info from text
+            profile_data = data_retriever.parse_manual_linkedin_profile(manual_text)
             if 'error' in profile_data:
                 return jsonify({'error': f"Failed to parse profile data: {profile_data['error']}"}), 400
-            # Create basic job data from user inputs
+            
+            # Use person name/position if provided
+            if person_name:
+                profile_data['name'] = person_name
+            if person_position:
+                profile_data['title'] = person_position.split(' at ')[0] if ' at ' in person_position else person_position
+                profile_data['company'] = person_position.split(' at ')[1] if ' at ' in person_position else ''
+            
+            # Create basic job data
             job_data = {
-                'job_title': user_job_title or 'the position',
-                'company_name': user_company_name or 'the company',
-                'job_description': f'Opportunity at {user_company_name or "the company"}',
+                'job_title': 'the position',
+                'company_name': profile_data.get('company', 'the company'),
+                'job_description': f'Opportunity at {profile_data.get("company", "the company")}',
                 'requirements': '',
                 'url': 'manual_input'
             }
         else:
             # Parse manual job posting
-            job_data = data_retriever.parse_manual_job_posting(manual_text, user_job_title, user_company_name)
+            job_data = data_retriever.parse_manual_job_posting(manual_text)
             if 'error' in job_data:
                 return jsonify({'error': f"Failed to parse job posting: {job_data['error']}"}), 400
     
@@ -596,10 +617,21 @@ def process_resume_refinement_background(task_id, job_description, candidate_dat
                 'filepath': formatted_resume['filename']
             },
             'analysis': {
-                'job_title': job_analysis.get('job_title', ''),
                 'optimization_score': optimized_resume['optimization_score'],
                 'word_count': optimized_resume['word_count'],
-                'template_used': job_analysis.get('resume_template', 'business')
+                'template_used': job_analysis.get('resume_template', 'business'),
+                'job_analysis': {
+                    'job_title': job_analysis.get('job_title', ''),
+                    'required_skills': job_analysis.get('required_skills', []),
+                    'preferred_skills': job_analysis.get('preferred_skills', []),
+                    'key_qualifications': job_analysis.get('key_qualifications', []),
+                    'important_keywords': job_analysis.get('important_keywords', [])
+                },
+                'resume_analysis': {
+                    'current_strengths': resume_analysis.get('current_strengths', []),
+                    'improvement_areas': resume_analysis.get('improvement_areas', []),
+                    'skills_match': resume_analysis.get('skills_match', 'medium')
+                }
             },
             'recommendations': [
                 f"✅ Resume optimized for {job_analysis.get('job_title', 'the position')}",
