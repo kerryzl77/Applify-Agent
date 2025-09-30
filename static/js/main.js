@@ -174,15 +174,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 generateForm.appendChild(infoDiv);
             }
         } else {
-            manualInputLabel.textContent = 'Job Description or LinkedIn Profile';
-            document.getElementById('manualText').placeholder = 'Paste the full job description or LinkedIn profile content here...';
-            jobTitleDiv.style.display = 'block';
-            companyNameDiv.style.display = 'block';
-            
-            // Remove resume refinement info
-            const infoDiv = document.getElementById('resumeRefinementInfo');
-            if (infoDiv) {
-                infoDiv.remove();
+            // Handle LinkedIn profile requirements for connection messages
+            const connectionTypes = ['linkedin_message', 'connection_email', 'hiring_manager_email'];
+            if (connectionTypes.includes(contentType)) {
+                manualInputLabel.textContent = 'LinkedIn Profile Information (Required)';
+                document.getElementById('manualText').placeholder = 'Paste LinkedIn profile information or use URL input above...';
+                jobTitleDiv.style.display = 'block';
+                companyNameDiv.style.display = 'block';
+                
+                // Show LinkedIn profile requirement info
+                if (!document.getElementById('linkedinRequirementInfo')) {
+                    const infoDiv = document.createElement('div');
+                    infoDiv.id = 'linkedinRequirementInfo';
+                    infoDiv.className = 'alert alert-warning mt-3';
+                    infoDiv.innerHTML = `
+                        <h6><i class="bi bi-linkedin text-primary"></i> LinkedIn Profile Required</h6>
+                        <p class="mb-1">For ${contentType.replace('_', ' ')}, you must provide:</p>
+                        <ul class="mb-1">
+                            <li><strong>URL Input:</strong> LinkedIn profile URL (e.g., linkedin.com/in/person-name)</li>
+                            <li><strong>Manual Input:</strong> Person's name, title, company, and background</li>
+                        </ul>
+                        <small class="text-muted">This ensures personalized, effective messaging to the right person.</small>
+                    `;
+                    generateForm.appendChild(infoDiv);
+                }
+                
+                // Remove other info boxes
+                const resumeInfo = document.getElementById('resumeRefinementInfo');
+                if (resumeInfo) resumeInfo.remove();
+            } else {
+                // Reset for other content types
+                manualInputLabel.textContent = 'Job Description or LinkedIn Profile';
+                document.getElementById('manualText').placeholder = 'Paste the full job description or LinkedIn profile content here...';
+                jobTitleDiv.style.display = 'block';
+                companyNameDiv.style.display = 'block';
+                
+                // Remove all info boxes
+                const resumeInfo = document.getElementById('resumeRefinementInfo');
+                if (resumeInfo) resumeInfo.remove();
+                const linkedinInfo = document.getElementById('linkedinRequirementInfo');
+                if (linkedinInfo) linkedinInfo.remove();
             }
         }
     }
@@ -296,8 +327,20 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessage.classList.add('d-none');
         loadingIndicator.classList.remove('d-none');
         
-        // Update loading text for resume refinement
-        document.querySelector('#loadingIndicator .spinner-text').textContent = 'Analyzing job requirements and optimizing your resume...';
+        // Add progress bar for resume refinement
+        if (!document.getElementById('resumeProgressBar')) {
+            const progressDiv = document.createElement('div');
+            progressDiv.id = 'resumeProgressContainer';
+            progressDiv.className = 'mt-3';
+            progressDiv.innerHTML = `
+                <div class="progress mb-3">
+                    <div id="resumeProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div id="resumeProgressText" class="text-center text-muted">Starting resume refinement...</div>
+            `;
+            loadingIndicator.appendChild(progressDiv);
+        }
         
         try {
             const requestData = {
@@ -322,6 +365,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(result.error);
             }
             
+            // If we have a task_id, start progress tracking
+            if (result.task_id) {
+                trackResumeProgress(result.task_id);
+                return; // Don't show results immediately, wait for completion
+            }
+            
             // Hide loading indicator
             loadingIndicator.classList.add('d-none');
             
@@ -336,6 +385,84 @@ document.addEventListener('DOMContentLoaded', function() {
                 showError('Error refining resume: ' + error.message);
             }
         }
+    }
+    
+    function trackResumeProgress(taskId) {
+        const progressBar = document.getElementById('resumeProgressBar');
+        const progressText = document.getElementById('resumeProgressText');
+        
+        // Set up Server-Sent Events for progress tracking
+        const eventSource = new EventSource(`/api/resume-progress/${taskId}`);
+        
+        eventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                // Update progress bar
+                if (data.progress !== undefined) {
+                    progressBar.style.width = data.progress + '%';
+                    progressBar.setAttribute('aria-valuenow', data.progress);
+                }
+                
+                // Update progress text
+                if (data.message) {
+                    progressText.textContent = data.message;
+                }
+                
+                // Handle completion or error
+                if (data.status === 'completed') {
+                    eventSource.close();
+                    
+                    // Small delay to show 100% completion
+                    setTimeout(() => {
+                        loadingIndicator.classList.add('d-none');
+                        
+                        // Clean up progress bar
+                        const progressContainer = document.getElementById('resumeProgressContainer');
+                        if (progressContainer) {
+                            progressContainer.remove();
+                        }
+                        
+                        // Fetch final results
+                        if (data.result) {
+                            displayResumeRefinementResults(data.result);
+                        } else {
+                            // Fallback: show success message
+                            resultContent.classList.remove('d-none');
+                            generatedText.innerHTML = '<div class="alert alert-success">Resume refinement completed! Please check your download area.</div>';
+                        }
+                    }, 1000);
+                    
+                } else if (data.status === 'error') {
+                    eventSource.close();
+                    loadingIndicator.classList.add('d-none');
+                    showError('Resume refinement failed: ' + data.message);
+                }
+                
+            } catch (error) {
+                console.error('Error parsing progress data:', error);
+            }
+        };
+        
+        eventSource.onerror = function(event) {
+            console.error('SSE connection error:', event);
+            eventSource.close();
+            
+            // Fallback: keep checking manually
+            setTimeout(() => {
+                loadingIndicator.classList.add('d-none');
+                showError('Progress tracking connection lost. Resume refinement may still be processing.');
+            }, 2000);
+        };
+        
+        // Auto-cleanup after 5 minutes
+        setTimeout(() => {
+            if (eventSource.readyState !== EventSource.CLOSED) {
+                eventSource.close();
+                loadingIndicator.classList.add('d-none');
+                showError('Resume refinement timed out. Please try again.');
+            }
+        }, 300000); // 5 minutes
     }
     
     function displayResumeRefinementResults(result) {

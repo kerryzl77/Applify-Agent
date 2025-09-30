@@ -8,8 +8,7 @@ load_dotenv()
 class LLMGenerator:
     def __init__(self):
         # Initialize OpenAI client with API key from environment variable
-        api_key = os.getenv("OPENAI_API_KEY", "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")
-        self.client = OpenAI(api_key=api_key)
+        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
     def generate_linkedin_message(self, job_data, candidate_data, profile_data=None):
         """Generate a LinkedIn connection message (200 characters max)."""
@@ -21,9 +20,9 @@ class LLMGenerator:
         prompt = self._build_connection_email_prompt(job_data, candidate_data, profile_data)
         return self._generate_text(prompt, max_tokens=300)  # ~200 words
     
-    def generate_hiring_manager_email(self, job_data, candidate_data):
+    def generate_hiring_manager_email(self, job_data, candidate_data, profile_data=None):
         """Generate an email to a hiring manager (200 words max)."""
-        prompt = self._build_hiring_manager_email_prompt(job_data, candidate_data)
+        prompt = self._build_hiring_manager_email_prompt(job_data, candidate_data, profile_data)
         return self._generate_text(prompt, max_tokens=300)  # ~200 words
     
     def generate_cover_letter(self, job_data, candidate_data):
@@ -193,7 +192,7 @@ class LLMGenerator:
         Write the complete email including subject line:
         """
     
-    def _build_hiring_manager_email_prompt(self, job_data, candidate_data):
+    def _build_hiring_manager_email_prompt(self, job_data, candidate_data, profile_data=None):
         """Build prompt for hiring manager email."""
         # Extract job details
         job_title = job_data.get('job_title', 'the position')
@@ -201,6 +200,13 @@ class LLMGenerator:
         job_description = job_data.get('job_description', '')
         job_requirements = job_data.get('requirements', '')
         job_location = job_data.get('location', '')
+        
+        # Extract hiring manager details from profile data
+        manager_name = profile_data.get('name', 'Hiring Manager') if profile_data else 'Hiring Manager'
+        manager_title = profile_data.get('title', '') if profile_data else ''
+        manager_company = profile_data.get('company', company_name) if profile_data else company_name
+        manager_about = profile_data.get('about', '') if profile_data else ''
+        manager_experience = profile_data.get('experience', []) if profile_data else []
         
         # Extract candidate details
         candidate_name = candidate_data['personal_info']['name']
@@ -240,7 +246,13 @@ class LLMGenerator:
                 achievements.append(f"{exp['title']}: {desc[:100]}...")
         
         return f"""
-        CONTEXT: Write a direct email from {candidate_name} to the hiring manager for the {job_title} position at {company_name}. This should demonstrate strong interest and clear value proposition.
+        CONTEXT: Write a direct email from {candidate_name} to {manager_name} regarding the {job_title} position at {company_name}. This should demonstrate strong interest and clear value proposition while referencing the hiring manager's background.
+
+        HIRING MANAGER PROFILE:
+        - Name: {manager_name}
+        - Current Role: {manager_title} at {manager_company}
+        - Professional Background: {manager_about[:250] if manager_about else 'Industry professional'}
+        - Experience: {manager_experience[0]['title'] if manager_experience else 'Leadership role in hiring'}
 
         JOB ANALYSIS:
         - Position: {job_title} at {company_name}
@@ -261,15 +273,15 @@ class LLMGenerator:
         
         EMAIL REQUIREMENTS:
         1. Subject line: "Application for {job_title} Position - {candidate_name}"
-        2. Professional greeting: "Dear Hiring Manager," or "Dear {company_name} Hiring Team,"
-        3. Strong opening paragraph expressing specific interest in the role
+        2. Professional greeting: "Dear {manager_name}," (use actual name if available, otherwise "Dear Hiring Manager,")
+        3. Strong opening paragraph expressing specific interest in the role and mentioning {manager_name}'s role/background if relevant
         4. Body highlighting 2-3 most relevant qualifications that directly match job requirements
         5. Include specific achievements with quantifiable results where possible
-        6. Demonstrate knowledge of the company/role
+        6. Reference {manager_name}'s expertise or the company culture if relevant context available
         7. Clear call to action requesting interview/next steps
         8. Professional closing with full contact information
         9. Maximum 200 words
-        10. Tone: Confident, professional, results-oriented
+        10. Tone: Confident, professional, results-oriented, personalized
         
         Write the complete email including subject line:
         """

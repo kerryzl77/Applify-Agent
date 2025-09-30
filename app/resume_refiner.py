@@ -356,6 +356,125 @@ class ResumeRefiner:
             print(f"Error in local experience optimization: {str(e)}")
             return candidate_data['resume'].get('experience', [])[:4]
     
+    def quick_job_analysis(self, job_description):
+        """Ultra-fast job analysis using regex and keywords - NO API calls."""
+        try:
+            import re
+            
+            # Extract job title using common patterns
+            title_patterns = [
+                r'(?:position|role|job)(?:\s+for)?\s+([A-Z][^.]*?)(?:\s+at|\s+\-|\n)',
+                r'([A-Z][^.]*?)\s+(?:position|role|opportunity)',
+                r'hiring\s+(?:a\s+)?([A-Z][^.]*?)(?:\s+to|\s+at|\n)'
+            ]
+            
+            job_title = "Professional Role"
+            for pattern in title_patterns:
+                match = re.search(pattern, job_description, re.IGNORECASE)
+                if match:
+                    job_title = match.group(1).strip()
+                    break
+            
+            # Extract skills using keyword matching
+            skill_keywords = [
+                'python', 'javascript', 'java', 'sql', 'react', 'node.js', 'aws', 'docker', 
+                'kubernetes', 'machine learning', 'data analysis', 'project management',
+                'agile', 'scrum', 'communication', 'leadership', 'teamwork', 'problem solving',
+                'git', 'html', 'css', 'api', 'database', 'cloud', 'devops', 'ci/cd'
+            ]
+            
+            required_skills = []
+            preferred_skills = []
+            important_keywords = []
+            
+            description_lower = job_description.lower()
+            for skill in skill_keywords:
+                if skill in description_lower:
+                    if any(req_word in description_lower for req_word in ['required', 'must', 'essential']):
+                        required_skills.append(skill.title())
+                    else:
+                        preferred_skills.append(skill.title())
+                    important_keywords.append(skill.title())
+            
+            # Determine job level
+            job_level = "mid"
+            if any(word in description_lower for word in ['senior', 'lead', 'principal', '5+ years', '7+ years']):
+                job_level = "senior"
+            elif any(word in description_lower for word in ['junior', 'entry', 'graduate', '0-2 years']):
+                job_level = "entry"
+            
+            # Determine template based on keywords
+            template = "business"
+            if any(word in description_lower for word in ['engineer', 'developer', 'technical', 'software']):
+                template = "technical"
+            elif any(word in description_lower for word in ['design', 'creative', 'marketing', 'brand']):
+                template = "creative"
+            
+            return {
+                "job_title": job_title,
+                "industry": "Technology",
+                "required_skills": required_skills[:8],
+                "preferred_skills": preferred_skills[:6],
+                "key_qualifications": [f"{job_level.title()} level experience", "Relevant technical skills"],
+                "company_values": ["Innovation", "Collaboration", "Excellence"],
+                "job_level": job_level,
+                "resume_template": template,
+                "important_keywords": important_keywords[:10],
+                "years_experience": "3-5",
+                "education_requirements": "Bachelor's degree preferred",
+                "certifications": [],
+                "soft_skills": ["Communication", "Problem Solving", "Leadership"],
+                "hard_skills": required_skills[:5],
+                "achievement_focus": ["results", "efficiency", "innovation"]
+            }
+        except Exception as e:
+            print(f"Error in quick job analysis: {str(e)}")
+            return self._get_default_job_analysis()
+    
+    def generate_optimized_resume_ultra_fast(self, candidate_data, job_analysis, resume_analysis):
+        """Ultra-fast resume generation with NO API calls."""
+        try:
+            # Generate summary locally
+            candidate_skills = candidate_data['resume']['skills'][:3]
+            job_title = job_analysis.get('job_title', 'Professional Role')
+            years_exp = job_analysis.get('years_experience', '3-5')
+            
+            summary = f"Results-driven professional with {years_exp} years of experience in {', '.join(candidate_skills)}. Proven track record of delivering high-quality solutions and driving organizational success. Seeking to leverage expertise in {candidate_skills[0] if candidate_skills else 'technology'} for the {job_title} role."
+            
+            # Optimize skills locally
+            optimized_skills = self._optimize_skills_local(candidate_data, job_analysis)
+            
+            # Optimize experience locally
+            optimized_experience = self._optimize_experience_local(candidate_data, job_analysis)
+            
+            # Optimize education
+            optimized_education = self._optimize_education_section(candidate_data, job_analysis)
+            
+            optimized_sections = {
+                'professional_summary': summary,
+                'skills': optimized_skills,
+                'experience': optimized_experience,
+                'education': optimized_education
+            }
+            
+            template = self.resume_templates.get(job_analysis.get('resume_template', 'business'), self.resume_templates['business'])
+            
+            # Calculate optimization score locally
+            base_score = 75
+            skills_boost = len(set(candidate_data['resume']['skills']) & set(job_analysis.get('required_skills', []))) * 5
+            final_score = min(base_score + skills_boost, 100)
+            
+            return {
+                'sections': optimized_sections,
+                'template': template,
+                'optimization_score': final_score,
+                'formatting_rules': self.formatting_standards,
+                'word_count': self._estimate_word_count(optimized_sections)
+            }
+        except Exception as e:
+            print(f"Error in ultra fast resume generation: {str(e)}")
+            return self._get_fallback_resume(candidate_data, job_analysis)
+    
     def _get_fallback_resume(self, candidate_data, job_analysis):
         """Fallback resume structure if optimization fails."""
         return {

@@ -1,8 +1,11 @@
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash, send_from_directory, Response
 import os
 import sys
 import datetime
 import logging
+import json
+import time
+import uuid
 from functools import wraps
 from werkzeug.utils import secure_filename
 from app.resume_parser import ResumeParser
@@ -175,6 +178,33 @@ def generate_content():
     # Get candidate data
     candidate_data = db_manager.get_candidate_data(session['user_id'])
     
+    # Validate LinkedIn profile requirement for connection messages
+    connection_types = ['linkedin_message', 'connection_email', 'hiring_manager_email']
+    if content_type in connection_types:
+        if input_type == 'url':
+            # Validate that URL is a LinkedIn profile
+            url_validation = url_validator.validate_and_parse_url(url)
+            if url_validation['type'] != 'linkedin_profile':
+                return jsonify({
+                    'error': f"LinkedIn profile URL required for {content_type.replace('_', ' ')}. Please provide a LinkedIn profile URL.",
+                    'recommendations': [
+                        "Use the LinkedIn profile URL of the person you want to connect with",
+                        "Example: https://linkedin.com/in/person-name",
+                        "Make sure it's a person's profile, not a company page"
+                    ]
+                }), 400
+        elif input_type == 'manual':
+            # Ensure manual text contains LinkedIn profile information
+            if not manual_text or len(manual_text.strip()) < 50:
+                return jsonify({
+                    'error': f"LinkedIn profile information required for {content_type.replace('_', ' ')}. Please provide detailed LinkedIn profile information.",
+                    'recommendations': [
+                        "Include the person's name, title, company, and background",
+                        "Provide enough information to personalize your message",
+                        "You can copy-paste from their LinkedIn profile"
+                    ]
+                }), 400
+    
     # Generate content based on type
     if content_type == 'linkedin_message':
         # For LinkedIn messages, we need both job data and profile data
@@ -202,7 +232,17 @@ def generate_content():
         # Generate connection email with both job and profile data
         content = llm_generator.generate_connection_email(job_data, candidate_data, profile_data)
     elif content_type == 'hiring_manager_email':
-        content = llm_generator.generate_hiring_manager_email(job_data, candidate_data)
+        # For hiring manager emails, we need both job data and LinkedIn profile data
+        if input_type == 'manual':
+            profile_data = data_retriever.parse_manual_linkedin_profile(manual_text, user_job_title, user_company_name)
+        else:
+            profile_data = data_retriever.scrape_linkedin_profile(url, user_job_title, user_company_name)
+            
+        # Check if profile data was successfully retrieved
+        if 'error' in profile_data:
+            return jsonify({'error': f"Failed to get profile data: {profile_data['error']}"}), 400
+            
+        content = llm_generator.generate_hiring_manager_email(job_data, candidate_data, profile_data)
     elif content_type == 'cover_letter':
         content = llm_generator.generate_cover_letter(job_data, candidate_data)
     else:
@@ -423,10 +463,37 @@ def validate_url():
         logging.error(f"URL validation error: {str(e)}")
         return jsonify({'error': 'Failed to validate URL'}), 500
 
-@app.route('/api/refine-resume', methods=['POST'])
+@app.route('/api/resume-progress/<task_id>')
 @login_required
+def resume_progress_stream(task_id):
+    """Server-sent events for resume refinement progress."""
+    def generate():
+        progress_key = f"resume_progress:{session['user_id']}:{task_id}"
+        last_progress = 0
+        
+        while True:
+            try:
+                progress_data = redis_manager.get_cached_data(progress_key)
+                if progress_data:
+                    current_progress = progress_data.get('progress', 0)
+                    if current_progress > last_progress or progress_data.get('status') in ['completed', 'error']:
+                        yield f"data: {json.dumps(progress_data)}\n\n"
+                        last_progress = current_progress
+                        
+                        if progress_data.get('status') in ['completed', 'error']:
+                            break
+                
+                time.sleep(0.5)  # Check every 500ms
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e), 'status': 'error'})}\n\n"
+                break
+    
+    return Response(generate(), mimetype='text/plain')
+
+@app.route('/api/refine-resume', methods=['POST'])
+@login_required 
 def refine_resume():
-    """Refine resume based on job description."""
+    """Refine resume based on job description with progress tracking."""
     try:
         data = request.json
         job_description = data.get('job_description', '').strip()
@@ -452,29 +519,61 @@ def refine_resume():
                 return jsonify({'error': f"Failed to fetch job description: {job_data['error']}"}), 400
             job_description = job_data.get('job_description', '') + "\n\n" + job_data.get('requirements', '')
         
+        # Generate unique task ID for progress tracking
+        task_id = str(uuid.uuid4())
+        progress_key = f"resume_progress:{session['user_id']}:{task_id}"
+        
+        def update_progress(step, progress, message, status='processing'):
+            """Update progress in Redis for real-time tracking."""
+            progress_data = {
+                'step': step,
+                'progress': progress,
+                'message': message,
+                'status': status,
+                'timestamp': datetime.datetime.now().isoformat()
+            }
+            redis_manager.cache_data(progress_key, progress_data, ttl=300)  # 5 min TTL
+        
+        # Start progress tracking
+        update_progress('initializing', 5, 'Starting resume refinement...')
+        
         # Get candidate data
         candidate_data = db_manager.get_candidate_data(session['user_id'])
         if not candidate_data or not candidate_data.get('resume'):
+            update_progress('error', 0, 'Please upload your resume first', 'error')
             return jsonify({'error': 'Please upload your resume first before refining it'}), 400
         
-        # Analyze job requirements (fast analysis)
-        job_analysis = resume_refiner.analyze_job_requirements(job_description)
+        update_progress('analyzing_job', 15, 'Analyzing job requirements...')
         
-        # Quick resume analysis (simplified for speed)
+        # Quick job analysis without API calls for speed
+        job_analysis = resume_refiner.quick_job_analysis(job_description)
+        
+        update_progress('analyzing_resume', 30, 'Analyzing your current resume...')
+        
+        # Quick resume analysis (no API calls)
         resume_analysis = resume_refiner.quick_resume_analysis(candidate_data, job_analysis)
         
-        # Generate optimized resume (streamlined process)
-        optimized_resume = resume_refiner.generate_optimized_resume_fast(
+        update_progress('optimizing', 50, 'Optimizing resume content...')
+        
+        # Generate optimized resume with minimal API usage
+        optimized_resume = resume_refiner.generate_optimized_resume_ultra_fast(
             candidate_data, job_analysis, resume_analysis
         )
+        
+        update_progress('formatting', 75, 'Creating formatted document...')
         
         # Create formatted DOCX
         formatted_resume = resume_refiner.create_formatted_resume_docx(
             optimized_resume, candidate_data, job_analysis.get('job_title', 'Position')
         )
         
+        update_progress('finalizing', 90, 'Finalizing resume...')
+        
         if not formatted_resume:
+            update_progress('error', 0, 'Failed to create formatted resume', 'error')
             return jsonify({'error': 'Failed to create formatted resume'}), 500
+        
+        update_progress('completed', 100, 'Resume refinement completed successfully!', 'completed')
         
         # Save refinement data to database for tracking
         refinement_metadata = {
@@ -486,9 +585,10 @@ def refine_resume():
             'job_description_source': 'url' if url else 'manual'
         }
         
-        # Return success response
+        # Return success response with task ID for progress tracking
         return jsonify({
             'success': True,
+            'task_id': task_id,
             'analysis': {
                 'job_analysis': job_analysis,
                 'resume_analysis': resume_analysis,
@@ -510,6 +610,9 @@ def refine_resume():
         
     except Exception as e:
         logging.error(f"Resume refinement error for user {session.get('user_id')}: {str(e)}")
+        # Update progress with error if task_id exists
+        if 'task_id' in locals():
+            update_progress('error', 0, f'Error: {str(e)}', 'error')
         return jsonify({'error': f'Failed to refine resume: {str(e)}'}), 500
 
 @app.route('/api/resume-analysis', methods=['POST'])
