@@ -708,7 +708,7 @@ class ResumeRefiner:
         
         return total_words
     
-    def create_formatted_resume_docx(self, optimized_resume, candidate_data, job_title=""):
+    def create_formatted_resume_docx(self, optimized_resume, candidate_data, job_title="", output_dir=None):
         """Create a professionally formatted DOCX resume."""
         try:
             doc = Document()
@@ -728,10 +728,14 @@ class ResumeRefiner:
             company_name = job_title.replace(' ', '_') if job_title else 'Optimized'
             filename = f"Resume_Optimized_{company_name}_{timestamp}.docx"
             
-            # Use the same output directory as the main OutputFormatter
-            from app.output_formatter import OutputFormatter
-            output_formatter = OutputFormatter()
-            filepath = os.path.join(output_formatter.output_dir, filename)
+            # Use provided output_dir or fallback to creating new OutputFormatter
+            if output_dir:
+                filepath = os.path.join(output_dir, filename)
+            else:
+                from app.output_formatter import OutputFormatter
+                output_formatter = OutputFormatter()
+                filepath = os.path.join(output_formatter.output_dir, filename)
+            
             doc.save(filepath)
             
             return {

@@ -553,7 +553,7 @@ def refine_resume():
         # Start background processing
         thread = threading.Thread(
             target=process_resume_refinement_background,
-            args=(task_id, job_description, candidate_data, session['user_id'], url)
+            args=(task_id, job_description, candidate_data, session['user_id'], url, output_formatter.output_dir)
         )
         thread.daemon = True
         thread.start()
@@ -570,7 +570,7 @@ def refine_resume():
         logging.error(f"Resume refinement error for user {session.get('user_id')}: {str(e)}")
         return jsonify({'error': f'Failed to start resume refinement: {str(e)}'}), 500
 
-def process_resume_refinement_background(task_id, job_description, candidate_data, user_id, job_url=None):
+def process_resume_refinement_background(task_id, job_description, candidate_data, user_id, job_url=None, output_dir=None):
     """Background task for resume refinement with progress tracking."""
     progress_key = f"resume_refinement:{user_id}:{task_id}"
     
@@ -604,7 +604,7 @@ def process_resume_refinement_background(task_id, job_description, candidate_dat
         
         update_progress('formatting', 75, 'Creating professionally formatted document...')
         formatted_resume = resume_refiner.create_formatted_resume_docx(
-            optimized_resume, candidate_data, job_analysis.get('job_title', 'Position')
+            optimized_resume, candidate_data, job_analysis.get('job_title', 'Position'), output_dir
         )
         
         if not formatted_resume:

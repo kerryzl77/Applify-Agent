@@ -391,11 +391,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(result.error);
             }
             
-            // Hide loading indicator
+            // Hide loading, show results
             loadingIndicator.classList.add('d-none');
+            initialMessage.classList.add('d-none');
+            errorMessage.classList.add('d-none');
             
-            // Display the generated content immediately
-            generatedText.textContent = result.content;
+            // Clear and rebuild result content for text display (cover letter, emails, etc.)
+            resultContent.innerHTML = '';
+            
+            // Create text display container
+            const textContainer = document.createElement('pre');
+            textContainer.id = 'generatedText';
+            textContainer.className = 'p-3 border rounded bg-light';
+            textContainer.style.whiteSpace = 'pre-wrap';
+            textContainer.style.wordWrap = 'break-word';
+            textContainer.textContent = result.content;
+            
+            resultContent.appendChild(textContainer);
             resultContent.classList.remove('d-none');
             
             // Show download buttons if file was generated
@@ -771,7 +783,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function copyToClipboard() {
-        navigator.clipboard.writeText(generatedText.textContent)
+        const textElement = document.getElementById('generatedText');
+        if (!textElement) {
+            showError('No content to copy');
+            return;
+        }
+        
+        navigator.clipboard.writeText(textElement.textContent)
             .then(() => {
                 // Show temporary success message
                 const originalText = copyBtn.textContent;
