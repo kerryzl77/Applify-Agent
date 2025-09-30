@@ -18,7 +18,7 @@ class ResumeRefiner:
         
         # ATS-friendly formatting standards
         self.formatting_standards = {
-            'margins': 1.0,  # inches
+            'margins': 1.0,
             'font_name': 'Calibri',
             'font_size_body': 11,
             'font_size_name': 16,
@@ -36,7 +36,7 @@ class ResumeRefiner:
             ]
         }
         
-        # Modern resume templates based on research
+        # Modern resume templates
         self.resume_templates = {
             'technical': {
                 'emphasis': ['technical_skills', 'professional_experience', 'education'],
@@ -54,6 +54,27 @@ class ResumeRefiner:
                 'skills_format': 'integrated'
             }
         }
+    
+    def _parse_json_response(self, response_text):
+        """Safely parse JSON response from LLM, handling markdown and errors."""
+        try:
+            # Clean markdown code blocks
+            cleaned = response_text.strip()
+            cleaned = re.sub(r'```json\s*', '', cleaned)
+            cleaned = re.sub(r'```\s*$', '', cleaned)
+            cleaned = cleaned.strip()
+            
+            # Check for HTML error responses
+            if cleaned.startswith('<') or cleaned.startswith('<!'):
+                raise ValueError(f"Received HTML response instead of JSON: {cleaned[:100]}")
+            
+            # Validate JSON structure
+            if not (cleaned.startswith('{') or cleaned.startswith('[')):
+                raise ValueError(f"Response doesn't look like JSON: {cleaned[:100]}")
+            
+            return json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse JSON: {str(e)}. Response: {response_text[:200]}")
     
     def analyze_job_requirements(self, job_description):
         """Analyze job description to extract key requirements and keywords."""
@@ -94,9 +115,7 @@ class ResumeRefiner:
             )
             
             response_text = response.choices[0].message.content.strip()
-            response_text = re.sub(r'```json\s*', '', response_text)
-            response_text = re.sub(r'```\s*$', '', response_text)
-            return json.loads(response_text)
+            return self._parse_json_response(response_text)
         except Exception as e:
             print(f"Error analyzing job requirements: {str(e)}")
             return self._get_default_job_analysis()
@@ -156,9 +175,7 @@ class ResumeRefiner:
             )
             
             response_text = response.choices[0].message.content.strip()
-            response_text = re.sub(r'```json\s*', '', response_text)
-            response_text = re.sub(r'```\s*$', '', response_text)
-            return json.loads(response_text)
+            return self._parse_json_response(response_text)
         except Exception as e:
             print(f"Error analyzing resume: {str(e)}")
             return {"current_strengths": [], "improvement_areas": [], "ats_optimization_score": 70}
@@ -573,9 +590,7 @@ class ResumeRefiner:
             )
             
             response_text = response.choices[0].message.content.strip()
-            response_text = re.sub(r'```json\s*', '', response_text)
-            response_text = re.sub(r'```\s*$', '', response_text)
-            return json.loads(response_text)
+            return self._parse_json_response(response_text)
         except Exception as e:
             print(f"Error optimizing skills: {str(e)}")
             return {
@@ -632,9 +647,7 @@ class ResumeRefiner:
                 )
                 
                 response_text = response.choices[0].message.content.strip()
-                response_text = re.sub(r'```json\s*', '', response_text)
-                response_text = re.sub(r'```\s*$', '', response_text)
-                optimized_exp = json.loads(response_text)
+                optimized_exp = self._parse_json_response(response_text)
                 optimized_experiences.append(optimized_exp)
             except Exception as e:
                 print(f"Error optimizing experience: {str(e)}")

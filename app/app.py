@@ -112,7 +112,9 @@ def generate_content():
     
     # Get content type and input data
     content_type = data.get('content_type')
-    url = data.get('url')
+    url = data.get('url')  # Primary URL (job posting or profile)
+    profile_url = data.get('profile_url')  # Secondary URL for LinkedIn profile (connection messages)
+    job_url = data.get('job_url')  # Secondary URL for job posting (when profile_url is primary)
     manual_text = data.get('manual_text')
     input_type = data.get('input_type', 'url')  # 'url' or 'manual'
     user_job_title = data.get('job_title', '')
@@ -156,92 +158,91 @@ def generate_content():
             'generated_at': cached_content.get('generated_at')
         })
     
-    # Get job/profile data based on input type
-    if input_type == 'url':
-        if 'linkedin.com' in url:
-            job_data = data_retriever.scrape_linkedin_profile(url, user_job_title, user_company_name)
-        else:
-            job_data = data_retriever.scrape_job_posting(url, user_job_title, user_company_name)
-    else:  # manual input
-        if content_type == 'linkedin_message':
-            job_data = data_retriever.parse_manual_linkedin_profile(manual_text, user_job_title, user_company_name)
-        else:
-            job_data = data_retriever.parse_manual_job_posting(manual_text, user_job_title, user_company_name)
-    
-    # Check if scraping was successful
-    if 'error' in job_data:
-        error_msg = job_data['error']
-        if "temperature" in error_msg:
-            error_msg = "Model configuration error. Please try again or contact support."
-        return jsonify({'error': f"Failed to scrape data: {error_msg}"}), 400
-    
-    # Get candidate data
+    # Get candidate data first
     candidate_data = db_manager.get_candidate_data(session['user_id'])
     
-    # Validate LinkedIn profile requirement for connection messages
+    # Determine if this content type needs both job and profile data
     connection_types = ['linkedin_message', 'connection_email', 'hiring_manager_email']
-    if content_type in connection_types:
-        if input_type == 'url':
-            # Validate that URL is a LinkedIn profile
-            url_validation = url_validator.validate_and_parse_url(url)
-            if url_validation['type'] != 'linkedin_profile':
-                return jsonify({
-                    'error': f"LinkedIn profile URL required for {content_type.replace('_', ' ')}. Please provide a LinkedIn profile URL.",
-                    'recommendations': [
-                        "Use the LinkedIn profile URL of the person you want to connect with",
-                        "Example: https://linkedin.com/in/person-name",
-                        "Make sure it's a person's profile, not a company page"
-                    ]
-                }), 400
-        elif input_type == 'manual':
-            # Ensure manual text contains LinkedIn profile information
-            if not manual_text or len(manual_text.strip()) < 50:
-                return jsonify({
-                    'error': f"LinkedIn profile information required for {content_type.replace('_', ' ')}. Please provide detailed LinkedIn profile information.",
-                    'recommendations': [
-                        "Include the person's name, title, company, and background",
-                        "Provide enough information to personalize your message",
-                        "You can copy-paste from their LinkedIn profile"
-                    ]
-                }), 400
+    needs_profile = content_type in connection_types
     
-    # Generate content based on type
-    if content_type == 'linkedin_message':
-        # For LinkedIn messages, we need both job data and profile data
-        if input_type == 'manual':
-            profile_data = data_retriever.parse_manual_linkedin_profile(manual_text, user_job_title, user_company_name)
+    # Initialize job_data and profile_data
+    job_data = None
+    profile_data = None
+    
+    if input_type == 'url':
+        if needs_profile:
+            # For connection messages: need BOTH job posting and LinkedIn profile
+            # Try to intelligently determine URLs
+            if profile_url:
+                # Two URLs provided (ideal case)
+                actual_job_url = job_url or url
+                actual_profile_url = profile_url
+            elif 'linkedin.com/in/' in url:
+                # Only LinkedIn profile provided - use job title/company for job context
+                actual_profile_url = url
+                actual_job_url = None
+                job_data = {
+                    'job_title': user_job_title or 'the position',
+                    'company_name': user_company_name or 'the company',
+                    'job_description': f'Opportunity at {user_company_name or "the company"} for {user_job_title or "the position"}',
+                    'requirements': '',
+                    'url': url
+                }
+            else:
+                # Job posting URL provided - need LinkedIn profile too
+                return jsonify({
+                    'error': f'{content_type.replace("_", " ").title()} requires a LinkedIn profile URL',
+                    'help': 'Please provide the LinkedIn profile URL of the person you want to contact',
+                    'example': 'https://linkedin.com/in/person-name'
+                }), 400
+            
+            # Scrape LinkedIn profile
+            if actual_profile_url:
+                profile_data = data_retriever.scrape_linkedin_profile(actual_profile_url, user_job_title, user_company_name)
+                if 'error' in profile_data:
+                    return jsonify({'error': f"Failed to get LinkedIn profile: {profile_data['error']}"}), 400
+            
+            # Scrape job posting if not already set
+            if not job_data and actual_job_url:
+                job_data = data_retriever.scrape_job_posting(actual_job_url, user_job_title, user_company_name)
+                if 'error' in job_data:
+                    return jsonify({'error': f"Failed to get job posting: {job_data['error']}"}), 400
         else:
-            profile_data = data_retriever.scrape_linkedin_profile(url, user_job_title, user_company_name)
-            
-        # Check if profile data was successfully retrieved
-        if 'error' in profile_data:
-            return jsonify({'error': f"Failed to get profile data: {profile_data['error']}"}), 400
-            
+            # For cover letters: only need job posting
+            if 'linkedin.com' in url:
+                return jsonify({
+                    'error': 'Cover letters require a job posting URL, not a LinkedIn profile',
+                    'help': 'Please provide the job posting URL'
+                }), 400
+            job_data = data_retriever.scrape_job_posting(url, user_job_title, user_company_name)
+            if 'error' in job_data:
+                return jsonify({'error': f"Failed to get job posting: {job_data['error']}"}), 400
+    else:  # manual input
+        if needs_profile:
+            # Parse manual LinkedIn profile info
+            profile_data = data_retriever.parse_manual_linkedin_profile(manual_text, user_job_title, user_company_name)
+            if 'error' in profile_data:
+                return jsonify({'error': f"Failed to parse profile data: {profile_data['error']}"}), 400
+            # Create basic job data from user inputs
+            job_data = {
+                'job_title': user_job_title or 'the position',
+                'company_name': user_company_name or 'the company',
+                'job_description': f'Opportunity at {user_company_name or "the company"}',
+                'requirements': '',
+                'url': 'manual_input'
+            }
+        else:
+            # Parse manual job posting
+            job_data = data_retriever.parse_manual_job_posting(manual_text, user_job_title, user_company_name)
+            if 'error' in job_data:
+                return jsonify({'error': f"Failed to parse job posting: {job_data['error']}"}), 400
+    
+    # Generate content based on type (job_data and profile_data already prepared above)
+    if content_type == 'linkedin_message':
         content = llm_generator.generate_linkedin_message(job_data, candidate_data, profile_data)
     elif content_type == 'connection_email':
-        # For connection emails, we need both job data and profile data
-        if input_type == 'manual':
-            profile_data = data_retriever.parse_manual_linkedin_profile(manual_text, user_job_title, user_company_name)
-        else:
-            profile_data = data_retriever.scrape_linkedin_profile(url, user_job_title, user_company_name)
-            
-        # Check if profile data was successfully retrieved
-        if 'error' in profile_data:
-            return jsonify({'error': f"Failed to get profile data: {profile_data['error']}"}), 400
-            
-        # Generate connection email with both job and profile data
         content = llm_generator.generate_connection_email(job_data, candidate_data, profile_data)
     elif content_type == 'hiring_manager_email':
-        # For hiring manager emails, we need both job data and LinkedIn profile data
-        if input_type == 'manual':
-            profile_data = data_retriever.parse_manual_linkedin_profile(manual_text, user_job_title, user_company_name)
-        else:
-            profile_data = data_retriever.scrape_linkedin_profile(url, user_job_title, user_company_name)
-            
-        # Check if profile data was successfully retrieved
-        if 'error' in profile_data:
-            return jsonify({'error': f"Failed to get profile data: {profile_data['error']}"}), 400
-            
         content = llm_generator.generate_hiring_manager_email(job_data, candidate_data, profile_data)
     elif content_type == 'cover_letter':
         content = llm_generator.generate_cover_letter(job_data, candidate_data)
@@ -473,7 +474,7 @@ def resume_progress_stream(task_id):
         
         while True:
             try:
-                progress_data = redis_manager.get_cached_data(progress_key)
+                progress_data = redis_manager.get(progress_key)
                 if progress_data:
                     current_progress = progress_data.get('progress', 0)
                     if current_progress > last_progress or progress_data.get('status') in ['completed', 'error']:
@@ -532,7 +533,7 @@ def refine_resume():
                 'status': status,
                 'timestamp': datetime.datetime.now().isoformat()
             }
-            redis_manager.cache_data(progress_key, progress_data, ttl=300)  # 5 min TTL
+            redis_manager.set(progress_key, progress_data, ttl=300)  # 5 min TTL
         
         # Start progress tracking
         update_progress('initializing', 5, 'Starting resume refinement...')
@@ -545,18 +546,18 @@ def refine_resume():
         
         update_progress('analyzing_job', 15, 'Analyzing job requirements...')
         
-        # Quick job analysis without API calls for speed
-        job_analysis = resume_refiner.quick_job_analysis(job_description)
+        # Analyze job requirements using AI
+        job_analysis = resume_refiner.analyze_job_requirements(job_description)
         
         update_progress('analyzing_resume', 30, 'Analyzing your current resume...')
         
-        # Quick resume analysis (no API calls)
-        resume_analysis = resume_refiner.quick_resume_analysis(candidate_data, job_analysis)
+        # Analyze current resume against job requirements
+        resume_analysis = resume_refiner.analyze_current_resume(candidate_data)
         
         update_progress('optimizing', 50, 'Optimizing resume content...')
         
-        # Generate optimized resume with minimal API usage
-        optimized_resume = resume_refiner.generate_optimized_resume_ultra_fast(
+        # Generate optimized resume tailored to job
+        optimized_resume = resume_refiner.generate_optimized_resume(
             candidate_data, job_analysis, resume_analysis
         )
         
