@@ -32,6 +32,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event listeners
     generateForm.addEventListener('submit', handleGenerate);
+    
+    // Content type change handler
+    document.getElementById('contentType').addEventListener('change', handleContentTypeChange);
     copyBtn.addEventListener('click', copyToClipboard);
     downloadDocxBtn.addEventListener('click', downloadDocx);
     downloadPdfBtn.addEventListener('click', downloadPdf);
@@ -60,6 +63,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     urlInput.addEventListener('change', toggleInputType);
     manualInput.addEventListener('change', toggleInputType);
+    
+    // Add URL validation on input
+    const jobUrl = document.getElementById('jobUrl');
+    const urlFeedback = document.createElement('div');
+    urlFeedback.className = 'invalid-feedback';
+    jobUrl.parentNode.appendChild(urlFeedback);
+    
+    jobUrl.addEventListener('blur', validateUrl);
+    jobUrl.addEventListener('input', clearUrlValidation);
 
     function toggleInputType() {
         if (urlInput.checked) {
@@ -75,6 +87,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // URL validation functions
+    async function validateUrl() {
+        const url = jobUrl.value.trim();
+        if (!url) {
+            clearUrlValidation();
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/validate-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+            
+            const result = await response.json();
+            
+            if (result.valid) {
+                jobUrl.classList.remove('is-invalid');
+                jobUrl.classList.add('is-valid');
+                if (result.message) {
+                    urlFeedback.textContent = result.message;
+                    urlFeedback.className = 'valid-feedback';
+                }
+            } else {
+                jobUrl.classList.remove('is-valid');
+                jobUrl.classList.add('is-invalid');
+                urlFeedback.textContent = result.error || 'Invalid URL';
+                urlFeedback.className = 'invalid-feedback';
+            }
+            
+            if (result.warning) {
+                jobUrl.classList.remove('is-valid');
+                jobUrl.classList.add('is-invalid');
+                urlFeedback.textContent = result.warning;
+                urlFeedback.className = 'invalid-feedback';
+            }
+        } catch (error) {
+            console.error('URL validation error:', error);
+        }
+    }
+    
+    function clearUrlValidation() {
+        jobUrl.classList.remove('is-valid', 'is-invalid');
+        urlFeedback.textContent = '';
+    }
+    
     // Event Listeners
     if (logoutButton) {
         logoutButton.addEventListener('click', handleLogout);
@@ -83,6 +142,51 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add event listener for resume upload
     document.getElementById('uploadResumeBtn').addEventListener('click', handleResumeUpload);
     
+    // Content type change handler
+    function handleContentTypeChange() {
+        const contentType = document.getElementById('contentType').value;
+        const manualInputLabel = document.querySelector('label[for="manualText"]');
+        const jobTitleDiv = document.getElementById('jobTitle').parentElement;
+        const companyNameDiv = document.getElementById('companyName').parentElement;
+        
+        if (contentType === 'resume_refinement') {
+            manualInputLabel.textContent = 'Job Description (Required for Resume Refinement)';
+            document.getElementById('manualText').placeholder = 'Paste the complete job description here for optimal resume tailoring...';
+            jobTitleDiv.style.display = 'none';
+            companyNameDiv.style.display = 'none';
+            
+            // Show resume refinement info
+            if (!document.getElementById('resumeRefinementInfo')) {
+                const infoDiv = document.createElement('div');
+                infoDiv.id = 'resumeRefinementInfo';
+                infoDiv.className = 'alert alert-info mt-3';
+                infoDiv.innerHTML = `
+                    <h6><i class="bi bi-info-circle"></i> Resume Refinement</h6>
+                    <p class="mb-1">This feature will:</p>
+                    <ul class="mb-0">
+                        <li>Analyze the job description and your current resume</li>
+                        <li>Optimize content for ATS systems</li>
+                        <li>Tailor skills and experience to match requirements</li>
+                        <li>Generate a professionally formatted, one-page resume</li>
+                        <li>Provide an optimization score and recommendations</li>
+                    </ul>
+                `;
+                generateForm.appendChild(infoDiv);
+            }
+        } else {
+            manualInputLabel.textContent = 'Job Description or LinkedIn Profile';
+            document.getElementById('manualText').placeholder = 'Paste the full job description or LinkedIn profile content here...';
+            jobTitleDiv.style.display = 'block';
+            companyNameDiv.style.display = 'block';
+            
+            // Remove resume refinement info
+            const infoDiv = document.getElementById('resumeRefinementInfo');
+            if (infoDiv) {
+                infoDiv.remove();
+            }
+        }
+    }
+
     // Functions
     async function handleGenerate(e) {
         e.preventDefault();
@@ -93,6 +197,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const manualText = document.getElementById('manualText').value;
         const jobTitle = document.getElementById('jobTitle').value;
         const companyName = document.getElementById('companyName').value;
+        
+        // Handle resume refinement separately
+        if (contentType === 'resume_refinement') {
+            return handleResumeRefinement(inputType, jobUrl, manualText);
+        }
         
         if (!contentType || (inputType === 'url' && !jobUrl) || (inputType === 'manual' && !manualText)) {
             showError('Please fill in all required fields.');
@@ -173,9 +282,191 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    async function handleResumeRefinement(inputType, jobUrl, manualText) {
+        // Validate inputs
+        if ((inputType === 'url' && !jobUrl) || (inputType === 'manual' && !manualText)) {
+            showError('Please provide a job description or URL for resume refinement.');
+            return;
+        }
+        
+        // Show loading indicator
+        initialMessage.classList.add('d-none');
+        resultContent.classList.add('d-none');
+        downloadButtons.classList.add('d-none');
+        errorMessage.classList.add('d-none');
+        loadingIndicator.classList.remove('d-none');
+        
+        // Update loading text for resume refinement
+        document.querySelector('#loadingIndicator .spinner-text').textContent = 'Analyzing job requirements and optimizing your resume...';
+        
+        try {
+            const requestData = {
+                input_type: inputType,
+                job_description: manualText,
+                url: inputType === 'url' ? jobUrl : null
+            };
+            
+            const response = await fetch('/api/refine-resume', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            });
+            
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+            
+            const result = await response.json();
+            if (result.error) {
+                throw new Error(result.error);
+            }
+            
+            // Hide loading indicator
+            loadingIndicator.classList.add('d-none');
+            
+            // Display resume refinement results
+            displayResumeRefinementResults(result);
+            
+        } catch (error) {
+            loadingIndicator.classList.add('d-none');
+            if (error.message === 'Unauthorized') {
+                window.location.href = '/login';
+            } else {
+                showError('Error refining resume: ' + error.message);
+            }
+        }
+    }
+    
+    function displayResumeRefinementResults(result) {
+        // Clear previous content
+        resultContent.innerHTML = '';
+        
+        // Create results display
+        const resultsDiv = document.createElement('div');
+        resultsDiv.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-graph-up"></i> Optimization Results</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Match Score:</span>
+                                <span class="badge bg-primary fs-6">${result.analysis.optimization_score}/100</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Word Count:</span>
+                                <span class="badge bg-info">${result.analysis.word_count} words</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Target Role:</span>
+                                <span class="badge bg-success">${result.analysis.job_analysis.job_title || 'Position'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Key Improvements</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled mb-0">
+                                ${result.recommendations.map(rec => `<li><i class="bi bi-check-circle text-success me-2"></i>${rec}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-bullseye"></i> Job Requirements Match</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <small class="text-muted">Required Skills Found:</small>
+                                <div class="mt-1">
+                                    ${result.analysis.job_analysis.required_skills.slice(0, 6).map(skill => 
+                                        `<span class="badge bg-primary me-1 mb-1">${skill}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted">Key Qualifications:</small>
+                                <div class="mt-1">
+                                    ${result.analysis.job_analysis.key_qualifications.slice(0, 4).map(qual => 
+                                        `<span class="badge bg-secondary me-1 mb-1">${qual}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-download"></i> Download Options</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Your optimized resume is ready for download:</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary" onclick="downloadFile({filename: '${result.file_info.filename}'}, this)">
+                                    <i class="bi bi-file-earmark-word"></i> Download DOCX
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="convertToPdf({filename: '${result.file_info.filename}'}, this)">
+                                    <i class="bi bi-file-earmark-pdf"></i> Convert to PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        resultContent.appendChild(resultsDiv);
+        resultContent.classList.remove('d-none');
+        
+        // Update current file path for legacy download buttons
+        currentFilePath = result.file_info.filename;
+        
+        // Show success message
+        showSuccess('✅ Resume optimized successfully! Download your tailored resume below.');
+        
+        // Update history
+        loadGenerationHistory();
+    }
+    
     function showError(message) {
         errorMessage.textContent = message;
         errorMessage.classList.remove('d-none');
+    }
+    
+    function showSuccess(message) {
+        // Remove any existing success messages
+        const existingSuccess = document.querySelector('.alert-success');
+        if (existingSuccess) {
+            existingSuccess.remove();
+        }
+        
+        // Create success alert
+        const successDiv = document.createElement('div');
+        successDiv.className = 'alert alert-success alert-dismissible fade show';
+        successDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Insert at the top of the results area
+        const resultCard = document.querySelector('.col-md-8 .card');
+        resultCard.insertBefore(successDiv, resultCard.firstChild);
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            if (successDiv.parentNode) {
+                successDiv.remove();
+            }
+        }, 5000);
     }
     
     function copyToClipboard() {
@@ -195,13 +486,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function downloadDocx() {
         if (currentFilePath) {
-            downloadFile({ filename: currentFilePath });
+            downloadFile({ filename: currentFilePath }, downloadDocxBtn);
         }
     }
     
     function downloadPdf() {
         if (currentFilePath) {
-            convertToPdf({ filename: currentFilePath });
+            convertToPdf({ filename: currentFilePath }, downloadPdfBtn);
         }
     }
     
@@ -813,11 +1104,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Function to handle file downloads
-    function downloadFile(fileInfo) {
+    // Function to handle file downloads with progress indication
+    function downloadFile(fileInfo, buttonElement) {
         if (!fileInfo || !fileInfo.filename) {
             showError('No file available for download');
             return;
+        }
+
+        // Show download progress
+        const originalText = buttonElement ? buttonElement.innerHTML : '';
+        if (buttonElement) {
+            buttonElement.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Preparing...';
+            buttonElement.disabled = true;
         }
 
         // Create a temporary link element
@@ -826,17 +1124,35 @@ document.addEventListener('DOMContentLoaded', function() {
         link.download = fileInfo.filename;
         link.target = '_blank';
         
+        // Add event listeners to track download
+        link.addEventListener('click', () => {
+            // Reset button after a short delay
+            setTimeout(() => {
+                if (buttonElement) {
+                    buttonElement.innerHTML = originalText;
+                    buttonElement.disabled = false;
+                }
+            }, 1000);
+        });
+        
         // Append to body, click, and remove
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     }
 
-    // Function to convert DOCX to PDF
-    function convertToPdf(fileInfo) {
+    // Function to convert DOCX to PDF with progress indication
+    function convertToPdf(fileInfo, buttonElement) {
         if (!fileInfo || !fileInfo.filename) {
             showError('No file available for conversion');
             return;
+        }
+
+        // Show conversion progress
+        const originalText = buttonElement ? buttonElement.innerHTML : '';
+        if (buttonElement) {
+            buttonElement.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Converting...';
+            buttonElement.disabled = true;
         }
 
         // Create a temporary link element
@@ -844,6 +1160,17 @@ document.addEventListener('DOMContentLoaded', function() {
         link.href = `/api/convert-to-pdf/${fileInfo.filename}`;
         link.download = fileInfo.filename.replace('.docx', '.pdf');
         link.target = '_blank';
+        
+        // Add event listeners to track download
+        link.addEventListener('click', () => {
+            // Reset button after a longer delay for PDF conversion
+            setTimeout(() => {
+                if (buttonElement) {
+                    buttonElement.innerHTML = originalText;
+                    buttonElement.disabled = false;
+                }
+            }, 3000); // PDF conversion takes longer
+        });
         
         // Append to body, click, and remove
         document.body.appendChild(link);

@@ -9,12 +9,14 @@ from app.resume_parser import ResumeParser
 from app.background_tasks import BackgroundProcessor
 from app.enhanced_resume_processor import enhanced_resume_processor
 from app.redis_manager import RedisManager
+from app.resume_refiner import ResumeRefiner
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Fix imports to use relative imports instead of absolute imports
 from scraper.retriever import DataRetriever
+from scraper.url_validator import URLValidator
 from database.db_manager import DatabaseManager
 from app.cached_llm import CachedLLMGenerator
 from app.output_formatter import OutputFormatter
@@ -34,11 +36,13 @@ else:
 
 # Initialize components
 data_retriever = DataRetriever()
+url_validator = URLValidator()
 db_manager = DatabaseManager()
 llm_generator = CachedLLMGenerator()
 output_formatter = OutputFormatter()
 resume_parser = ResumeParser()
 background_processor = BackgroundProcessor()
+resume_refiner = ResumeRefiner()
 
 def login_required(f):
     @wraps(f)
@@ -114,6 +118,23 @@ def generate_content():
     # Validate input
     if not content_type or (not url and not manual_text):
         return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Validate URL if provided
+    if input_type == 'url' and url:
+        url_validation = url_validator.validate_and_parse_url(url)
+        if not url_validation['valid']:
+            return jsonify({
+                'error': f"Invalid URL: {url_validation['error']}",
+                'recommendations': url_validator.get_url_recommendations(url_validation['type'])
+            }), 400
+        
+        # Check for warnings
+        if 'warning' in url_validation:
+            # Log warning but continue processing
+            logging.warning(f"URL warning for {url}: {url_validation['warning']}")
+        
+        # Update URL if normalized
+        url = url_validation['url']
     
     # Create job data for cache key generation
     temp_job_data = {
@@ -374,6 +395,173 @@ def clear_resume_progress():
     except Exception as e:
         logging.error(f"Clear progress error for user {session.get('user_id')}: {str(e)}")
         return jsonify({'error': 'Failed to clear progress'}), 500
+
+@app.route('/api/validate-url', methods=['POST'])
+@login_required
+def validate_url():
+    """Validate URL and provide feedback to user."""
+    try:
+        data = request.json
+        url = data.get('url', '').strip()
+        
+        if not url:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        # Validate the URL
+        validation_result = url_validator.validate_and_parse_url(url)
+        
+        # Add recommendations for invalid or warning cases
+        if not validation_result['valid'] or 'warning' in validation_result:
+            validation_result['recommendations'] = url_validator.get_url_recommendations(validation_result['type'])
+        
+        return jsonify(validation_result)
+        
+    except Exception as e:
+        logging.error(f"URL validation error: {str(e)}")
+        return jsonify({'error': 'Failed to validate URL'}), 500
+
+@app.route('/api/refine-resume', methods=['POST'])
+@login_required
+def refine_resume():
+    """Refine resume based on job description."""
+    try:
+        data = request.json
+        job_description = data.get('job_description', '').strip()
+        input_type = data.get('input_type', 'manual')  # 'url' or 'manual'
+        url = data.get('url', '') if input_type == 'url' else None
+        
+        if not job_description and not url:
+            return jsonify({'error': 'Job description or URL is required'}), 400
+        
+        # Get job description from URL if needed
+        if input_type == 'url' and url:
+            # Validate URL first
+            url_validation = url_validator.validate_and_parse_url(url)
+            if not url_validation['valid']:
+                return jsonify({
+                    'error': f"Invalid URL: {url_validation['error']}",
+                    'recommendations': url_validator.get_url_recommendations(url_validation['type'])
+                }), 400
+            
+            # Scrape job posting
+            job_data = data_retriever.scrape_job_posting(url)
+            if 'error' in job_data:
+                return jsonify({'error': f"Failed to fetch job description: {job_data['error']}"}), 400
+            job_description = job_data.get('job_description', '') + "\n\n" + job_data.get('requirements', '')
+        
+        # Get candidate data
+        candidate_data = db_manager.get_candidate_data(session['user_id'])
+        if not candidate_data or not candidate_data.get('resume'):
+            return jsonify({'error': 'Please upload your resume first before refining it'}), 400
+        
+        # Analyze job requirements
+        job_analysis = resume_refiner.analyze_job_requirements(job_description)
+        
+        # Analyze current resume
+        resume_analysis = resume_refiner.analyze_current_resume(candidate_data)
+        
+        # Generate optimized resume
+        optimized_resume = resume_refiner.generate_optimized_resume(
+            candidate_data, job_analysis, resume_analysis
+        )
+        
+        # Create formatted DOCX
+        formatted_resume = resume_refiner.create_formatted_resume_docx(
+            optimized_resume, candidate_data, job_analysis.get('job_title', 'Position')
+        )
+        
+        if not formatted_resume:
+            return jsonify({'error': 'Failed to create formatted resume'}), 500
+        
+        # Save refinement data to database for tracking
+        refinement_metadata = {
+            'job_title': job_analysis.get('job_title', ''),
+            'optimization_score': optimized_resume['optimization_score'],
+            'word_count': optimized_resume['word_count'],
+            'template_used': job_analysis.get('resume_template', 'business'),
+            'refined_at': str(datetime.datetime.now()),
+            'job_description_source': 'url' if url else 'manual'
+        }
+        
+        # Return success response
+        return jsonify({
+            'success': True,
+            'analysis': {
+                'job_analysis': job_analysis,
+                'resume_analysis': resume_analysis,
+                'optimization_score': optimized_resume['optimization_score'],
+                'word_count': optimized_resume['word_count']
+            },
+            'file_info': {
+                'filename': formatted_resume['filename'],
+                'filepath': formatted_resume['filename']  # Use filename for API consistency
+            },
+            'optimized_content': optimized_resume['sections'],
+            'recommendations': [
+                f"Resume optimized for {job_analysis.get('job_title', 'the position')}",
+                f"Optimization score: {optimized_resume['optimization_score']}/100",
+                f"Word count: {optimized_resume['word_count']} words",
+                "Download the refined resume and customize further if needed"
+            ]
+        })
+        
+    except Exception as e:
+        logging.error(f"Resume refinement error for user {session.get('user_id')}: {str(e)}")
+        return jsonify({'error': f'Failed to refine resume: {str(e)}'}), 500
+
+@app.route('/api/resume-analysis', methods=['POST'])
+@login_required 
+def analyze_resume():
+    """Analyze current resume without refinement."""
+    try:
+        data = request.json
+        job_description = data.get('job_description', '').strip()
+        
+        if not job_description:
+            return jsonify({'error': 'Job description is required'}), 400
+        
+        # Get candidate data
+        candidate_data = db_manager.get_candidate_data(session['user_id'])
+        if not candidate_data or not candidate_data.get('resume'):
+            return jsonify({'error': 'Please upload your resume first'}), 400
+        
+        # Analyze job requirements
+        job_analysis = resume_refiner.analyze_job_requirements(job_description)
+        
+        # Analyze current resume
+        resume_analysis = resume_refiner.analyze_current_resume(candidate_data)
+        
+        # Calculate match score
+        match_score = resume_refiner._calculate_optimization_score(job_analysis, resume_analysis)
+        
+        return jsonify({
+            'analysis': {
+                'job_requirements': {
+                    'job_title': job_analysis.get('job_title'),
+                    'required_skills': job_analysis.get('required_skills', []),
+                    'preferred_skills': job_analysis.get('preferred_skills', []),
+                    'key_qualifications': job_analysis.get('key_qualifications', []),
+                    'important_keywords': job_analysis.get('important_keywords', [])
+                },
+                'resume_assessment': {
+                    'current_strengths': resume_analysis.get('current_strengths', []),
+                    'improvement_areas': resume_analysis.get('improvement_areas', []),
+                    'keyword_gaps': resume_analysis.get('keyword_gaps', []),
+                    'skills_match': resume_analysis.get('skills_match', 'medium'),
+                    'ats_score': resume_analysis.get('ats_optimization_score', 70)
+                },
+                'match_score': match_score,
+                'recommendations': [
+                    f"Overall match score: {match_score}/100",
+                    f"Skills alignment: {resume_analysis.get('skills_match', 'medium')}",
+                    "Consider using the resume refinement feature for optimization"
+                ]
+            }
+        })
+        
+    except Exception as e:
+        logging.error(f"Resume analysis error for user {session.get('user_id')}: {str(e)}")
+        return jsonify({'error': f'Failed to analyze resume: {str(e)}'}), 500
 
 # Keep legacy endpoint for backward compatibility
 @app.route('/api/processing-status')

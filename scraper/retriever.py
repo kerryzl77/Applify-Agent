@@ -3,7 +3,9 @@ from openai import OpenAI
 import json
 import re
 import os
+from urllib.parse import urlparse, parse_qs
 from dotenv import load_dotenv
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -139,7 +141,7 @@ class DataRetriever:
     def _extract_job_data_with_gpt(self, content_text, url, job_title=None, company_name=None):
         """Use GPT to extract structured job posting data from text content."""
         try:
-            # Create prompt for GPT-4o-mini
+            # Create prompt for GPT-5
             prompt = f"""Extract key information from this job posting. Return ONLY a valid JSON object with these fields:
             - job_title: The title of the position
             - company_name: The company offering the position
@@ -160,7 +162,7 @@ class DataRetriever:
             prompt += "\n\nReturn ONLY a valid JSON object. Do not include any other text or explanation.\nIf a field is not found, use null or an empty string as appropriate."
 
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5",
                 messages=[
                     {"role": "system", "content": "You are a precise job posting parser. Your response must be a valid JSON object containing only the requested fields. Do not include any explanatory text or markdown formatting."},
                     {"role": "user", "content": prompt}
@@ -231,7 +233,7 @@ class DataRetriever:
     def _extract_profile_data_with_gpt(self, content_text, url, job_title=None, company_name=None):
         """Use GPT to extract structured LinkedIn profile data from text content."""
         try:
-            # Create prompt for GPT-4o-mini
+            # Create prompt for GPT-5
             prompt = f"""Extract key information from this LinkedIn profile. Return a JSON object with these fields:
             - name: The person's full name
             - title: Their current job title/role
@@ -263,7 +265,7 @@ class DataRetriever:
             prompt += "\n\nReturn ONLY a valid JSON object with these fields. Do not include any other text or explanation.\nIf a field is not found, use null or an empty string as appropriate."
 
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5",
                 messages=[
                     {"role": "system", "content": "You are a precise LinkedIn profile parser. Extract only the requested information and format it as a valid JSON object. Do not include any explanatory text or markdown formatting."},
                     {"role": "user", "content": prompt}
