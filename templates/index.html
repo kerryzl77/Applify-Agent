@@ -57,18 +57,44 @@
                                 </div>
                             </div>
                             <div class="mb-3">
-                                <label for="jobTitle" class="form-label">Job Title (Optional)</label>
+                                <label for="jobTitle" class="form-label">Job Title <span id="jobTitleRequired" class="text-danger d-none">*</span><span id="jobTitleOptional" class="text-muted">(Optional)</span></label>
                                 <input type="text" class="form-control" id="jobTitle" placeholder="e.g. Software Engineer">
-                                <small class="form-text text-muted">Enter the job title directly to improve accuracy</small>
+                                <small class="form-text text-muted" id="jobTitleHelp">Enter the job title directly to improve accuracy</small>
                             </div>
                             <div class="mb-3">
-                                <label for="companyName" class="form-label">Company Name (Optional)</label>
+                                <label for="companyName" class="form-label">Company Name <span id="companyNameRequired" class="text-danger d-none">*</span><span id="companyNameOptional" class="text-muted">(Optional)</span></label>
                                 <input type="text" class="form-control" id="companyName" placeholder="e.g. Google">
-                                <small class="form-text text-muted">Enter the company name directly to improve accuracy</small>
+                                <small class="form-text text-muted" id="companyNameHelp">Enter the company name directly to improve accuracy</small>
                             </div>
                             <div id="urlInputGroup" class="mb-3">
-                                <label for="jobUrl" class="form-label">Job Posting or LinkedIn Profile URL</label>
-                                <input type="url" class="form-control" id="jobUrl" placeholder="https://...">
+                                <!-- Info alert for connection messages -->
+                                <div id="dualUrlInfo" class="alert alert-info d-none" role="alert">
+                                    <strong>ℹ️ Connection Messages Need:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li><strong>LinkedIn Profile URL</strong> - Who you're contacting</li>
+                                        <li><strong>Job Details</strong> - Either Job Posting URL OR Job Title + Company Name below</li>
+                                    </ul>
+                                </div>
+                                
+                                <!-- For connection messages: dual URL input -->
+                                <div id="dualUrlInputs" class="d-none">
+                                    <div class="mb-3">
+                                        <label for="profileUrl" class="form-label">LinkedIn Profile URL <span class="text-danger">*</span></label>
+                                        <input type="url" class="form-control" id="profileUrl" placeholder="https://linkedin.com/in/person-name">
+                                        <small class="form-text text-muted">🔗 URL of the person you want to connect with</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="jobPostingUrl" class="form-label">Job Posting URL <span class="text-muted">(Optional)</span></label>
+                                        <input type="url" class="form-control" id="jobPostingUrl" placeholder="https://company.com/careers/job-id">
+                                        <small class="form-text text-muted">📋 Or enter job details below</small>
+                                    </div>
+                                </div>
+                                
+                                <!-- For cover letters: single URL input -->
+                                <div id="singleUrlInput">
+                                    <label for="jobUrl" class="form-label">Job Posting or LinkedIn Profile URL</label>
+                                    <input type="url" class="form-control" id="jobUrl" placeholder="https://...">
+                                </div>
                             </div>
                             <div id="manualInputGroup" class="mb-3 d-none">
                                 <label for="manualText" class="form-label">Job Description or LinkedIn Profile</label>

@@ -6,6 +6,7 @@ import logging
 import json
 import time
 import uuid
+import threading
 from functools import wraps
 from werkzeug.utils import secure_filename
 from app.resume_parser import ResumeParser
@@ -494,7 +495,7 @@ def resume_progress_stream(task_id):
 @app.route('/api/refine-resume', methods=['POST'])
 @login_required 
 def refine_resume():
-    """Refine resume based on job description with progress tracking."""
+    """Refine resume based on job description - starts background processing."""
     try:
         data = request.json
         job_description = data.get('job_description', '').strip()
@@ -503,6 +504,11 @@ def refine_resume():
         
         if not job_description and not url:
             return jsonify({'error': 'Job description or URL is required'}), 400
+        
+        # Get candidate data first to validate
+        candidate_data = db_manager.get_candidate_data(session['user_id'])
+        if not candidate_data or not candidate_data.get('resume'):
+            return jsonify({'error': 'Please upload your resume first before refining it'}), 400
         
         # Get job description from URL if needed
         if input_type == 'url' and url:
@@ -514,107 +520,120 @@ def refine_resume():
                     'recommendations': url_validator.get_url_recommendations(url_validation['type'])
                 }), 400
             
-            # Scrape job posting
+            # Scrape job posting (quick operation)
             job_data = data_retriever.scrape_job_posting(url)
             if 'error' in job_data:
                 return jsonify({'error': f"Failed to fetch job description: {job_data['error']}"}), 400
             job_description = job_data.get('job_description', '') + "\n\n" + job_data.get('requirements', '')
         
-        # Generate unique task ID for progress tracking
+        # Generate unique task ID
         task_id = str(uuid.uuid4())
-        progress_key = f"resume_progress:{session['user_id']}:{task_id}"
         
-        def update_progress(step, progress, message, status='processing'):
-            """Update progress in Redis for real-time tracking."""
-            progress_data = {
-                'step': step,
-                'progress': progress,
-                'message': message,
-                'status': status,
-                'timestamp': datetime.datetime.now().isoformat()
-            }
-            redis_manager.set(progress_key, progress_data, ttl=300)  # 5 min TTL
-        
-        # Start progress tracking
-        update_progress('initializing', 5, 'Starting resume refinement...')
-        
-        # Get candidate data
-        candidate_data = db_manager.get_candidate_data(session['user_id'])
-        if not candidate_data or not candidate_data.get('resume'):
-            update_progress('error', 0, 'Please upload your resume first', 'error')
-            return jsonify({'error': 'Please upload your resume first before refining it'}), 400
-        
-        update_progress('analyzing_job', 15, 'Analyzing job requirements...')
-        
-        # Analyze job requirements using AI
-        job_analysis = resume_refiner.analyze_job_requirements(job_description)
-        
-        update_progress('analyzing_resume', 30, 'Analyzing your current resume...')
-        
-        # Analyze current resume against job requirements
-        resume_analysis = resume_refiner.analyze_current_resume(candidate_data)
-        
-        update_progress('optimizing', 50, 'Optimizing resume content...')
-        
-        # Generate optimized resume tailored to job
-        optimized_resume = resume_refiner.generate_optimized_resume(
-            candidate_data, job_analysis, resume_analysis
+        # Start background processing
+        thread = threading.Thread(
+            target=process_resume_refinement_background,
+            args=(task_id, job_description, candidate_data, session['user_id'], url)
         )
+        thread.daemon = True
+        thread.start()
         
-        update_progress('formatting', 75, 'Creating formatted document...')
-        
-        # Create formatted DOCX
-        formatted_resume = resume_refiner.create_formatted_resume_docx(
-            optimized_resume, candidate_data, job_analysis.get('job_title', 'Position')
-        )
-        
-        update_progress('finalizing', 90, 'Finalizing resume...')
-        
-        if not formatted_resume:
-            update_progress('error', 0, 'Failed to create formatted resume', 'error')
-            return jsonify({'error': 'Failed to create formatted resume'}), 500
-        
-        update_progress('completed', 100, 'Resume refinement completed successfully!', 'completed')
-        
-        # Save refinement data to database for tracking
-        refinement_metadata = {
-            'job_title': job_analysis.get('job_title', ''),
-            'optimization_score': optimized_resume['optimization_score'],
-            'word_count': optimized_resume['word_count'],
-            'template_used': job_analysis.get('resume_template', 'business'),
-            'refined_at': str(datetime.datetime.now()),
-            'job_description_source': 'url' if url else 'manual'
-        }
-        
-        # Return success response with task ID for progress tracking
+        # Return immediately with task ID
         return jsonify({
             'success': True,
             'task_id': task_id,
-            'analysis': {
-                'job_analysis': job_analysis,
-                'resume_analysis': resume_analysis,
-                'optimization_score': optimized_resume['optimization_score'],
-                'word_count': optimized_resume['word_count']
-            },
-            'file_info': {
-                'filename': formatted_resume['filename'],
-                'filepath': formatted_resume['filename']  # Use filename for API consistency
-            },
-            'optimized_content': optimized_resume['sections'],
-            'recommendations': [
-                f"Resume optimized for {job_analysis.get('job_title', 'the position')}",
-                f"Optimization score: {optimized_resume['optimization_score']}/100",
-                f"Word count: {optimized_resume['word_count']} words",
-                "Download the refined resume and customize further if needed"
-            ]
+            'status': 'processing',
+            'message': 'Resume refinement started. Check progress with task_id.'
         })
         
     except Exception as e:
         logging.error(f"Resume refinement error for user {session.get('user_id')}: {str(e)}")
-        # Update progress with error if task_id exists
-        if 'task_id' in locals():
-            update_progress('error', 0, f'Error: {str(e)}', 'error')
-        return jsonify({'error': f'Failed to refine resume: {str(e)}'}), 500
+        return jsonify({'error': f'Failed to start resume refinement: {str(e)}'}), 500
+
+def process_resume_refinement_background(task_id, job_description, candidate_data, user_id, job_url=None):
+    """Background task for resume refinement with progress tracking."""
+    progress_key = f"resume_refinement:{user_id}:{task_id}"
+    
+    def update_progress(step, progress, message, status='processing', data=None):
+        """Update progress in Redis."""
+        progress_data = {
+            'task_id': task_id,
+            'step': step,
+            'progress': progress,
+            'message': message,
+            'status': status,
+            'timestamp': datetime.datetime.now().isoformat(),
+            'data': data or {}
+        }
+        redis_manager.set(progress_key, progress_data, ttl=1800)  # 30 min TTL
+        logging.info(f"Resume refinement progress [{user_id}]: {step} - {progress}% - {message}")
+    
+    try:
+        update_progress('initializing', 5, 'Starting resume refinement...')
+        
+        update_progress('analyzing_job', 15, 'Analyzing job requirements...')
+        job_analysis = resume_refiner.analyze_job_requirements(job_description)
+        
+        update_progress('analyzing_resume', 30, 'Analyzing your current resume...')
+        resume_analysis = resume_refiner.analyze_current_resume(candidate_data)
+        
+        update_progress('optimizing', 50, 'Optimizing resume content with AI...')
+        optimized_resume = resume_refiner.generate_optimized_resume(
+            candidate_data, job_analysis, resume_analysis
+        )
+        
+        update_progress('formatting', 75, 'Creating professionally formatted document...')
+        formatted_resume = resume_refiner.create_formatted_resume_docx(
+            optimized_resume, candidate_data, job_analysis.get('job_title', 'Position')
+        )
+        
+        if not formatted_resume:
+            update_progress('error', 0, 'Failed to create formatted resume', 'error')
+            return
+        
+        update_progress('completed', 100, 'Resume refinement completed successfully!', 'completed', {
+            'file_info': {
+                'filename': formatted_resume['filename'],
+                'filepath': formatted_resume['filename']
+            },
+            'analysis': {
+                'job_title': job_analysis.get('job_title', ''),
+                'optimization_score': optimized_resume['optimization_score'],
+                'word_count': optimized_resume['word_count'],
+                'template_used': job_analysis.get('resume_template', 'business')
+            },
+            'recommendations': [
+                f"✅ Resume optimized for {job_analysis.get('job_title', 'the position')}",
+                f"📊 Optimization score: {optimized_resume['optimization_score']}/100",
+                f"📝 Word count: {optimized_resume['word_count']} words",
+                f"🎯 Template: {job_analysis.get('resume_template', 'business').title()}",
+                "💾 Download your tailored resume below!"
+            ]
+        })
+        
+    except Exception as e:
+        logging.error(f"Resume refinement background error for user {user_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        update_progress('error', 0, f'Error: {str(e)}', 'error')
+
+@app.route('/api/resume-refinement-progress/<task_id>')
+@login_required
+def get_refinement_progress(task_id):
+    """Get progress of resume refinement task."""
+    try:
+        progress_key = f"resume_refinement:{session['user_id']}:{task_id}"
+        progress_data = redis_manager.get(progress_key)
+        
+        if not progress_data:
+            return jsonify({
+                'status': 'not_found',
+                'message': 'No refinement task found with this ID'
+            }), 404
+        
+        return jsonify(progress_data)
+    except Exception as e:
+        logging.error(f"Error getting refinement progress: {str(e)}")
+        return jsonify({'error': 'Failed to get progress'}), 500
 
 @app.route('/api/resume-analysis', methods=['POST'])
 @login_required 

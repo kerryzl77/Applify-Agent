@@ -74,15 +74,40 @@ document.addEventListener('DOMContentLoaded', function() {
     jobUrl.addEventListener('input', clearUrlValidation);
 
     function toggleInputType() {
+        const contentType = document.getElementById('contentType').value;
+        const connectionTypes = ['linkedin_message', 'connection_email', 'hiring_manager_email'];
+        const needsDualUrl = connectionTypes.includes(contentType);
+        
         if (urlInput.checked) {
             urlInputGroup.classList.remove('d-none');
             manualInputGroup.classList.add('d-none');
-            jobUrl.required = true;
+            
+            // Toggle between dual and single URL inputs
+            const dualUrlInputs = document.getElementById('dualUrlInputs');
+            const singleUrlInput = document.getElementById('singleUrlInput');
+            const dualUrlInfo = document.getElementById('dualUrlInfo');
+            const profileUrl = document.getElementById('profileUrl');
+            
+            if (needsDualUrl) {
+                dualUrlInputs.classList.remove('d-none');
+                singleUrlInput.classList.add('d-none');
+                dualUrlInfo.classList.remove('d-none');
+                profileUrl.required = true;
+                jobUrl.required = false;
+            } else {
+                dualUrlInputs.classList.add('d-none');
+                singleUrlInput.classList.remove('d-none');
+                dualUrlInfo.classList.add('d-none');
+                profileUrl.required = false;
+                jobUrl.required = true;
+            }
             manualText.required = false;
         } else {
             urlInputGroup.classList.add('d-none');
             manualInputGroup.classList.remove('d-none');
+            document.getElementById('dualUrlInfo').classList.add('d-none');
             jobUrl.required = false;
+            document.getElementById('profileUrl').required = false;
             manualText.required = true;
         }
     }
@@ -148,6 +173,35 @@ document.addEventListener('DOMContentLoaded', function() {
         const manualInputLabel = document.querySelector('label[for="manualText"]');
         const jobTitleDiv = document.getElementById('jobTitle').parentElement;
         const companyNameDiv = document.getElementById('companyName').parentElement;
+        const dualUrlInputs = document.getElementById('dualUrlInputs');
+        const singleUrlInput = document.getElementById('singleUrlInput');
+        const dualUrlInfo = document.getElementById('dualUrlInfo');
+        
+        // Determine if this content type needs connection messages (dual URL)
+        const connectionTypes = ['linkedin_message', 'connection_email', 'hiring_manager_email'];
+        const needsDualUrl = connectionTypes.includes(contentType);
+        
+        // Toggle between dual and single URL inputs
+        if (needsDualUrl && urlInput.checked) {
+            dualUrlInputs.classList.remove('d-none');
+            singleUrlInput.classList.add('d-none');
+            dualUrlInfo.classList.remove('d-none');
+            
+            // Update job title/company name to show they're helpful when no job URL provided
+            document.getElementById('jobTitleHelp').textContent = '💡 Provide job details if not using Job Posting URL above';
+            document.getElementById('companyNameHelp').textContent = '💡 Provide company details if not using Job Posting URL above';
+        } else if (urlInput.checked) {
+            dualUrlInputs.classList.add('d-none');
+            singleUrlInput.classList.remove('d-none');
+            dualUrlInfo.classList.add('d-none');
+            
+            // Reset to default help text
+            document.getElementById('jobTitleHelp').textContent = 'Enter the job title directly to improve accuracy';
+            document.getElementById('companyNameHelp').textContent = 'Enter the company name directly to improve accuracy';
+        } else {
+            // Manual input mode
+            dualUrlInfo.classList.add('d-none');
+        }
         
         if (contentType === 'resume_refinement') {
             manualInputLabel.textContent = 'Job Description (Required for Resume Refinement)';
@@ -224,18 +278,48 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const contentType = document.getElementById('contentType').value;
         const inputType = document.querySelector('input[name="inputType"]:checked').value;
-        const jobUrl = document.getElementById('jobUrl').value;
-        const manualText = document.getElementById('manualText').value;
         const jobTitle = document.getElementById('jobTitle').value;
         const companyName = document.getElementById('companyName').value;
+        const manualText = document.getElementById('manualText').value;
         
         // Handle resume refinement separately
         if (contentType === 'resume_refinement') {
+            const jobUrl = document.getElementById('jobUrl').value;
             return handleResumeRefinement(inputType, jobUrl, manualText);
         }
         
-        if (!contentType || (inputType === 'url' && !jobUrl) || (inputType === 'manual' && !manualText)) {
-            showError('Please fill in all required fields.');
+        // Determine which URLs to use based on content type
+        const connectionTypes = ['linkedin_message', 'connection_email', 'hiring_manager_email'];
+        const needsDualUrl = connectionTypes.includes(contentType);
+        
+        let primaryUrl, profileUrl, jobPostingUrl;
+        
+        if (inputType === 'url') {
+            if (needsDualUrl) {
+                profileUrl = document.getElementById('profileUrl').value;
+                jobPostingUrl = document.getElementById('jobPostingUrl').value;
+                primaryUrl = profileUrl; // Use profile as primary for backward compatibility
+            } else {
+                primaryUrl = document.getElementById('jobUrl').value;
+            }
+        }
+        
+        // Validation
+        if (!contentType) {
+            showError('Please select a content type.');
+            return;
+        }
+        
+        if (inputType === 'url') {
+            if (needsDualUrl && !profileUrl) {
+                showError('Please provide a LinkedIn profile URL.');
+                return;
+            } else if (!needsDualUrl && !primaryUrl) {
+                showError('Please provide a URL.');
+                return;
+            }
+        } else if (inputType === 'manual' && !manualText) {
+            showError('Please provide manual input text.');
             return;
         }
         
@@ -246,6 +330,28 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingIndicator.classList.remove('d-none');
         downloadButtons.classList.add('d-none');
         
+        // Build request body
+        const requestBody = {
+            content_type: contentType,
+            input_type: inputType,
+            job_title: jobTitle,
+            company_name: companyName,
+            manual_text: manualText
+        };
+        
+        // Add URLs based on content type
+        if (inputType === 'url') {
+            if (needsDualUrl) {
+                requestBody.url = profileUrl;
+                requestBody.profile_url = profileUrl;
+                if (jobPostingUrl) {
+                    requestBody.job_url = jobPostingUrl;
+                }
+            } else {
+                requestBody.url = primaryUrl;
+            }
+        }
+        
         // Make API request
         try {
             const response = await fetch('/api/generate', {
@@ -253,14 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    content_type: contentType,
-                    input_type: inputType,
-                    url: jobUrl,
-                    manual_text: manualText,
-                    job_title: jobTitle,
-                    company_name: companyName
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (response.redirected) {
@@ -391,12 +490,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const progressBar = document.getElementById('resumeProgressBar');
         const progressText = document.getElementById('resumeProgressText');
         
-        // Set up Server-Sent Events for progress tracking
-        const eventSource = new EventSource(`/api/resume-progress/${taskId}`);
-        
-        eventSource.onmessage = function(event) {
+        // Poll for progress updates every second
+        const pollInterval = setInterval(async () => {
             try {
-                const data = JSON.parse(event.data);
+                const response = await fetch(`/api/resume-refinement-progress/${taskId}`);
+                
+                if (response.status === 404) {
+                    // Task not found, stop polling
+                    clearInterval(pollInterval);
+                    showError('Resume refinement task not found');
+                    loadingIndicator.classList.add('d-none');
+                    return;
+                }
+                
+                const data = await response.json();
                 
                 // Update progress bar
                 if (data.progress !== undefined) {
@@ -411,7 +518,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Handle completion or error
                 if (data.status === 'completed') {
-                    eventSource.close();
+                    clearInterval(pollInterval);
                     
                     // Small delay to show 100% completion
                     setTimeout(() => {
@@ -423,45 +530,46 @@ document.addEventListener('DOMContentLoaded', function() {
                             progressContainer.remove();
                         }
                         
-                        // Fetch final results
-                        if (data.result) {
-                            displayResumeRefinementResults(data.result);
+                        // Display final results from data.data
+                        if (data.data && data.data.file_info) {
+                            displayResumeRefinementResults(data.data);
                         } else {
                             // Fallback: show success message
                             resultContent.classList.remove('d-none');
-                            generatedText.innerHTML = '<div class="alert alert-success">Resume refinement completed! Please check your download area.</div>';
+                            generatedText.innerHTML = '<div class="alert alert-success">✅ Resume refinement completed!</div>';
                         }
                     }, 1000);
                     
                 } else if (data.status === 'error') {
-                    eventSource.close();
+                    clearInterval(pollInterval);
                     loadingIndicator.classList.add('d-none');
+                    
+                    // Clean up progress bar
+                    const progressContainer = document.getElementById('resumeProgressContainer');
+                    if (progressContainer) {
+                        progressContainer.remove();
+                    }
+                    
                     showError('Resume refinement failed: ' + data.message);
                 }
                 
             } catch (error) {
-                console.error('Error parsing progress data:', error);
+                console.error('Error polling progress:', error);
             }
-        };
-        
-        eventSource.onerror = function(event) {
-            console.error('SSE connection error:', event);
-            eventSource.close();
-            
-            // Fallback: keep checking manually
-            setTimeout(() => {
-                loadingIndicator.classList.add('d-none');
-                showError('Progress tracking connection lost. Resume refinement may still be processing.');
-            }, 2000);
-        };
+        }, 1000); // Poll every 1 second
         
         // Auto-cleanup after 5 minutes
         setTimeout(() => {
-            if (eventSource.readyState !== EventSource.CLOSED) {
-                eventSource.close();
-                loadingIndicator.classList.add('d-none');
-                showError('Resume refinement timed out. Please try again.');
+            clearInterval(pollInterval);
+            loadingIndicator.classList.add('d-none');
+            
+            // Clean up progress bar
+            const progressContainer = document.getElementById('resumeProgressContainer');
+            if (progressContainer) {
+                progressContainer.remove();
             }
+            
+            showError('Resume refinement timed out. Please try again.');
         }, 300000); // 5 minutes
     }
     
