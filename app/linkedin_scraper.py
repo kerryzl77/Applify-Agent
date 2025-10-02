@@ -75,6 +75,59 @@ class LinkedInScraper:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
     
+    def _search_profile_info(self, linkedin_url: str) -> Optional[Dict]:
+        """Extract profile info from web search results (most reliable, no API needed)."""
+        try:
+            # Extract username from URL
+            username = linkedin_url.rstrip('/').split('/')[-1]
+            
+            # Search DuckDuckGo for the LinkedIn profile
+            search_url = f"https://html.duckduckgo.com/html/?q=site:linkedin.com/in/{username}"
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            response = requests.get(search_url, headers=headers, timeout=10)
+            if response.status_code != 200:
+                return None
+            
+            # Extract name and title from search snippets
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Find result snippets that contain profile info
+            snippets = soup.find_all('a', class_='result__snippet')
+            for snippet in snippets:
+                text = snippet.get_text()
+                # LinkedIn snippets typically format as: "Name - Position at Company | LinkedIn"
+                if ' - ' in text and ('at ' in text.lower() or ' | ' in text):
+                    parts = text.split(' - ')
+                    if len(parts) >= 2:
+                        name = parts[0].strip()
+                        title_company = parts[1].split(' | ')[0].strip()
+                        
+                        # Parse "Position at Company"
+                        if ' at ' in title_company.lower():
+                            at_index = title_company.lower().rfind(' at ')
+                            title = title_company[:at_index].strip()
+                            company = title_company[at_index + 4:].strip()
+                        else:
+                            title = title_company
+                            company = ""
+                        
+                        return {
+                            'name': name,
+                            'title': title,
+                            'company': company,
+                            'url': linkedin_url
+                        }
+            
+            return None
+            
+        except Exception as e:
+            self.logger.warning(f"Search extraction failed: {str(e)}")
+            return None
+    
     def extract_profile_data(self, linkedin_url: str) -> Optional[LinkedInProfile]:
         """
         Extract LinkedIn profile data using the best available method.
@@ -109,6 +162,19 @@ class LinkedInScraper:
                 if profile:
                     self.logger.info("✅ RapidAPI extraction successful")
                     return profile
+            
+            # Try web search extraction (most reliable free method)
+            self.logger.info("🔍 Attempting web search extraction...")
+            search_data = self._search_profile_info(clean_url)
+            if search_data:
+                self.logger.info(f"✅ Web search successful: {search_data['name']} - {search_data['title']}")
+                return LinkedInProfile(
+                    name=search_data['name'],
+                    headline=search_data['title'],
+                    current_position=search_data['title'],
+                    current_company=search_data['company'],
+                    profile_url=clean_url
+                )
             
             # Last resort: Parse URL for basic info
             self.logger.warning("⚠️ Using basic URL parsing as final fallback")

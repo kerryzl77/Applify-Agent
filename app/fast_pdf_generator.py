@@ -389,11 +389,11 @@ class FastPDFGenerator:
             return None
     
     def _build_cover_letter_story(self, content, job_data, candidate_data):
-        """Build cover letter content with professional formatting."""
+        """Build cover letter content matching DOCX format exactly."""
         story = []
         personal_info = candidate_data.get('personal_info', {})
         
-        # Header with contact info
+        # Header with contact info (name, email, phone)
         story.extend(self._add_header(personal_info))
         
         # Date
@@ -401,33 +401,12 @@ class FastPDFGenerator:
         story.append(Paragraph(current_date, self.styles['Normal']))
         story.append(Spacer(1, 12))
         
-        # Employer info (if available)
-        if job_data.get('company_name'):
-            employer_info = f"Hiring Manager<br/>{job_data['company_name']}"
-            if job_data.get('location'):
-                employer_info += f"<br/>{job_data['location']}"
-            story.append(Paragraph(employer_info, self.styles['Normal']))
-            story.append(Spacer(1, 12))
-        
-        # Subject line
-        job_title = job_data.get('job_title', 'Position')
-        subject = f"Re: Application for {job_title} Position"
-        story.append(Paragraph(f"<b>{subject}</b>", self.styles['Normal']))
-        story.append(Spacer(1, 12))
-        
-        # Main content
-        # Split content into paragraphs and format
-        paragraphs = content.split('\n\n')
+        # Main content - split by single newlines to match DOCX
+        paragraphs = content.split('\n')
         for para in paragraphs:
             if para.strip():
                 story.append(Paragraph(para.strip(), self.styles['Normal']))
                 story.append(Spacer(1, 6))
-        
-        # Closing
-        story.append(Spacer(1, 12))
-        story.append(Paragraph("Sincerely,", self.styles['Normal']))
-        story.append(Spacer(1, 18))
-        story.append(Paragraph(personal_info.get('name', 'Your Name'), self.styles['Normal']))
         
         return story
     

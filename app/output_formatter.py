@@ -1,4 +1,5 @@
 import os
+import logging
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -6,6 +7,7 @@ import datetime
 import platform
 import tempfile
 import shutil
+import time
 from app.fast_pdf_generator import FastPDFGenerator
 
 class OutputFormatter:
@@ -90,6 +92,17 @@ class OutputFormatter:
             # Save the document
             doc.save(filepath)
             
+            # Ensure file is written to disk and verify it exists
+            max_retries = 3
+            for i in range(max_retries):
+                if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                    logging.info(f"Document verified on disk: {filename} ({os.path.getsize(filepath)} bytes)")
+                    break
+                time.sleep(0.1)  # Wait 100ms between checks
+            else:
+                logging.error(f"Document not found after saving: {filepath}")
+                return None
+            
             # Return both the filename and the full path
             return {
                 'filename': filename,
@@ -97,7 +110,7 @@ class OutputFormatter:
             }
             
         except Exception as e:
-            print(f"Error creating document: {str(e)}")
+            logging.error(f"Error creating document: {str(e)}", exc_info=True)
             return None
     
     def convert_to_pdf(self, docx_info):

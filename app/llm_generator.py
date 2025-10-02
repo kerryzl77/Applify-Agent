@@ -185,7 +185,7 @@ class LLMGenerator:
         5. Highlight 2-3 relevant qualifications that match the job requirements
         6. Reference any connection insights to create rapport
         7. Ask for specific advice/insights about the role, team, or company culture
-        8. Professional closing with contact information
+        8. Professional closing with actual contact: {candidate_email}
         9. Maximum 200 words
         10. Tone: Professional, respectful, genuinely interested (not pushy)
         
@@ -279,7 +279,7 @@ class LLMGenerator:
         5. Include specific achievements with quantifiable results where possible
         6. Reference {manager_name}'s expertise or the company culture if relevant context available
         7. Clear call to action requesting interview/next steps
-        8. Professional closing with full contact information
+        8. Professional closing with actual contact: {candidate_email} and {candidate_phone}
         9. Maximum 200 words
         10. Tone: Confident, professional, results-oriented, personalized
         
