@@ -108,13 +108,65 @@ class OutputFormatter:
         """
         print("⚡ Using fast PDF generation (bypassing LibreOffice)")
         
-        # For now, return the DOCX info - user can download DOCX directly
-        # TODO: Could enhance to read DOCX and regenerate as PDF
-        return {
-            'filename': docx_info['filename'].replace('.docx', '.pdf'),
-            'filepath': docx_info['filepath'].replace('.docx', '.pdf'),
-            'note': 'Fast PDF generation - download DOCX for best compatibility'
-        }
+        try:
+            from docx import Document
+            import os
+            
+            # Read the DOCX file to extract content
+            if not os.path.exists(docx_info['filepath']):
+                print(f"❌ DOCX file not found: {docx_info['filepath']}")
+                return None
+            
+            doc = Document(docx_info['filepath'])
+            
+            # Extract text content from DOCX
+            content_paragraphs = []
+            for paragraph in doc.paragraphs:
+                if paragraph.text.strip():
+                    content_paragraphs.append(paragraph.text.strip())
+            
+            full_content = '\n\n'.join(content_paragraphs)
+            
+            # Determine content type from filename
+            filename = docx_info['filename'].lower()
+            if 'cover_letter' in filename:
+                content_type = 'cover_letter'
+            elif 'email' in filename:
+                content_type = 'hiring_manager_email'
+            else:
+                content_type = 'cover_letter'  # Default
+            
+            # Create fake job_data and candidate_data from filename
+            job_data = {
+                'company_name': 'Company',
+                'job_title': 'Position',
+                'location': 'Location'
+            }
+            
+            candidate_data = {
+                'personal_info': {
+                    'name': 'Candidate Name',
+                    'email': 'candidate@email.com',
+                    'phone': '(555) 123-4567',
+                    'location': 'City, State'
+                }
+            }
+            
+            # Generate PDF directly using fast generator
+            pdf_result = self.pdf_generator.generate_cover_letter_pdf(
+                full_content, job_data, candidate_data
+            )
+            
+            if pdf_result:
+                print(f"✅ Successfully converted DOCX to PDF: {pdf_result['filename']}")
+                return pdf_result
+            else:
+                print("❌ PDF generation failed")
+                return None
+                
+        except Exception as e:
+            print(f"❌ Error converting DOCX to PDF: {str(e)}")
+            return None
     
     def create_pdf_direct(self, content, job_data, candidate_data, content_type):
         """

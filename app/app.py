@@ -591,15 +591,17 @@ def process_resume_refinement_background(task_id, job_description, candidate_dat
     try:
         update_progress('initializing', 5, 'Starting resume refinement...')
         
-        update_progress('analyzing_job', 15, 'Analyzing job requirements (ultra-fast)...')
-        job_analysis = resume_refiner.quick_job_analysis(job_description)
+        # Use advanced multi-agent resume generation system
+        from app.advanced_resume_generator import AdvancedResumeGenerator
         
-        update_progress('analyzing_resume', 30, 'Analyzing your current resume (ultra-fast)...')
-        resume_analysis = resume_refiner.quick_resume_analysis(candidate_data, job_analysis)
+        def progress_wrapper(step, progress, message):
+            update_progress(step, progress, message)
         
-        update_progress('optimizing', 50, 'Optimizing resume content (ultra-fast AI)...')
-        optimized_resume = resume_refiner.generate_optimized_resume_ultra_fast(
-            candidate_data, job_analysis, resume_analysis
+        generator = AdvancedResumeGenerator()
+        
+        update_progress('initializing_ai', 10, '🚀 Initializing 5-Agent AI System...')
+        optimized_resume, metrics = generator.generate_optimized_resume(
+            candidate_data, job_description, progress_wrapper
         )
         
         update_progress('generating_pdf', 75, 'Creating professional PDF (ultra-fast)...')
@@ -625,34 +627,36 @@ def process_resume_refinement_background(task_id, job_description, candidate_dat
             update_progress('error', 0, 'Failed to create formatted resume', 'error')
             return
         
-        update_progress('completed', 100, 'Resume refinement completed successfully!', 'completed', {
+        update_progress('completed', 100, '🎉 Advanced AI Resume Optimization Complete!', 'completed', {
             'file_info': {
                 'filename': formatted_resume['filename'],
-                'filepath': formatted_resume['filename']
+                'filepath': formatted_resume['filepath']
             },
-            'analysis': {
-                'optimization_score': optimized_resume['optimization_score'],
-                'word_count': optimized_resume['word_count'],
-                'template_used': job_analysis.get('resume_template', 'business'),
-                'job_analysis': {
-                    'job_title': job_analysis.get('job_title', ''),
-                    'required_skills': job_analysis.get('required_skills', []),
-                    'preferred_skills': job_analysis.get('preferred_skills', []),
-                    'key_qualifications': job_analysis.get('key_qualifications', []),
-                    'important_keywords': job_analysis.get('important_keywords', [])
-                },
-                'resume_analysis': {
-                    'current_strengths': resume_analysis.get('current_strengths', []),
-                    'improvement_areas': resume_analysis.get('improvement_areas', []),
-                    'skills_match': resume_analysis.get('skills_match', 'medium')
-                }
+            'advanced_metrics': {
+                'ats_score': metrics.ats_score,
+                'keyword_match_score': metrics.keyword_match_score,
+                'content_quality_score': metrics.content_quality_score,
+                'job_relevance_score': metrics.job_relevance_score,
+                'word_count': metrics.estimated_word_count,
+                'one_page_compliant': metrics.one_page_compliance,
+                'generation_time': optimized_resume['metadata']['generation_time'],
+                'ai_agents_used': 5
+            },
+            'optimization_details': {
+                'target_job': optimized_resume['metadata']['target_job'],
+                'optimization_level': 'Google-level Advanced',
+                'ats_version': '2025',
+                'strengths': metrics.strengths,
+                'improvement_areas': metrics.improvement_areas[:3]
             },
             'recommendations': [
-                f"✅ Resume optimized for {job_analysis.get('job_title', 'the position')}",
-                f"📊 Optimization score: {optimized_resume['optimization_score']}/100",
-                f"📝 Word count: {optimized_resume['word_count']} words",
-                f"🎯 Template: {job_analysis.get('resume_template', 'business').title()}",
-                "💾 Download your tailored resume below!"
+                f"🎯 Advanced AI Resume for: {optimized_resume['metadata']['target_job']}",
+                f"🏆 ATS Score: {metrics.ats_score}/100 (Target: 75+)",
+                f"🔍 Keyword Match: {metrics.keyword_match_score}/100",
+                f"📝 Content Quality: {metrics.content_quality_score}/100",
+                f"📄 Word Count: {metrics.estimated_word_count} ({'✅ One-page compliant' if metrics.one_page_compliance else '⚠️ May exceed one page'})",
+                f"⚡ Generated in {optimized_resume['metadata']['generation_time']:.1f}s using 5 AI agents",
+                "💾 Download your ATS-optimized resume below!"
             ]
         })
         
