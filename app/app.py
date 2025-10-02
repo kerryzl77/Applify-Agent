@@ -606,13 +606,13 @@ def process_resume_refinement_background(task_id, job_description, candidate_dat
         
         update_progress('generating_pdf', 75, 'Creating professional PDF (ultra-fast)...')
         # Use fast PDF generation instead of slow DOCX creation
-        from app.output_formatter import OutputFormatter
-        output_formatter = OutputFormatter()
+        # CRITICAL FIX: Use global output_formatter instance to ensure files are saved 
+        # to the same temp directory that the download endpoint uses
         
         # Extract job title from optimized resume metadata
         job_title = optimized_resume.get('metadata', {}).get('target_job', 'Position')
         
-        # Create PDF directly using fast generator
+        # Create PDF directly using fast generator with global output_formatter
         pdf_result = output_formatter.create_resume_pdf_direct(
             optimized_resume, candidate_data, job_title
         )
@@ -620,8 +620,9 @@ def process_resume_refinement_background(task_id, job_description, candidate_dat
         if not pdf_result:
             # Fallback to DOCX if PDF fails
             update_progress('formatting_docx', 80, 'Creating DOCX as fallback...')
+            # Pass the global output_formatter's output_dir to ensure consistency
             formatted_resume = resume_refiner.create_formatted_resume_docx(
-                optimized_resume, candidate_data, job_title, output_dir
+                optimized_resume, candidate_data, job_title, output_formatter.output_dir
             )
         else:
             formatted_resume = pdf_result

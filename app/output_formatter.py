@@ -222,14 +222,7 @@ class OutputFormatter:
     def _format_cover_letter_docx(self, doc, content, job_data, candidate_data):
         """Format a cover letter in DOCX."""
         try:
-            # Add candidate info at the top
-            candidate_info = doc.add_paragraph()
-            candidate_info.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            candidate_info.add_run(candidate_data['personal_info']['name']).bold = True
-            candidate_info.add_run('\n' + candidate_data['personal_info']['email'])
-            candidate_info.add_run('\n' + candidate_data['personal_info']['phone'])
-            # if candidate_data['personal_info']['linkedin']:
-            #     candidate_info.add_run('\n' + candidate_data['personal_info']['linkedin'])
+            # No header needed - LLM-generated content is self-contained
             
             # Add date
             date = doc.add_paragraph()

@@ -393,9 +393,7 @@ class FastPDFGenerator:
         story = []
         personal_info = candidate_data.get('personal_info', {})
         
-        # Header with contact info (name, email, phone)
-        story.extend(self._add_header(personal_info))
-        
+        # No header needed - LLM-generated content is self-contained
         # Date
         current_date = datetime.datetime.now().strftime("%B %d, %Y")
         story.append(Paragraph(current_date, self.styles['Normal']))
