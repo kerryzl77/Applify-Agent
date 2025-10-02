@@ -6,6 +6,11 @@ import os
 from urllib.parse import urlparse, parse_qs
 from dotenv import load_dotenv
 import logging
+import sys
+
+# Add app directory to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from app.linkedin_scraper import LinkedInScraper
 
 # Load environment variables
 load_dotenv()
@@ -13,6 +18,8 @@ load_dotenv()
 class DataRetriever:
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Initialize LinkedIn scraper with multiple data sources
+        self.linkedin_scraper = LinkedInScraper()
         
     def scrape_job_posting(self, url, job_title=None, company_name=None):
         """Scrape job posting details from a given URL using Jina Reader API."""
@@ -56,57 +63,77 @@ class DataRetriever:
             return {'error': str(e)}
     
     def scrape_linkedin_profile(self, url, job_title=None, company_name=None):
-        """Scrape LinkedIn profile details from a given URL using Jina Reader API."""
+        """
+        Scrape LinkedIn profile using enterprise-grade scraping service.
+        
+        Uses multiple data sources:
+        1. Bright Data API (primary - most compliant)
+        2. RapidAPI LinkedIn Scraper (fallback)
+        3. Basic URL parsing (last resort)
+        """
         try:
-            # Prepare Jina Reader URL
-            jina_url = f"https://r.jina.ai/{url}"
+            print(f"🔄 Extracting LinkedIn profile: {url}")
             
-            # Get the page content in JSON format
-            headers = {"Accept": "application/json"}
-            response = requests.get(jina_url, headers=headers)
+            # Use the new LinkedIn scraper service
+            profile = self.linkedin_scraper.extract_profile_data(url)
             
-            # Check if the request was successful
-            if response.status_code != 200:
-                print(f"Failed to fetch URL: {url}, Status code: {response.status_code}")
-                return {'error': f"Failed to fetch URL: Status code {response.status_code}"}
+            if not profile:
+                print(f"❌ LinkedIn scraping failed for {url}")
+                return self._get_fallback_profile_data(url)
             
-            # Parse the JSON response
-            content_data = response.json()
+            # Convert LinkedInProfile to legacy format for compatibility
+            extracted_data = {
+                'name': profile.name or "Unknown Name",
+                'title': profile.current_position or "Unknown Title",
+                'company': profile.current_company or "Unknown Company", 
+                'location': profile.location or "Unknown Location",
+                'about': profile.about or "",
+                'experience': profile.experience[:3],  # Top 3 for context
+                'education': profile.education[:2],   # Top 2 for context
+                'skills': profile.skills[:10],        # Top 10 skills
+                'url': url,
+                'headline': profile.headline or "",
+                'industry': profile.industry or "",
+                'connections': profile.connections or "",
+                'extracted_keywords': profile.extracted_keywords or [],
+                'scraping_method': 'enterprise_api'
+            }
             
-            # Check response structure
-            if content_data.get('code') != 200 or 'data' not in content_data:
-                print(f"Unexpected API response structure: {content_data}")
-                return {'error': "Unexpected API response structure"}
+            # Get job-relevant context if job info provided
+            if job_title or company_name:
+                job_context = f"{job_title or ''} at {company_name or ''}".strip()
+                context = self.linkedin_scraper.get_job_relevant_context(profile, job_context)
+                extracted_data['job_relevance'] = context.get('job_relevance', {})
+                extracted_data['personalization_keywords'] = context.get('personalization_keywords', [])
             
-            # Extract content from the response
-            if 'content' in content_data['data']:
-                text_content = content_data['data']['content']
-            else:
-                print(f"No content found in API response: {content_data}")
-                return {'error': "No content found in API response"}
-            
-            # Use GPT to extract structured information from the content
-            extracted_data = self._extract_profile_data_with_gpt(text_content, url, job_title, company_name)
-            
-            # Print confirmation with key info
-            print(f"Scraped LinkedIn profile: {extracted_data['name']} - {extracted_data['title']} at {extracted_data['company']}")
+            print(f"✅ Successfully scraped LinkedIn profile: {extracted_data['name']} - {extracted_data['title']} at {extracted_data['company']}")
             
             return extracted_data
             
         except Exception as e:
-            print(f"Error scraping LinkedIn profile: {str(e)}")
-            return {
-                'name': "Unknown Name",
-                'title': "Unknown Title", 
-                'company': "Unknown Company",
-                'location': "Unknown Location",
-                'about': "",
-                'experience': [],
-                'education': [],
-                'skills': [],
-                'url': url,
-                'error': str(e)
-            }
+            print(f"❌ Error in LinkedIn profile extraction: {str(e)}")
+            logging.error(f"LinkedIn scraping error for {url}: {str(e)}")
+            return self._get_fallback_profile_data(url, str(e))
+    
+    def _get_fallback_profile_data(self, url, error_msg="Scraping failed"):
+        """Return fallback profile data when scraping fails."""
+        return {
+            'name': "LinkedIn Profile",
+            'title': "Professional", 
+            'company': "Company",
+            'location': "Location",
+            'about': "Professional with experience in the industry.",
+            'experience': [],
+            'education': [],
+            'skills': [],
+            'url': url,
+            'headline': "",
+            'industry': "",
+            'connections': "",
+            'extracted_keywords': [],
+            'error': error_msg,
+            'scraping_method': 'fallback'
+        }
     
     def parse_manual_job_posting(self, text, job_title=None, company_name=None):
         """Parse job posting details from manually entered text."""

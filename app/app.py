@@ -591,21 +591,35 @@ def process_resume_refinement_background(task_id, job_description, candidate_dat
     try:
         update_progress('initializing', 5, 'Starting resume refinement...')
         
-        update_progress('analyzing_job', 15, 'Analyzing job requirements...')
-        job_analysis = resume_refiner.analyze_job_requirements(job_description)
+        update_progress('analyzing_job', 15, 'Analyzing job requirements (ultra-fast)...')
+        job_analysis = resume_refiner.quick_job_analysis(job_description)
         
-        update_progress('analyzing_resume', 30, 'Analyzing your current resume...')
-        resume_analysis = resume_refiner.analyze_current_resume(candidate_data)
+        update_progress('analyzing_resume', 30, 'Analyzing your current resume (ultra-fast)...')
+        resume_analysis = resume_refiner.quick_resume_analysis(candidate_data, job_analysis)
         
-        update_progress('optimizing', 50, 'Optimizing resume content with AI...')
-        optimized_resume = resume_refiner.generate_optimized_resume(
+        update_progress('optimizing', 50, 'Optimizing resume content (ultra-fast AI)...')
+        optimized_resume = resume_refiner.generate_optimized_resume_ultra_fast(
             candidate_data, job_analysis, resume_analysis
         )
         
-        update_progress('formatting', 75, 'Creating professionally formatted document...')
-        formatted_resume = resume_refiner.create_formatted_resume_docx(
-            optimized_resume, candidate_data, job_analysis.get('job_title', 'Position'), output_dir
+        update_progress('generating_pdf', 75, 'Creating professional PDF (ultra-fast)...')
+        # Use fast PDF generation instead of slow DOCX creation
+        from app.output_formatter import OutputFormatter
+        output_formatter = OutputFormatter()
+        
+        # Create PDF directly using fast generator
+        pdf_result = output_formatter.create_resume_pdf_direct(
+            optimized_resume, candidate_data, job_analysis.get('job_title', 'Position')
         )
+        
+        if not pdf_result:
+            # Fallback to DOCX if PDF fails
+            update_progress('formatting_docx', 80, 'Creating DOCX as fallback...')
+            formatted_resume = resume_refiner.create_formatted_resume_docx(
+                optimized_resume, candidate_data, job_analysis.get('job_title', 'Position'), output_dir
+            )
+        else:
+            formatted_resume = pdf_result
         
         if not formatted_resume:
             update_progress('error', 0, 'Failed to create formatted resume', 'error')
@@ -683,11 +697,11 @@ def analyze_resume():
         if not candidate_data or not candidate_data.get('resume'):
             return jsonify({'error': 'Please upload your resume first'}), 400
         
-        # Analyze job requirements
-        job_analysis = resume_refiner.analyze_job_requirements(job_description)
+        # Analyze job requirements (ultra-fast)
+        job_analysis = resume_refiner.quick_job_analysis(job_description)
         
-        # Analyze current resume
-        resume_analysis = resume_refiner.analyze_current_resume(candidate_data)
+        # Analyze current resume (ultra-fast)
+        resume_analysis = resume_refiner.quick_resume_analysis(candidate_data, job_analysis)
         
         # Calculate match score
         match_score = resume_refiner._calculate_optimization_score(job_analysis, resume_analysis)
@@ -727,6 +741,73 @@ def analyze_resume():
 def check_processing_status():
     """Legacy processing status endpoint."""
     return get_resume_progress()
+
+@app.route('/api/test-linkedin-scraper', methods=['POST'])
+@login_required
+def test_linkedin_scraper():
+    """Test LinkedIn profile scraping with the new enterprise-grade scraper."""
+    try:
+        data = request.json
+        linkedin_url = data.get('linkedin_url', '').strip()
+        
+        if not linkedin_url:
+            return jsonify({'error': 'LinkedIn URL is required'}), 400
+        
+        # Validate LinkedIn URL format
+        if not ('linkedin.com/in/' in linkedin_url):
+            return jsonify({'error': 'Please provide a valid LinkedIn profile URL'}), 400
+        
+        # Import LinkedIn scraper
+        from app.linkedin_scraper import LinkedInScraper
+        scraper = LinkedInScraper()
+        
+        # Test API connections first
+        connection_status = scraper.test_connection()
+        
+        # Extract profile data
+        profile = scraper.extract_profile_data(linkedin_url)
+        
+        if not profile:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to extract profile data',
+                'connection_status': connection_status,
+                'available_methods': {
+                    'bright_data': bool(connection_status.get('bright_data')),
+                    'rapidapi': bool(connection_status.get('rapidapi')),
+                    'basic_parsing': bool(connection_status.get('basic_parsing'))
+                }
+            }), 400
+        
+        # Get job-relevant context
+        job_description = data.get('job_description', '')
+        context = scraper.get_job_relevant_context(profile, job_description)
+        
+        return jsonify({
+            'success': True,
+            'profile_data': {
+                'name': profile.name,
+                'current_position': profile.current_position,
+                'current_company': profile.current_company,
+                'location': profile.location,
+                'headline': profile.headline,
+                'about': profile.about[:300] + '...' if len(profile.about) > 300 else profile.about,
+                'skills': profile.skills[:10],
+                'experience_count': len(profile.experience),
+                'education_count': len(profile.education),
+                'extracted_keywords': profile.extracted_keywords
+            },
+            'job_context': context,
+            'connection_status': connection_status,
+            'scraping_method': 'enterprise_api'
+        })
+        
+    except Exception as e:
+        logging.error(f"LinkedIn scraper test error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Scraper test failed: {str(e)}'
+        }), 500
 
 @app.route('/health')
 def health_check():
