@@ -22,7 +22,7 @@ class ResumeRefiner:
             'font_name': 'Times New Roman',
             'font_size_body': 11,
             'font_size_name': 14,
-            'font_size_headers': 14,
+            'font_size_headers': 12,
             'line_spacing': 1.15,
             'max_page_length': 1,
             'max_word_count': 600,

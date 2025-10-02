@@ -373,7 +373,7 @@ class AdvancedResumeGenerator:
         prompt = f"""
         You are a Senior Resume Writer specializing in ATS-optimized professional summaries.
         
-        Create a compelling 2 sentence (less than 40 words) professional summary that:
+        Create a compelling 2 sentence (less than 30 words) professional summary that:
         
         Target Job: {job_analysis.job_title} ({job_analysis.seniority_level} level)
         Industry: {job_analysis.industry}

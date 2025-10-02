@@ -65,7 +65,7 @@ class FastPDFGenerator:
         styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=styles['Heading1'],
-            fontSize=14,
+            fontSize=12,
             spaceAfter=6,
             alignment=TA_CENTER,
             fontName='Times-Roman',
@@ -84,7 +84,7 @@ class FastPDFGenerator:
         styles.add(ParagraphStyle(
             name='SectionHeader',
             parent=styles['Heading2'],
-            fontSize=14,
+            fontSize=12,
             spaceAfter=6,
             spaceBefore=8,
             fontName='Times-Bold',
@@ -399,18 +399,34 @@ class FastPDFGenerator:
         phone = personal_info.get('phone')
         location = personal_info.get('location')
 
-        if name:
-            story.append(Paragraph(name, self.styles['Normal']))
-        if email:
-            header_parts.append(email)
-        if phone:
-            header_parts.append(phone)
-        if location:
-            header_parts.append(location)
-        if header_parts:
-            story.append(Paragraph(' - '.join(header_parts), self.styles['Normal']))
-        story.append(Spacer(1, 12))
-        
+        placeholder_info = {
+            'name': 'Candidate Name',
+            'email': 'candidate@email.com',
+            'phone': '(555) 123-4567',
+            'location': 'City, State'
+        }
+
+        def is_placeholder(value, key):
+            return value is None or value == '' or value == placeholder_info[key]
+
+        has_real_info = any(
+            not is_placeholder(personal_info.get(key), key)
+            for key in placeholder_info
+        )
+
+        if has_real_info:
+            if not is_placeholder(name, 'name'):
+                story.append(Paragraph(name, self.styles['Normal']))
+            if not is_placeholder(email, 'email'):
+                header_parts.append(email)
+            if not is_placeholder(phone, 'phone'):
+                header_parts.append(phone)
+            if not is_placeholder(location, 'location'):
+                header_parts.append(location)
+            if header_parts:
+                story.append(Paragraph(' - '.join(header_parts), self.styles['Normal']))
+            story.append(Spacer(1, 12))
+
         # Main content - split by single newlines to match DOCX
         paragraphs = content.split('\n')
         for para in paragraphs:

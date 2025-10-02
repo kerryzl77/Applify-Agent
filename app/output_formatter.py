@@ -226,28 +226,44 @@ class OutputFormatter:
             phone = personal_info.get('phone')
             location = personal_info.get('location')
 
-            # Add name line (bold)
-            if name:
-                name_para = doc.add_paragraph()
-                name_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                name_run = name_para.add_run(name)
-                name_run.bold = True
+            placeholder_info = {
+                'name': 'Candidate Name',
+                'email': 'candidate@email.com',
+                'phone': '(555) 123-4567',
+                'location': 'City, State'
+            }
 
-            if email:
-                header_parts.append(email)
-            if phone:
-                header_parts.append(phone)
-            if location:
-                header_parts.append(location)
+            def is_placeholder(value, key):
+                return value is None or value == '' or value == placeholder_info[key]
 
-            if header_parts:
-                contact_para = doc.add_paragraph()
-                contact_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                contact_para.add_run(' - '.join(header_parts))
+            has_real_info = any(
+                not is_placeholder(personal_info.get(key), key)
+                for key in placeholder_info
+            )
 
-            # Add space before LLM content
-            doc.add_paragraph()
-            
+            if has_real_info:
+                # Add name line (bold)
+                if not is_placeholder(name, 'name'):
+                    name_para = doc.add_paragraph()
+                    name_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    name_run = name_para.add_run(name)
+                    name_run.bold = True
+
+                if not is_placeholder(email, 'email'):
+                    header_parts.append(email)
+                if not is_placeholder(phone, 'phone'):
+                    header_parts.append(phone)
+                if not is_placeholder(location, 'location'):
+                    header_parts.append(location)
+
+                if header_parts:
+                    contact_para = doc.add_paragraph()
+                    contact_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    contact_para.add_run(' - '.join(header_parts))
+
+                # Add space before LLM content
+                doc.add_paragraph()
+
             # Split content into paragraphs and add them
             paragraphs = content.split('\n')
             for paragraph in paragraphs:
