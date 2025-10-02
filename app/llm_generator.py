@@ -403,6 +403,7 @@ class LLMGenerator:
         
         FORMATTING & STYLE:
         - Maximum 350 words
+        - Do not include dates in the cover letter
         - Professional, confident tone
         - Use keywords from job description naturally
         - No generic statements - everything should be specific

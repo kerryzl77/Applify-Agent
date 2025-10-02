@@ -20,7 +20,7 @@ import json
 import time
 import logging
 from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from openai import OpenAI
 import re
 from datetime import datetime
@@ -35,14 +35,8 @@ class ResumeMetrics:
     job_relevance_score: int = 0
     estimated_word_count: int = 0
     one_page_compliance: bool = False
-    improvement_areas: List[str] = None
-    strengths: List[str] = None
-    
-    def __post_init__(self):
-        if self.improvement_areas is None:
-            self.improvement_areas = []
-        if self.strengths is None:
-            self.strengths = []
+    improvement_areas: List[str] = field(default_factory=list)
+    strengths: List[str] = field(default_factory=list)
 
 @dataclass
 class JobAnalysis:
@@ -51,24 +45,18 @@ class JobAnalysis:
     industry: str = ""
     company_size: str = ""
     seniority_level: str = ""
-    required_skills: List[str] = None
-    preferred_skills: List[str] = None
-    technical_keywords: List[str] = None
-    soft_skills: List[str] = None
-    qualifications: List[str] = None
-    responsibilities: List[str] = None
-    company_values: List[str] = None
+    required_skills: List[str] = field(default_factory=list)
+    preferred_skills: List[str] = field(default_factory=list)
+    technical_keywords: List[str] = field(default_factory=list)
+    soft_skills: List[str] = field(default_factory=list)
+    qualifications: List[str] = field(default_factory=list)
+    responsibilities: List[str] = field(default_factory=list)
+    company_values: List[str] = field(default_factory=list)
     salary_range: str = ""
     location_type: str = ""
-    urgency_indicators: List[str] = None
-    growth_opportunities: List[str] = None
-    
-    def __post_init__(self):
-        for field in ['required_skills', 'preferred_skills', 'technical_keywords', 
-                     'soft_skills', 'qualifications', 'responsibilities', 
-                     'company_values', 'urgency_indicators', 'growth_opportunities']:
-            if getattr(self, field) is None:
-                setattr(self, field, [])
+    urgency_indicators: List[str] = field(default_factory=list)
+    growth_opportunities: List[str] = field(default_factory=list)
+
 
 class AdvancedResumeGenerator:
     """
@@ -163,4 +151,709 @@ class AdvancedResumeGenerator:
             
         except Exception as e:
             self.logger.error(f"Resume generation failed: {str(e)}")
-            raise\n    \n    def _job_intelligence_agent(self, job_description: str) -> JobAnalysis:\n        """Agent 1: Deep job description analysis with industry intelligence."""\n        start_time = time.time()\n        \n        prompt = f"""\n        You are a Senior Job Market Intelligence Analyst with expertise in ATS systems and hiring trends.\n        \n        Analyze this job description with Google-level precision and extract comprehensive intelligence:\n        \n        Job Description:\n        {job_description}\n        \n        Provide a detailed JSON analysis with these fields:\n        {{\n            "job_title": "Exact job title",\n            "industry": "Specific industry/sector",\n            "company_size": "startup/small/medium/large/enterprise",\n            "seniority_level": "entry/mid/senior/executive",\n            "required_skills": ["skill1", "skill2", ...],\n            "preferred_skills": ["skill1", "skill2", ...],\n            "technical_keywords": ["keyword1", "keyword2", ...],\n            "soft_skills": ["skill1", "skill2", ...],\n            "qualifications": ["qualification1", "qualification2", ...],\n            "responsibilities": ["responsibility1", "responsibility2", ...],\n            "company_values": ["value1", "value2", ...],\n            "salary_range": "estimated range if mentioned",\n            "location_type": "remote/hybrid/onsite",\n            "urgency_indicators": ["urgent", "immediate", "asap", ...],\n            "growth_opportunities": ["opportunity1", "opportunity2", ...]\n        }}\n        \n        Focus on:\n        - Exact keyword extraction for ATS optimization\n        - Hidden requirements between the lines\n        - Company culture signals\n        - Growth trajectory indicators\n        - Technical depth requirements\n        \n        Return ONLY valid JSON.\n        """\n        \n        try:\n            response = self.client.chat.completions.create(\n                model=self.model,\n                messages=[\n                    {"role": "system", "content": "You are an elite job market intelligence analyst. Extract precise, ATS-optimized job insights. Return only valid JSON."},\n                    {"role": "user", "content": prompt}\n                ],\n                temperature=self.temperature,\n                timeout=45\n            )\n            \n            analysis_data = self._parse_json_response(response.choices[0].message.content)\n            \n            # Convert to JobAnalysis dataclass\n            job_analysis = JobAnalysis(**analysis_data)\n            \n            self.agent_timings['job_intelligence'] = time.time() - start_time\n            self.logger.info(f"🧠 Job Intelligence Analysis: {job_analysis.job_title} ({job_analysis.seniority_level} level)")\n            \n            return job_analysis\n            \n        except Exception as e:\n            self.logger.error(f"Job Intelligence Agent failed: {str(e)}")\n            # Return fallback analysis\n            return JobAnalysis(\n                job_title="Professional Role",\n                industry="Technology",\n                seniority_level="mid",\n                required_skills=["Professional Skills"],\n                technical_keywords=["Technology", "Leadership"]\n            )\n    \n    def _resume_analysis_agent(self, candidate_data: Dict, job_analysis: JobAnalysis) -> Dict:\n        """Agent 2: Comprehensive resume analysis with gap identification."""\n        start_time = time.time()\n        \n        resume_data = candidate_data.get('resume', {})\n        \n        prompt = f"""\n        You are a Senior Resume Analyst specializing in ATS optimization and job matching.\n        \n        Analyze this resume against the target job with forensic precision:\n        \n        Target Job Analysis:\n        {json.dumps(job_analysis.__dict__, indent=2)}\n        \n        Current Resume Data:\n        {json.dumps(resume_data, indent=2)}\n        \n        Provide comprehensive analysis in JSON format:\n        {{\n            "current_strengths": ["strength1", "strength2", ...],\n            "critical_gaps": ["gap1", "gap2", ...],\n            "keyword_gaps": ["missing_keyword1", "missing_keyword2", ...],\n            "experience_relevance": "high/medium/low",\n            "skills_alignment": "excellent/good/poor",\n            "achievements_quality": "quantified/descriptive/weak",\n            "content_optimization_needs": {{\n                "summary": "needs_rewrite/needs_improvement/good",\n                "experience": "major_revision/minor_revision/good",\n                "skills": "complete_overhaul/reorganization/good",\n                "education": "enhancement/good/irrelevant"\n            }},\n            "ats_risk_factors": ["factor1", "factor2", ...],\n            "competitive_advantages": ["advantage1", "advantage2", ...],\n            "improvement_priority": ["highest_priority", "medium_priority", "low_priority"],\n            "estimated_job_match_score": 85,\n            "content_gaps": {{\n                "missing_technical_skills": ["skill1", "skill2"],\n                "missing_soft_skills": ["skill1", "skill2"],\n                "missing_achievements": ["type1", "type2"],\n                "missing_keywords": ["keyword1", "keyword2"]\n            }}\n        }}\n        \n        Analysis Focus:\n        - ATS keyword matching precision\n        - Content quality and quantification\n        - Competitive positioning\n        - Gap analysis for job requirements\n        - Achievement impact assessment\n        \n        Return ONLY valid JSON.\n        """\n        \n        try:\n            response = self.client.chat.completions.create(\n                model=self.model,\n                messages=[\n                    {"role": "system", "content": "You are an elite resume analyst. Provide precise, actionable insights for ATS optimization. Return only valid JSON."},\n                    {"role": "user", "content": prompt}\n                ],\n                temperature=self.temperature,\n                timeout=45\n            )\n            \n            analysis = self._parse_json_response(response.choices[0].message.content)\n            \n            self.agent_timings['resume_analysis'] = time.time() - start_time\n            self.logger.info(f"📊 Resume Analysis: {analysis.get('estimated_job_match_score', 0)}/100 match score")\n            \n            return analysis\n            \n        except Exception as e:\n            self.logger.error(f"Resume Analysis Agent failed: {str(e)}")\n            return {\n                "current_strengths": [],\n                "critical_gaps": [],\n                "estimated_job_match_score": 70,\n                "experience_relevance": "medium"\n            }\n    \n    def _content_optimization_agent(self, candidate_data: Dict, job_analysis: JobAnalysis, \n                                   resume_analysis: Dict) -> Dict:\n        """Agent 3: Generate optimized content for each resume section."""\n        start_time = time.time()\n        \n        # Generate each section with specialized prompts\n        sections = {}\n        \n        # Professional Summary\n        sections['professional_summary'] = self._generate_optimized_summary(\n            candidate_data, job_analysis, resume_analysis\n        )\n        \n        # Skills Section\n        sections['skills'] = self._generate_optimized_skills(\n            candidate_data, job_analysis, resume_analysis\n        )\n        \n        # Experience Section\n        sections['experience'] = self._generate_optimized_experience(\n            candidate_data, job_analysis, resume_analysis\n        )\n        \n        # Education Section\n        sections['education'] = self._generate_optimized_education(\n            candidate_data, job_analysis\n        )\n        \n        self.agent_timings['content_optimization'] = time.time() - start_time\n        self.logger.info("✨ Content Optimization: All sections generated")\n        \n        return {\n            'sections': sections,\n            'optimization_metadata': {\n                'job_title': job_analysis.job_title,\n                'target_keywords': job_analysis.technical_keywords[:10],\n                'optimization_focus': resume_analysis.get('improvement_priority', []),\n                'generation_timestamp': datetime.now().isoformat()\n            }\n        }\n    \n    def _generate_optimized_summary(self, candidate_data: Dict, job_analysis: JobAnalysis, \n                                  resume_analysis: Dict) -> str:\n        """Generate ATS-optimized professional summary."""\n        resume_data = candidate_data.get('resume', {})\n        \n        prompt = f"""\n        You are a Senior Resume Writer specializing in ATS-optimized professional summaries.\n        \n        Create a compelling 2-3 sentence professional summary that:\n        \n        Target Job: {job_analysis.job_title} ({job_analysis.seniority_level} level)\n        Industry: {job_analysis.industry}\n        Required Skills: {', '.join(job_analysis.required_skills[:5])}\n        Key Keywords: {', '.join(job_analysis.technical_keywords[:8])}\n        \n        Current Experience: {json.dumps(resume_data.get('experience', [])[:2], indent=2)}\n        Current Skills: {', '.join(resume_data.get('skills', [])[:10])}\n        \n        Requirements:\n        - Include exact job title "{job_analysis.job_title}" naturally\n        - Integrate 4-5 top keywords: {', '.join(job_analysis.technical_keywords[:5])}\n        - Mention years of experience if relevant\n        - Highlight 2-3 key achievements/value propositions\n        - 40-80 words total (ATS optimal length)\n        - Professional, confident tone\n        - Quantify impact where possible\n        \n        Return ONLY the professional summary text, no additional formatting or explanation.\n        """\n        \n        try:\n            response = self.client.chat.completions.create(\n                model=self.model,\n                messages=[\n                    {"role": "system", "content": "You are a world-class resume writer. Create ATS-optimized professional summaries that get results."},\n                    {"role": "user", "content": prompt}\n                ],\n                temperature=0.4,\n                timeout=30\n            )\n            \n            return response.choices[0].message.content.strip()\n            \n        except Exception as e:\n            self.logger.error(f"Summary generation failed: {str(e)}")\n            return f"Experienced {job_analysis.job_title} with expertise in {', '.join(job_analysis.required_skills[:3])}. Proven track record of delivering results and driving organizational success."\n    \n    def _generate_optimized_skills(self, candidate_data: Dict, job_analysis: JobAnalysis, \n                                 resume_analysis: Dict) -> Dict:\n        """Generate ATS-optimized skills section."""\n        current_skills = candidate_data.get('resume', {}).get('skills', [])\n        \n        prompt = f"""\n        You are a Skills Optimization Specialist for ATS systems.\n        \n        Optimize the skills section for maximum ATS impact:\n        \n        Target Job Requirements:\n        - Required Skills: {', '.join(job_analysis.required_skills)}\n        - Preferred Skills: {', '.join(job_analysis.preferred_skills)}\n        - Technical Keywords: {', '.join(job_analysis.technical_keywords)}\n        - Soft Skills: {', '.join(job_analysis.soft_skills)}\n        \n        Current Skills: {', '.join(current_skills)}\n        \n        Create optimized skills categories in JSON format:\n        {{\n            "technical_skills": ["skill1", "skill2", ...],\n            "tools_technologies": ["tool1", "tool2", ...],\n            "soft_skills": ["skill1", "skill2", ...],\n            "certifications": ["cert1", "cert2", ...]\n        }}\n        \n        Rules:\n        - Prioritize exact keyword matches from job requirements\n        - Include variations of key skills (e.g., "Python", "Python Programming")\n        - Maximum 8 skills per category\n        - Use exact terminology from job description\n        - Balance technical and soft skills\n        - Include industry-standard tools/technologies\n        \n        Return ONLY valid JSON.\n        """\n        \n        try:\n            response = self.client.chat.completions.create(\n                model=self.model,\n                messages=[\n                    {"role": "system", "content": "You are an expert in ATS skills optimization. Create perfectly categorized, keyword-rich skills sections."},\n                    {"role": "user", "content": prompt}\n                ],\n                temperature=0.3,\n                timeout=30\n            )\n            \n            return self._parse_json_response(response.choices[0].message.content)\n            \n        except Exception as e:\n            self.logger.error(f"Skills generation failed: {str(e)}")\n            return {\n                "technical_skills": current_skills[:8],\n                "tools_technologies": [],\n                "soft_skills": ["Communication", "Leadership", "Problem Solving"],\n                "certifications": []\n            }\n    \n    def _generate_optimized_experience(self, candidate_data: Dict, job_analysis: JobAnalysis, \n                                     resume_analysis: Dict) -> List[Dict]:\n        """Generate ATS-optimized experience section."""\n        current_experience = candidate_data.get('resume', {}).get('experience', [])\n        \n        optimized_experience = []\n        \n        for i, exp in enumerate(current_experience[:4]):  # Max 4 experiences for one page\n            prompt = f"""\n            You are a Senior Career Strategist specializing in achievement-focused job descriptions.\n            \n            Optimize this work experience for the target role:\n            \n            Target Job: {job_analysis.job_title}\n            Key Keywords: {', '.join(job_analysis.technical_keywords[:10])}\n            Required Skills: {', '.join(job_analysis.required_skills[:8])}\n            Responsibilities: {', '.join(job_analysis.responsibilities[:5])}\n            \n            Current Experience Entry:\n            {json.dumps(exp, indent=2)}\n            \n            Create optimized experience entry in JSON format:\n            {{\n                "company": "{exp.get('company', 'Company')}",\n                "title": "{exp.get('title', 'Position')}",\n                "start_date": "{exp.get('start_date', '')}",\n                "end_date": "{exp.get('end_date', 'Present')}",\n                "location": "{exp.get('location', '')}",\n                "bullet_points": [\n                    "• Achievement 1 with quantified results",\n                    "• Achievement 2 with impact metrics",\n                    "• Achievement 3 with keyword integration"\n                ]\n            }}\n            \n            Rules for bullet points:\n            - Start with strong action verbs (Led, Developed, Implemented, Achieved)\n            - Include quantified results (percentages, numbers, metrics)\n            - Integrate 2-3 keywords from target job naturally\n            - Maximum 3 bullet points per position\n            - Focus on achievements, not just responsibilities\n            - Use past tense for previous roles, present for current\n            - Each bullet: 1-2 lines maximum\n            \n            Return ONLY valid JSON.\n            """\n            \n            try:\n                response = self.client.chat.completions.create(\n                    model=self.model,\n                    messages=[\n                        {"role": "system", "content": "You are an expert in writing achievement-focused job descriptions. Create compelling experience entries with quantified results."},\n                        {"role": "user", "content": prompt}\n                    ],\n                    temperature=0.4,\n                    timeout=30\n                )\n                \n                optimized_exp = self._parse_json_response(response.choices[0].message.content)\n                optimized_experience.append(optimized_exp)\n                \n            except Exception as e:\n                self.logger.error(f"Experience optimization failed for entry {i}: {str(e)}")\n                # Keep original if optimization fails\n                optimized_experience.append(exp)\n        \n        return optimized_experience\n    \n    def _generate_optimized_education(self, candidate_data: Dict, job_analysis: JobAnalysis) -> List[Dict]:\n        """Generate optimized education section."""\n        education_data = candidate_data.get('resume', {}).get('education', [])\n        \n        # For education, minimal optimization needed - just clean formatting\n        optimized_education = []\n        for edu in education_data[:2]:  # Max 2 education entries\n            optimized_edu = {\n                'institution': edu.get('institution', ''),\n                'degree': edu.get('degree', ''),\n                'field': edu.get('field', ''),\n                'graduation_year': edu.get('graduation_year', ''),\n                'gpa': edu.get('gpa', '') if float(edu.get('gpa', 0)) >= 3.5 else '',\n                'relevant_coursework': edu.get('relevant_coursework', [])\n            }\n            optimized_education.append(optimized_edu)\n        \n        return optimized_education\n    \n    def _ats_compliance_agent(self, optimized_content: Dict, job_analysis: JobAnalysis) -> Dict:\n        """Agent 4: Ensure ATS compliance and keyword optimization."""\n        start_time = time.time()\n        \n        # Analyze keyword density\n        content_text = self._extract_text_from_content(optimized_content)\n        keyword_analysis = self._analyze_keyword_density(content_text, job_analysis)\n        \n        # Apply ATS compliance rules\n        ats_compliant_content = self._apply_ats_standards(optimized_content, keyword_analysis)\n        \n        self.agent_timings['ats_compliance'] = time.time() - start_time\n        self.logger.info(f"🎯 ATS Compliance: {keyword_analysis['match_score']}/100 keyword match")\n        \n        return {\n            'content': ats_compliant_content,\n            'ats_analysis': keyword_analysis,\n            'compliance_score': self._calculate_compliance_score(ats_compliant_content)\n        }\n    \n    def _quality_assurance_agent(self, ats_content: Dict, job_analysis: JobAnalysis, \n                               candidate_data: Dict) -> Tuple[Dict, ResumeMetrics]:\n        """Agent 5: Final quality review and metrics calculation."""\n        start_time = time.time()\n        \n        final_content = ats_content['content']\n        \n        # Calculate comprehensive metrics\n        metrics = ResumeMetrics()\n        metrics.ats_score = ats_content['compliance_score']\n        metrics.keyword_match_score = ats_content['ats_analysis']['match_score']\n        \n        # Word count analysis\n        total_text = self._extract_text_from_content(final_content)\n        word_count = len(total_text.split())\n        metrics.estimated_word_count = word_count\n        metrics.one_page_compliance = word_count <= self.ats_standards['max_word_count']\n        \n        # Content quality analysis\n        metrics.content_quality_score = self._analyze_content_quality(final_content)\n        metrics.format_compliance_score = self._analyze_format_compliance(final_content)\n        \n        # Job relevance analysis\n        metrics.job_relevance_score = self._calculate_job_relevance(\n            final_content, job_analysis\n        )\n        \n        # Generate improvement recommendations\n        metrics.improvement_areas = self._generate_improvement_areas(\n            final_content, ats_content['ats_analysis']\n        )\n        \n        metrics.strengths = self._identify_strengths(final_content, job_analysis)\n        \n        self.agent_timings['quality_assurance'] = time.time() - start_time\n        self.logger.info(f"🔍 Quality Assurance: {metrics.content_quality_score}/100 quality score")\n        \n        # Prepare final resume structure\n        final_resume = {\n            'sections': final_content['sections'],\n            'metadata': {\n                'generation_time': time.time() - self.generation_start_time,\n                'agent_timings': self.agent_timings,\n                'target_job': job_analysis.job_title,\n                'optimization_level': 'advanced',\n                'ats_version': '2025'\n            },\n            'formatting_rules': self.ats_standards\n        }\n        \n        return final_resume, metrics\n    \n    def _extract_text_from_content(self, content: Dict) -> str:\n        """Extract all text content for analysis."""\n        text_parts = []\n        \n        sections = content.get('sections', {})\n        \n        # Professional summary\n        if sections.get('professional_summary'):\n            text_parts.append(sections['professional_summary'])\n        \n        # Skills\n        skills = sections.get('skills', {})\n        for category, skill_list in skills.items():\n            if isinstance(skill_list, list):\n                text_parts.extend(skill_list)\n        \n        # Experience\n        experiences = sections.get('experience', [])\n        for exp in experiences:\n            if exp.get('title'):\n                text_parts.append(exp['title'])\n            if exp.get('company'):\n                text_parts.append(exp['company'])\n            for bullet in exp.get('bullet_points', []):\n                text_parts.append(bullet)\n        \n        # Education\n        educations = sections.get('education', [])\n        for edu in educations:\n            for field in ['degree', 'institution', 'field']:\n                if edu.get(field):\n                    text_parts.append(edu[field])\n        \n        return ' '.join(text_parts)\n    \n    def _analyze_keyword_density(self, content_text: str, job_analysis: JobAnalysis) -> Dict:\n        """Analyze keyword density for ATS optimization."""\n        content_lower = content_text.lower()\n        \n        # Check required keywords\n        required_keywords = job_analysis.required_skills + job_analysis.technical_keywords\n        keyword_matches = []\n        \n        for keyword in required_keywords:\n            if keyword.lower() in content_lower:\n                keyword_matches.append(keyword)\n        \n        match_score = min(100, int((len(keyword_matches) / max(len(required_keywords), 1)) * 100))\n        \n        return {\n            'total_keywords': len(required_keywords),\n            'matched_keywords': keyword_matches,\n            'match_count': len(keyword_matches),\n            'match_score': match_score,\n            'missing_keywords': [k for k in required_keywords if k.lower() not in content_lower],\n            'keyword_density': len(keyword_matches) / max(len(content_text.split()), 1) * 100\n        }\n    \n    def _apply_ats_standards(self, content: Dict, keyword_analysis: Dict) -> Dict:\n        """Apply 2025 ATS standards to content."""\n        # Ensure one-page compliance\n        sections = content.get('sections', {})\n        \n        # Limit experience entries\n        if 'experience' in sections:\n            sections['experience'] = sections['experience'][:4]\n            \n            # Limit bullet points per job\n            for exp in sections['experience']:\n                if 'bullet_points' in exp:\n                    exp['bullet_points'] = exp['bullet_points'][:3]\n        \n        # Optimize skills categories\n        if 'skills' in sections:\n            skills = sections['skills']\n            for category in skills:\n                if isinstance(skills[category], list):\n                    skills[category] = skills[category][:8]\n        \n        return {'sections': sections}\n    \n    def _calculate_compliance_score(self, content: Dict) -> int:\n        """Calculate ATS compliance score."""\n        score = 100\n        sections = content.get('sections', {})\n        \n        # Check required sections\n        required_sections = ['professional_summary', 'experience', 'skills', 'education']\n        missing_sections = [s for s in required_sections if s not in sections]\n        score -= len(missing_sections) * 20\n        \n        # Check content quality\n        if sections.get('professional_summary'):\n            summary_words = len(sections['professional_summary'].split())\n            if not (40 <= summary_words <= 80):\n                score -= 10\n        \n        # Check experience formatting\n        experiences = sections.get('experience', [])\n        if len(experiences) > 4:\n            score -= 5\n        \n        for exp in experiences:\n            bullets = exp.get('bullet_points', [])\n            if len(bullets) > 3:\n                score -= 5\n        \n        return max(0, score)\n    \n    def _analyze_content_quality(self, content: Dict) -> int:\n        """Analyze content quality score."""\n        score = 80  # Base score\n        \n        sections = content.get('sections', {})\n        \n        # Check for quantified achievements\n        experiences = sections.get('experience', [])\n        quantified_count = 0\n        \n        for exp in experiences:\n            for bullet in exp.get('bullet_points', []):\n                if re.search(r'\\d+[%$]?|\\b\\d+\\b', bullet):\n                    quantified_count += 1\n        \n        score += min(20, quantified_count * 5)\n        \n        return min(100, score)\n    \n    def _analyze_format_compliance(self, content: Dict) -> int:\n        """Analyze format compliance with 2025 standards."""\n        score = 100\n        \n        # Check structure compliance\n        sections = content.get('sections', {})\n        \n        # Verify all required sections exist\n        required = ['professional_summary', 'skills', 'experience', 'education']\n        for section in required:\n            if section not in sections:\n                score -= 25\n        \n        return max(0, score)\n    \n    def _calculate_job_relevance(self, content: Dict, job_analysis: JobAnalysis) -> int:\n        """Calculate job relevance score."""\n        content_text = self._extract_text_from_content(content)\n        \n        # Count relevant keywords\n        relevant_keywords = (\n            job_analysis.required_skills + \n            job_analysis.technical_keywords + \n            job_analysis.responsibilities\n        )\n        \n        relevance_count = 0\n        for keyword in relevant_keywords:\n            if keyword.lower() in content_text.lower():\n                relevance_count += 1\n        \n        return min(100, int((relevance_count / max(len(relevant_keywords), 1)) * 100))\n    \n    def _generate_improvement_areas(self, content: Dict, ats_analysis: Dict) -> List[str]:\n        """Generate specific improvement recommendations."""\n        improvements = []\n        \n        if ats_analysis['match_score'] < 75:\n            improvements.append(f"Add missing keywords: {', '.join(ats_analysis['missing_keywords'][:3])}")\n        \n        if len(ats_analysis['missing_keywords']) > 5:\n            improvements.append("Increase keyword density for better ATS matching")\n        \n        # Check word count\n        total_text = self._extract_text_from_content(content)\n        word_count = len(total_text.split())\n        \n        if word_count > 600:\n            improvements.append("Reduce content length for one-page compliance")\n        \n        return improvements[:5]  # Top 5 improvements\n    \n    def _identify_strengths(self, content: Dict, job_analysis: JobAnalysis) -> List[str]:\n        """Identify resume strengths."""\n        strengths = []\n        \n        sections = content.get('sections', {})\n        \n        # Check for quantified achievements\n        experiences = sections.get('experience', [])\n        for exp in experiences:\n            for bullet in exp.get('bullet_points', []):\n                if re.search(r'\\d+[%$]?', bullet):\n                    strengths.append("Contains quantified achievements")\n                    break\n        \n        # Check keyword integration\n        content_text = self._extract_text_from_content(content)\n        matched_skills = 0\n        for skill in job_analysis.required_skills:\n            if skill.lower() in content_text.lower():\n                matched_skills += 1\n        \n        if matched_skills >= 5:\n            strengths.append("Strong keyword alignment with job requirements")\n        \n        return list(set(strengths))  # Remove duplicates\n    \n    def _calculate_final_ats_score(self, resume: Dict, job_analysis: JobAnalysis) -> int:\n        """Calculate final comprehensive ATS score."""\n        content_text = self._extract_text_from_content(resume)\n        \n        # Keyword matching (40% weight)\n        keyword_score = self._analyze_keyword_density(content_text, job_analysis)['match_score']\n        \n        # Format compliance (20% weight)\n        format_score = self._analyze_format_compliance(resume)\n        \n        # Content quality (20% weight)\n        content_score = self._analyze_content_quality(resume)\n        \n        # Job relevance (20% weight)\n        relevance_score = self._calculate_job_relevance(resume, job_analysis)\n        \n        final_score = int(\n            keyword_score * 0.4 + \n            format_score * 0.2 + \n            content_score * 0.2 + \n            relevance_score * 0.2\n        )\n        \n        return min(100, final_score)\n    \n    def _parse_json_response(self, response_text: str) -> Dict:\n        """Safely parse JSON response from LLM."""\n        try:\n            # Clean markdown code blocks\n            cleaned = response_text.strip()\n            cleaned = re.sub(r'```json\\s*', '', cleaned)\n            cleaned = re.sub(r'```\\s*$', '', cleaned)\n            cleaned = cleaned.strip()\n            \n            return json.loads(cleaned)\n        except json.JSONDecodeError as e:\n            self.logger.error(f"JSON parsing failed: {str(e)}")\n            return {}\n\n# Usage example\nif __name__ == "__main__":\n    generator = AdvancedResumeGenerator()\n    \n    # Example candidate data\n    candidate_data = {\n        'resume': {\n            'skills': ['Python', 'JavaScript', 'React'],\n            'experience': [\n                {\n                    'title': 'Software Engineer',\n                    'company': 'Tech Corp',\n                    'start_date': '2022',\n                    'end_date': 'Present',\n                    'description': 'Developed web applications using modern frameworks.'\n                }\n            ],\n            'education': [\n                {\n                    'degree': 'Bachelor of Science',\n                    'institution': 'University',\n                    'field': 'Computer Science',\n                    'graduation_year': '2022'\n                }\n            ]\n        },\n        'personal_info': {\n            'name': 'John Doe',\n            'email': 'john.doe@email.com',\n            'phone': '(555) 123-4567'\n        }\n    }\n    \n    job_description = """\n    Senior Software Engineer - Python/React\n    \n    We are seeking a talented Senior Software Engineer to join our growing team.\n    \n    Requirements:\n    - 3+ years of Python development experience\n    - Strong React and JavaScript skills\n    - Experience with cloud platforms (AWS, GCP)\n    - Leadership and mentoring abilities\n    """\n    \n    # Generate optimized resume\n    optimized_resume, metrics = generator.generate_optimized_resume(\n        candidate_data, job_description\n    )\n    \n    print(f"✅ Resume generated with ATS score: {metrics.ats_score}/100")\n    print(f"📊 Word count: {metrics.estimated_word_count}")\n    print(f"📄 One-page compliant: {metrics.one_page_compliance}")
+            raise
+    
+    def _job_intelligence_agent(self, job_description: str) -> JobAnalysis:
+        """Agent 1: Deep job description analysis with industry intelligence."""
+        start_time = time.time()
+        
+        prompt = f"""
+        You are a Senior Job Market Intelligence Analyst with expertise in ATS systems and hiring trends.
+        
+        Analyze this job description with Google-level precision and extract comprehensive intelligence:
+        
+        Job Description:
+        {job_description}
+        
+        Provide a detailed JSON analysis with these fields:
+        {{
+            "job_title": "Exact job title",
+            "industry": "Specific industry/sector",
+            "company_size": "startup/small/medium/large/enterprise",
+            "seniority_level": "entry/mid/senior/executive",
+            "required_skills": ["skill1", "skill2", ...],
+            "preferred_skills": ["skill1", "skill2", ...],
+            "technical_keywords": ["keyword1", "keyword2", ...],
+            "soft_skills": ["skill1", "skill2", ...],
+            "qualifications": ["qualification1", "qualification2", ...],
+            "responsibilities": ["responsibility1", "responsibility2", ...],
+            "company_values": ["value1", "value2", ...],
+            "salary_range": "estimated range if mentioned",
+            "location_type": "remote/hybrid/onsite",
+            "urgency_indicators": ["urgent", "immediate", "asap", ...],
+            "growth_opportunities": ["opportunity1", "opportunity2", ...]
+        }}
+        
+        Focus on:
+        - Exact keyword extraction for ATS optimization
+        - Hidden requirements between the lines
+        - Company culture signals
+        - Growth trajectory indicators
+        - Technical depth requirements
+        
+        Return ONLY valid JSON.
+        """
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are an elite job market intelligence analyst. Extract precise, ATS-optimized job insights. Return only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=self.temperature,
+                timeout=45
+            )
+            
+            analysis_data = self._parse_json_response(response.choices[0].message.content)
+            
+            # Convert to JobAnalysis dataclass
+            job_analysis = JobAnalysis(**analysis_data)
+            
+            self.agent_timings['job_intelligence'] = time.time() - start_time
+            self.logger.info(f"🧠 Job Intelligence Analysis: {job_analysis.job_title} ({job_analysis.seniority_level} level)")
+            
+            return job_analysis
+            
+        except Exception as e:
+            self.logger.error(f"Job Intelligence Agent failed: {str(e)}")
+            # Return fallback analysis
+            return JobAnalysis(
+                job_title="Professional Role",
+                industry="Technology",
+                seniority_level="mid",
+                required_skills=["Professional Skills"],
+                technical_keywords=["Technology", "Leadership"]
+            )
+    
+    def _resume_analysis_agent(self, candidate_data: Dict, job_analysis: JobAnalysis) -> Dict:
+        """Agent 2: Comprehensive resume analysis with gap identification."""
+        start_time = time.time()
+        
+        resume_data = candidate_data.get('resume', {})
+        
+        prompt = f"""
+        You are a Senior Resume Analyst specializing in ATS optimization and job matching.
+        
+        Analyze this resume against the target job with forensic precision:
+        
+        Target Job Analysis:
+        {json.dumps(job_analysis.__dict__, indent=2)}
+        
+        Current Resume Data:
+        {json.dumps(resume_data, indent=2)}
+        
+        Provide comprehensive analysis in JSON format:
+        {{
+            "current_strengths": ["strength1", "strength2", ...],
+            "critical_gaps": ["gap1", "gap2", ...],
+            "keyword_gaps": ["missing_keyword1", "missing_keyword2", ...],
+            "experience_relevance": "high/medium/low",
+            "skills_alignment": "excellent/good/poor",
+            "achievements_quality": "quantified/descriptive/weak",
+            "content_optimization_needs": {{
+                "summary": "needs_rewrite/needs_improvement/good",
+                "experience": "major_revision/minor_revision/good",
+                "skills": "complete_overhaul/reorganization/good",
+                "education": "enhancement/good/irrelevant"
+            }},
+            "ats_risk_factors": ["factor1", "factor2", ...],
+            "competitive_advantages": ["advantage1", "advantage2", ...],
+            "improvement_priority": ["highest_priority", "medium_priority", "low_priority"],
+            "estimated_job_match_score": 85,
+            "content_gaps": {{
+                "missing_technical_skills": ["skill1", "skill2"],
+                "missing_soft_skills": ["skill1", "skill2"],
+                "missing_achievements": ["type1", "type2"],
+                "missing_keywords": ["keyword1", "keyword2"]
+            }}
+        }}
+        
+        Analysis Focus:
+        - ATS keyword matching precision
+        - Content quality and quantification
+        - Competitive positioning
+        - Gap analysis for job requirements
+        - Achievement impact assessment
+        
+        Return ONLY valid JSON.
+        """
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are an elite resume analyst. Provide precise, actionable insights for ATS optimization. Return only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=self.temperature,
+                timeout=45
+            )
+            
+            analysis = self._parse_json_response(response.choices[0].message.content)
+            
+            self.agent_timings['resume_analysis'] = time.time() - start_time
+            self.logger.info(f"📊 Resume Analysis: {analysis.get('estimated_job_match_score', 0)}/100 match score")
+            
+            return analysis
+            
+        except Exception as e:
+            self.logger.error(f"Resume Analysis Agent failed: {str(e)}")
+            return {
+                "current_strengths": [],
+                "critical_gaps": [],
+                "estimated_job_match_score": 70,
+                "experience_relevance": "medium"
+            }
+    
+    def _content_optimization_agent(self, candidate_data: Dict, job_analysis: JobAnalysis, 
+                                   resume_analysis: Dict) -> Dict:
+        """Agent 3: Generate optimized content for each resume section."""
+        start_time = time.time()
+        
+        # Generate each section with specialized prompts
+        sections = {}
+        
+        # Professional Summary
+        sections['professional_summary'] = self._generate_optimized_summary(
+            candidate_data, job_analysis, resume_analysis
+        )
+        
+        # Skills Section
+        sections['skills'] = self._generate_optimized_skills(
+            candidate_data, job_analysis, resume_analysis
+        )
+        
+        # Experience Section
+        sections['experience'] = self._generate_optimized_experience(
+            candidate_data, job_analysis, resume_analysis
+        )
+        
+        # Education Section
+        sections['education'] = self._generate_optimized_education(
+            candidate_data, job_analysis
+        )
+        
+        self.agent_timings['content_optimization'] = time.time() - start_time
+        self.logger.info("✨ Content Optimization: All sections generated")
+        
+        return {
+            'sections': sections,
+            'optimization_metadata': {
+                'job_title': job_analysis.job_title,
+                'target_keywords': job_analysis.technical_keywords[:10],
+                'optimization_focus': resume_analysis.get('improvement_priority', []),
+                'generation_timestamp': datetime.now().isoformat()
+            }
+        }
+    
+    def _generate_optimized_summary(self, candidate_data: Dict, job_analysis: JobAnalysis, 
+                                  resume_analysis: Dict) -> str:
+        """Generate ATS-optimized professional summary."""
+        resume_data = candidate_data.get('resume', {})
+        
+        prompt = f"""
+        You are a Senior Resume Writer specializing in ATS-optimized professional summaries.
+        
+        Create a compelling 2-3 sentence professional summary that:
+        
+        Target Job: {job_analysis.job_title} ({job_analysis.seniority_level} level)
+        Industry: {job_analysis.industry}
+        Required Skills: {', '.join(job_analysis.required_skills[:5])}
+        Key Keywords: {', '.join(job_analysis.technical_keywords[:8])}
+        
+        Current Experience: {json.dumps(resume_data.get('experience', [])[:2], indent=2)}
+        Current Skills: {', '.join(resume_data.get('skills', [])[:10])}
+        
+        Requirements:
+        - Include exact job title "{job_analysis.job_title}" naturally
+        - Integrate 4-5 top keywords: {', '.join(job_analysis.technical_keywords[:5])}
+        - Mention years of experience if relevant
+        - Highlight 2-3 key achievements/value propositions
+        - 40-80 words total (ATS optimal length)
+        - Professional, confident tone
+        - Quantify impact where possible
+        
+        Return ONLY the professional summary text, no additional formatting or explanation.
+        """
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a world-class resume writer. Create ATS-optimized professional summaries that get results."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.4,
+                timeout=30
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            self.logger.error(f"Summary generation failed: {str(e)}")
+            return f"Experienced {job_analysis.job_title} with expertise in {', '.join(job_analysis.required_skills[:3])}. Proven track record of delivering results and driving organizational success."
+    
+    def _generate_optimized_skills(self, candidate_data: Dict, job_analysis: JobAnalysis, 
+                                 resume_analysis: Dict) -> Dict:
+        """Generate ATS-optimized skills section."""
+        current_skills = candidate_data.get('resume', {}).get('skills', [])
+        
+        prompt = f"""
+        You are a Skills Optimization Specialist for ATS systems.
+        
+        Optimize the skills section for maximum ATS impact:
+        
+        Target Job Requirements:
+        - Required Skills: {', '.join(job_analysis.required_skills)}
+        - Preferred Skills: {', '.join(job_analysis.preferred_skills)}
+        - Technical Keywords: {', '.join(job_analysis.technical_keywords)}
+        - Soft Skills: {', '.join(job_analysis.soft_skills)}
+        
+        Current Skills: {', '.join(current_skills)}
+        
+        Create optimized skills categories in JSON format:
+        {{
+            "technical_skills": ["skill1", "skill2", ...],
+            "tools_technologies": ["tool1", "tool2", ...],
+            "soft_skills": ["skill1", "skill2", ...],
+            "certifications": ["cert1", "cert2", ...]
+        }}
+        
+        Rules:
+        - Prioritize exact keyword matches from job requirements
+        - Include variations of key skills (e.g., "Python", "Python Programming")
+        - Maximum 8 skills per category
+        - Use exact terminology from job description
+        - Balance technical and soft skills
+        - Include industry-standard tools/technologies
+        
+        Return ONLY valid JSON.
+        """
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are an expert in ATS skills optimization. Create perfectly categorized, keyword-rich skills sections."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                timeout=30
+            )
+            
+            return self._parse_json_response(response.choices[0].message.content)
+            
+        except Exception as e:
+            self.logger.error(f"Skills generation failed: {str(e)}")
+            return {
+                "technical_skills": current_skills[:8],
+                "tools_technologies": [],
+                "soft_skills": ["Communication", "Leadership", "Problem Solving"],
+                "certifications": []
+            }
+    
+    def _generate_optimized_experience(self, candidate_data: Dict, job_analysis: JobAnalysis, 
+                                     resume_analysis: Dict) -> List[Dict]:
+        """Generate ATS-optimized experience section."""
+        current_experience = candidate_data.get('resume', {}).get('experience', [])
+        
+        optimized_experience = []
+        
+        for i, exp in enumerate(current_experience[:4]):  # Max 4 experiences for one page
+            prompt = f"""
+            You are a Senior Career Strategist specializing in achievement-focused job descriptions.
+            
+            Optimize this work experience for the target role:
+            
+            Target Job: {job_analysis.job_title}
+            Key Keywords: {', '.join(job_analysis.technical_keywords[:10])}
+            Required Skills: {', '.join(job_analysis.required_skills[:8])}
+            Responsibilities: {', '.join(job_analysis.responsibilities[:5])}
+            
+            Current Experience Entry:
+            {json.dumps(exp, indent=2)}
+            
+            Create optimized experience entry in JSON format:
+            {{
+                "company": "{exp.get('company', 'Company')}",
+                "title": "{exp.get('title', 'Position')}",
+                "start_date": "{exp.get('start_date', '')}",
+                "end_date": "{exp.get('end_date', 'Present')}",
+                "location": "{exp.get('location', '')}",
+                "bullet_points": [
+                    "• Achievement 1 with quantified results",
+                    "• Achievement 2 with impact metrics",
+                    "• Achievement 3 with keyword integration"
+                ]
+            }}
+            
+            Rules for bullet points:
+            - Start with strong action verbs (Led, Developed, Implemented, Achieved)
+            - Include quantified results (percentages, numbers, metrics)
+            - Integrate 2-3 keywords from target job naturally
+            - Maximum 3 bullet points per position
+            - Focus on achievements, not just responsibilities
+            - Use past tense for previous roles, present for current
+            - Each bullet: 1-2 lines maximum
+            
+            Return ONLY valid JSON.
+            """
+            
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "You are an expert in writing achievement-focused job descriptions. Create compelling experience entries with quantified results."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.4,
+                    timeout=30
+                )
+                
+                optimized_exp = self._parse_json_response(response.choices[0].message.content)
+                optimized_experience.append(optimized_exp)
+                
+            except Exception as e:
+                self.logger.error(f"Experience optimization failed for entry {i}: {str(e)}")
+                # Keep original if optimization fails
+                optimized_experience.append(exp)
+        
+        return optimized_experience
+    
+    def _generate_optimized_education(self, candidate_data: Dict, job_analysis: JobAnalysis) -> List[Dict]:
+        """Generate optimized education section."""
+        education_data = candidate_data.get('resume', {}).get('education', [])
+        
+        # For education, minimal optimization needed - just clean formatting
+        optimized_education = []
+        for edu in education_data[:2]:  # Max 2 education entries
+            optimized_edu = {
+                'institution': edu.get('institution', ''),
+                'degree': edu.get('degree', ''),
+                'field': edu.get('field', ''),
+                'graduation_year': edu.get('graduation_year', ''),
+                'gpa': edu.get('gpa', '') if float(edu.get('gpa', 0)) >= 3.5 else '',
+                'relevant_coursework': edu.get('relevant_coursework', [])
+            }
+            optimized_education.append(optimized_edu)
+        
+        return optimized_education
+    
+    def _ats_compliance_agent(self, optimized_content: Dict, job_analysis: JobAnalysis) -> Dict:
+        """Agent 4: Ensure ATS compliance and keyword optimization."""
+        start_time = time.time()
+        
+        # Analyze keyword density
+        content_text = self._extract_text_from_content(optimized_content)
+        keyword_analysis = self._analyze_keyword_density(content_text, job_analysis)
+        
+        # Apply ATS compliance rules
+        ats_compliant_content = self._apply_ats_standards(optimized_content, keyword_analysis)
+        
+        self.agent_timings['ats_compliance'] = time.time() - start_time
+        self.logger.info(f"🎯 ATS Compliance: {keyword_analysis['match_score']}/100 keyword match")
+        
+        return {
+            'content': ats_compliant_content,
+            'ats_analysis': keyword_analysis,
+            'compliance_score': self._calculate_compliance_score(ats_compliant_content)
+        }
+    
+    def _quality_assurance_agent(self, ats_content: Dict, job_analysis: JobAnalysis, 
+                               candidate_data: Dict) -> Tuple[Dict, ResumeMetrics]:
+        """Agent 5: Final quality review and metrics calculation."""
+        start_time = time.time()
+        
+        final_content = ats_content['content']
+        
+        # Calculate comprehensive metrics
+        metrics = ResumeMetrics()
+        metrics.ats_score = ats_content['compliance_score']
+        metrics.keyword_match_score = ats_content['ats_analysis']['match_score']
+        
+        # Word count analysis
+        total_text = self._extract_text_from_content(final_content)
+        word_count = len(total_text.split())
+        metrics.estimated_word_count = word_count
+        metrics.one_page_compliance = word_count <= self.ats_standards['max_word_count']
+        
+        # Content quality analysis
+        metrics.content_quality_score = self._analyze_content_quality(final_content)
+        metrics.format_compliance_score = self._analyze_format_compliance(final_content)
+        
+        # Job relevance analysis
+        metrics.job_relevance_score = self._calculate_job_relevance(
+            final_content, job_analysis
+        )
+        
+        # Generate improvement recommendations
+        metrics.improvement_areas = self._generate_improvement_areas(
+            final_content, ats_content['ats_analysis']
+        )
+        
+        metrics.strengths = self._identify_strengths(final_content, job_analysis)
+        
+        self.agent_timings['quality_assurance'] = time.time() - start_time
+        self.logger.info(f"🔍 Quality Assurance: {metrics.content_quality_score}/100 quality score")
+        
+        # Prepare final resume structure
+        final_resume = {
+            'sections': final_content['sections'],
+            'metadata': {
+                'generation_time': time.time() - self.generation_start_time,
+                'agent_timings': self.agent_timings,
+                'target_job': job_analysis.job_title,
+                'optimization_level': 'advanced',
+                'ats_version': '2025'
+            },
+            'formatting_rules': self.ats_standards
+        }
+        
+        return final_resume, metrics
+    
+    def _extract_text_from_content(self, content: Dict) -> str:
+        """Extract all text content for analysis."""
+        text_parts = []
+        
+        sections = content.get('sections', {})
+        
+        # Professional summary
+        if sections.get('professional_summary'):
+            text_parts.append(sections['professional_summary'])
+        
+        # Skills
+        skills = sections.get('skills', {})
+        for category, skill_list in skills.items():
+            if isinstance(skill_list, list):
+                text_parts.extend(skill_list)
+        
+        # Experience
+        experiences = sections.get('experience', [])
+        for exp in experiences:
+            if exp.get('title'):
+                text_parts.append(exp['title'])
+            if exp.get('company'):
+                text_parts.append(exp['company'])
+            for bullet in exp.get('bullet_points', []):
+                text_parts.append(bullet)
+        
+        # Education
+        educations = sections.get('education', [])
+        for edu in educations:
+            for field in ['degree', 'institution', 'field']:
+                if edu.get(field):
+                    text_parts.append(edu[field])
+        
+        return ' '.join(text_parts)
+    
+    def _analyze_keyword_density(self, content_text: str, job_analysis: JobAnalysis) -> Dict:
+        """Analyze keyword density for ATS optimization."""
+        content_lower = content_text.lower()
+        
+        # Check required keywords
+        required_keywords = job_analysis.required_skills + job_analysis.technical_keywords
+        keyword_matches = []
+        
+        for keyword in required_keywords:
+            if keyword.lower() in content_lower:
+                keyword_matches.append(keyword)
+        
+        match_score = min(100, int((len(keyword_matches) / max(len(required_keywords), 1)) * 100))
+        
+        return {
+            'total_keywords': len(required_keywords),
+            'matched_keywords': keyword_matches,
+            'match_count': len(keyword_matches),
+            'match_score': match_score,
+            'missing_keywords': [k for k in required_keywords if k.lower() not in content_lower],
+            'keyword_density': len(keyword_matches) / max(len(content_text.split()), 1) * 100
+        }
+    
+    def _apply_ats_standards(self, content: Dict, keyword_analysis: Dict) -> Dict:
+        """Apply 2025 ATS standards to content."""
+        # Ensure one-page compliance
+        sections = content.get('sections', {})
+        
+        # Limit experience entries
+        if 'experience' in sections:
+            sections['experience'] = sections['experience'][:4]
+            
+            # Limit bullet points per job
+            for exp in sections['experience']:
+                if 'bullet_points' in exp:
+                    exp['bullet_points'] = exp['bullet_points'][:3]
+        
+        # Optimize skills categories
+        if 'skills' in sections:
+            skills = sections['skills']
+            for category in skills:
+                if isinstance(skills[category], list):
+                    skills[category] = skills[category][:8]
+        
+        return {'sections': sections}
+    
+    def _calculate_compliance_score(self, content: Dict) -> int:
+        """Calculate ATS compliance score."""
+        score = 100
+        sections = content.get('sections', {})
+        
+        # Check required sections
+        required_sections = ['professional_summary', 'experience', 'skills', 'education']
+        missing_sections = [s for s in required_sections if s not in sections]
+        score -= len(missing_sections) * 20
+        
+        # Check content quality
+        if sections.get('professional_summary'):
+            summary_words = len(sections['professional_summary'].split())
+            if not (40 <= summary_words <= 80):
+                score -= 10
+        
+        # Check experience formatting
+        experiences = sections.get('experience', [])
+        if len(experiences) > 4:
+            score -= 5
+        
+        for exp in experiences:
+            bullets = exp.get('bullet_points', [])
+            if len(bullets) > 3:
+                score -= 5
+        
+        return max(0, score)
+    
+    def _analyze_content_quality(self, content: Dict) -> int:
+        """Analyze content quality score."""
+        score = 80  # Base score
+        
+        sections = content.get('sections', {})
+        
+        # Check for quantified achievements
+        experiences = sections.get('experience', [])
+        quantified_count = 0
+        
+        for exp in experiences:
+            for bullet in exp.get('bullet_points', []):
+                if re.search(r'\d+[%$]?|\b\d+\b', bullet):
+                    quantified_count += 1
+        
+        score += min(20, quantified_count * 5)
+        
+        return min(100, score)
+    
+    def _analyze_format_compliance(self, content: Dict) -> int:
+        """Analyze format compliance with 2025 standards."""
+        score = 100
+        
+        # Check structure compliance
+        sections = content.get('sections', {})
+        
+        # Verify all required sections exist
+        required = ['professional_summary', 'skills', 'experience', 'education']
+        for section in required:
+            if section not in sections:
+                score -= 25
+        
+        return max(0, score)
+    
+    def _calculate_job_relevance(self, content: Dict, job_analysis: JobAnalysis) -> int:
+        """Calculate job relevance score."""
+        content_text = self._extract_text_from_content(content)
+        
+        # Count relevant keywords
+        relevant_keywords = (
+            job_analysis.required_skills + 
+            job_analysis.technical_keywords + 
+            job_analysis.responsibilities
+        )
+        
+        relevance_count = 0
+        for keyword in relevant_keywords:
+            if keyword.lower() in content_text.lower():
+                relevance_count += 1
+        
+        return min(100, int((relevance_count / max(len(relevant_keywords), 1)) * 100))
+    
+    def _generate_improvement_areas(self, content: Dict, ats_analysis: Dict) -> List[str]:
+        """Generate specific improvement recommendations."""
+        improvements = []
+        
+        if ats_analysis['match_score'] < 75:
+            improvements.append(f"Add missing keywords: {', '.join(ats_analysis['missing_keywords'][:3])}")
+        
+        if len(ats_analysis['missing_keywords']) > 5:
+            improvements.append("Increase keyword density for better ATS matching")
+        
+        # Check word count
+        total_text = self._extract_text_from_content(content)
+        word_count = len(total_text.split())
+        
+        if word_count > 600:
+            improvements.append("Reduce content length for one-page compliance")
+        
+        return improvements[:5]  # Top 5 improvements
+    
+    def _identify_strengths(self, content: Dict, job_analysis: JobAnalysis) -> List[str]:
+        """Identify resume strengths."""
+        strengths = []
+        
+        sections = content.get('sections', {})
+        
+        # Check for quantified achievements
+        experiences = sections.get('experience', [])
+        for exp in experiences:
+            for bullet in exp.get('bullet_points', []):
+                if re.search(r'\d+[%$]?', bullet):
+                    strengths.append("Contains quantified achievements")
+                    break
+        
+        # Check keyword integration
+        content_text = self._extract_text_from_content(content)
+        matched_skills = 0
+        for skill in job_analysis.required_skills:
+            if skill.lower() in content_text.lower():
+                matched_skills += 1
+        
+        if matched_skills >= 5:
+            strengths.append("Strong keyword alignment with job requirements")
+        
+        return list(set(strengths))  # Remove duplicates
+    
+    def _calculate_final_ats_score(self, resume: Dict, job_analysis: JobAnalysis) -> int:
+        """Calculate final comprehensive ATS score."""
+        content_text = self._extract_text_from_content(resume)
+        
+        # Keyword matching (40% weight)
+        keyword_score = self._analyze_keyword_density(content_text, job_analysis)['match_score']
+        
+        # Format compliance (20% weight)
+        format_score = self._analyze_format_compliance(resume)
+        
+        # Content quality (20% weight)
+        content_score = self._analyze_content_quality(resume)
+        
+        # Job relevance (20% weight)
+        relevance_score = self._calculate_job_relevance(resume, job_analysis)
+        
+        final_score = int(
+            keyword_score * 0.4 + 
+            format_score * 0.2 + 
+            content_score * 0.2 + 
+            relevance_score * 0.2
+        )
+        
+        return min(100, final_score)
+    
+    def _parse_json_response(self, response_text: str) -> Dict:
+        """Safely parse JSON response from LLM."""
+        try:
+            # Clean markdown code blocks
+            cleaned = response_text.strip()
+            cleaned = re.sub(r'```json\s*', '', cleaned)
+            cleaned = re.sub(r'```\s*$', '', cleaned)
+            cleaned = cleaned.strip()
+            
+            return json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            self.logger.error(f"JSON parsing failed: {str(e)}")
+            return {}
+
