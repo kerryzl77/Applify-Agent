@@ -343,10 +343,31 @@ class AdvancedResumeGenerator:
                 'job_title': job_analysis.job_title,
                 'target_keywords': job_analysis.technical_keywords[:10],
                 'optimization_focus': resume_analysis.get('improvement_priority', []),
+                'job_summary': self._build_job_summary(job_analysis),
                 'generation_timestamp': datetime.now().isoformat()
             }
         }
     
+    def _build_job_summary(self, job_analysis: JobAnalysis) -> str:
+        """Create concise job summary text for downstream prompts."""
+        parts = []
+        if job_analysis.job_title:
+            title = job_analysis.job_title
+            if job_analysis.seniority_level:
+                title += f" ({job_analysis.seniority_level} level)"
+            parts.append(f"Role: {title}")
+        if job_analysis.industry:
+            parts.append(f"Industry: {job_analysis.industry}")
+        if job_analysis.location_type:
+            parts.append(f"Location: {job_analysis.location_type}")
+        if job_analysis.required_skills:
+            parts.append("Must-have skills: " + ", ".join(job_analysis.required_skills[:5]))
+        if job_analysis.responsibilities:
+            parts.append("Top responsibilities: " + ", ".join(job_analysis.responsibilities[:3]))
+        if job_analysis.company_values:
+            parts.append("Company values: " + ", ".join(job_analysis.company_values[:2]))
+        return " | ".join(parts)
+
     def _generate_optimized_summary(self, candidate_data: Dict, job_analysis: JobAnalysis, 
                                   resume_analysis: Dict) -> str:
         """Generate ATS-optimized professional summary."""
@@ -355,7 +376,7 @@ class AdvancedResumeGenerator:
         prompt = f"""
         You are a Senior Resume Writer specializing in ATS-optimized professional summaries.
         
-        Create a compelling 2-3 sentence professional summary that:
+        Create a compelling 2 sentence (less than 40 words) professional summary that:
         
         Target Job: {job_analysis.job_title} ({job_analysis.seniority_level} level)
         Industry: {job_analysis.industry}
@@ -460,11 +481,16 @@ class AdvancedResumeGenerator:
         
         optimized_experience = []
         
+        job_summary = self._build_job_summary(job_analysis)
+
         for i, exp in enumerate(current_experience[:4]):  # Max 4 experiences for one page
+            required_bullets = 3 if i < 2 else 2 if i == 2 else 1
             prompt = f"""
             You are a Senior Career Strategist specializing in achievement-focused job descriptions.
             
             Optimize this work experience for the target role:
+            
+            Job Summary: {job_summary}
             
             Target Job: {job_analysis.job_title}
             Key Keywords: {', '.join(job_analysis.technical_keywords[:10])}
@@ -496,6 +522,7 @@ class AdvancedResumeGenerator:
             - Focus on achievements, not just responsibilities
             - Use past tense for previous roles, present for current
             - Each bullet: 1-2 lines maximum
+            - EXACTLY {required_bullets} bullet points are required for this entry
             
             Return ONLY valid JSON.
             """

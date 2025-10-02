@@ -12,13 +12,10 @@ from app.fast_pdf_generator import FastPDFGenerator
 
 class OutputFormatter:
     def __init__(self):
-        # Use tempfile for Heroku compatibility
-        self.temp_dir = tempfile.mkdtemp()
-        self.output_dir = os.path.join(self.temp_dir, 'output')
-        
-        # Ensure output directory exists
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+        # Use a shared temp directory so downloads work across worker processes
+        base_temp_dir = os.path.join(tempfile.gettempdir(), 'applify_output')
+        self.output_dir = os.path.join(base_temp_dir, 'files')
+        os.makedirs(self.output_dir, exist_ok=True)
             
         # Check if running in Docker or Heroku
         self.in_docker = os.path.exists('/.dockerenv')
