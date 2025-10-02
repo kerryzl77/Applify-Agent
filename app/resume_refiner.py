@@ -19,10 +19,10 @@ class ResumeRefiner:
         # ATS-friendly formatting standards
         self.formatting_standards = {
             'margins': 1.0,
-            'font_name': 'Calibri',
+            'font_name': 'Times New Roman',
             'font_size_body': 11,
-            'font_size_name': 16,
-            'font_size_headers': 12,
+            'font_size_name': 14,
+            'font_size_headers': 14,
             'line_spacing': 1.15,
             'max_page_length': 1,
             'max_word_count': 600,
@@ -98,7 +98,6 @@ class ResumeRefiner:
             "years_experience": "number or range",
             "education_requirements": "requirements",
             "certifications": ["cert1", "cert2", ...],
-            "soft_skills": ["skill1", "skill2", ...],
             "hard_skills": ["skill1", "skill2", ...],
             "achievement_focus": ["revenue", "efficiency", "innovation", "leadership", ...]
         }}
@@ -135,7 +134,6 @@ class ResumeRefiner:
             "years_experience": "2-5",
             "education_requirements": "Bachelor's degree",
             "certifications": [],
-            "soft_skills": [],
             "hard_skills": [],
             "achievement_focus": ["results", "efficiency"]
         }
@@ -302,7 +300,6 @@ class ResumeRefiner:
             
             # Prioritize skills that match job requirements
             technical_skills = []
-            soft_skills = []
             
             # Add matching required skills first
             for skill in candidate_skills:
@@ -310,14 +307,11 @@ class ResumeRefiner:
                     technical_skills.append(skill)
                 elif any(pref.lower() in skill.lower() for pref in preferred_skills):
                     technical_skills.append(skill)
-                elif skill.lower() in ['communication', 'leadership', 'teamwork', 'problem solving']:
-                    soft_skills.append(skill)
                 else:
                     technical_skills.append(skill)
             
             return {
                 "technical_skills": technical_skills[:8],
-                "soft_skills": soft_skills[:4] if soft_skills else ["Communication", "Problem Solving", "Leadership"],
                 "tools_technologies": [skill for skill in technical_skills if any(tech in skill.lower() for tech in ['python', 'sql', 'javascript', 'aws', 'docker', 'kubernetes'])][:6],
                 "certifications": []
             }
@@ -325,7 +319,6 @@ class ResumeRefiner:
             print(f"Error in local skills optimization: {str(e)}")
             return {
                 "technical_skills": candidate_data['resume']['skills'][:8],
-                "soft_skills": ["Communication", "Problem Solving", "Leadership"],
                 "tools_technologies": [],
                 "certifications": []
             }
@@ -440,7 +433,6 @@ class ResumeRefiner:
                 "years_experience": "3-5",
                 "education_requirements": "Bachelor's degree preferred",
                 "certifications": [],
-                "soft_skills": ["Communication", "Problem Solving", "Leadership"],
                 "hard_skills": required_skills[:5],
                 "achievement_focus": ["results", "efficiency", "innovation"]
             }
@@ -499,7 +491,6 @@ class ResumeRefiner:
                 'professional_summary': f"Experienced professional with expertise in {', '.join(candidate_data['resume']['skills'][:3])}",
                 'skills': {
                     "technical_skills": candidate_data['resume']['skills'][:8],
-                    "soft_skills": ["Communication", "Problem Solving", "Leadership"],
                     "tools_technologies": [],
                     "certifications": []
                 },
@@ -559,13 +550,11 @@ class ResumeRefiner:
         Required Skills: {job_analysis['required_skills']}
         Preferred Skills: {job_analysis['preferred_skills']}
         Hard Skills: {job_analysis['hard_skills']}
-        Soft Skills: {job_analysis['soft_skills']}
         Template Style: {template['skills_format']}
 
         Create an optimized skills section that:
         - Prioritizes required skills that candidate has
         - Includes all matching hard skills
-        - Adds relevant soft skills naturally
         - Orders by relevance to job
         - Uses exact keywords from job description
         - Categorizes skills if template requires it
@@ -573,7 +562,6 @@ class ResumeRefiner:
         Return JSON with:
         {{
             "technical_skills": ["skill1", "skill2", ...],
-            "soft_skills": ["skill1", "skill2", ...],
             "tools_technologies": ["tool1", "tool2", ...],
             "certifications": ["cert1", "cert2", ...]
         }}
@@ -595,7 +583,6 @@ class ResumeRefiner:
             print(f"Error optimizing skills: {str(e)}")
             return {
                 "technical_skills": candidate_data['resume']['skills'][:8],
-                "soft_skills": ["Communication", "Problem Solving", "Leadership"],
                 "tools_technologies": [],
                 "certifications": []
             }
@@ -758,6 +745,18 @@ class ResumeRefiner:
             section.bottom_margin = Inches(self.formatting_standards['margins'])
             section.left_margin = Inches(self.formatting_standards['margins'])
             section.right_margin = Inches(self.formatting_standards['margins'])
+        
+        # Ensure default styles use Times New Roman
+        styles = doc.styles
+        if 'Normal' in styles:
+            normal_style = styles['Normal']
+            normal_style.font.name = self.formatting_standards['font_name']
+            normal_style.font.size = Pt(self.formatting_standards['font_size_body'])
+        for style_name in ['List Bullet', 'List Paragraph', 'Heading 1', 'Heading 2', 'Heading 3']:
+            if style_name in styles:
+                style = styles[style_name]
+                style.font.name = self.formatting_standards['font_name']
+                style.font.size = Pt(self.formatting_standards['font_size_headers'])
     
     def _add_contact_header(self, doc, candidate_data):
         """Add contact information header."""

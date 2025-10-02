@@ -65,29 +65,29 @@ class FastPDFGenerator:
         styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=styles['Heading1'],
-            fontSize=16,
+            fontSize=14,
             spaceAfter=6,
             alignment=TA_CENTER,
-            fontName='Helvetica-Bold',
+            fontName='Times-Roman',
             textColor=black
         ))
         
         styles.add(ParagraphStyle(
             name='Contact',
             parent=styles['Normal'],
-            fontSize=10,
+            fontSize=11,
             alignment=TA_CENTER,
             spaceAfter=12,
-            fontName='Helvetica'
+            fontName='Times-Roman'
         ))
         
         styles.add(ParagraphStyle(
             name='SectionHeader',
             parent=styles['Heading2'],
-            fontSize=12,
+            fontSize=14,
             spaceAfter=6,
             spaceBefore=8,
-            fontName='Helvetica-Bold',
+            fontName='Times-Bold',
             textColor=black,
             borderWidth=1,
             borderColor=black,
@@ -98,7 +98,7 @@ class FastPDFGenerator:
             name='JobTitle',
             parent=styles['Normal'],
             fontSize=11,
-            fontName='Helvetica-Bold',
+            fontName='Times-Bold',
             spaceAfter=2,
             leftIndent=0
         ))
@@ -106,8 +106,8 @@ class FastPDFGenerator:
         styles.add(ParagraphStyle(
             name='CompanyInfo',
             parent=styles['Normal'],
-            fontSize=10,
-            fontName='Helvetica-Oblique',
+            fontSize=11,
+            fontName='Times-Italic',
             spaceAfter=4,
             textColor=colors.grey
         ))
@@ -115,8 +115,8 @@ class FastPDFGenerator:
         styles.add(ParagraphStyle(
             name='BulletPoint',
             parent=styles['Normal'],
-            fontSize=10,
-            fontName='Helvetica',
+            fontSize=11,
+            fontName='Times-Roman',
             spaceAfter=3,
             leftIndent=12,
             bulletIndent=0
@@ -125,8 +125,8 @@ class FastPDFGenerator:
         styles.add(ParagraphStyle(
             name='Skills',
             parent=styles['Normal'],
-            fontSize=10,
-            fontName='Helvetica',
+            fontSize=11,
+            fontName='Times-Roman',
             spaceAfter=4,
             leftIndent=12
         ))
@@ -135,7 +135,7 @@ class FastPDFGenerator:
             name='Summary',
             parent=styles['Normal'],
             fontSize=11,
-            fontName='Helvetica',
+            fontName='Times-Roman',
             spaceAfter=12,
             alignment=TA_JUSTIFY,
             leading=13
@@ -259,8 +259,7 @@ class FastPDFGenerator:
         # Organize skills into categories
         categories = [
             ('Technical Skills', skills_data.get('technical_skills', [])),
-            ('Tools & Technologies', skills_data.get('tools_technologies', [])),
-            ('Soft Skills', skills_data.get('soft_skills', [])),
+            ('Tools & Technologies', skills_data.get('tools_technologies', []))
         ]
         
         for category_name, skill_list in categories:
@@ -393,10 +392,23 @@ class FastPDFGenerator:
         story = []
         personal_info = candidate_data.get('personal_info', {})
         
-        # No header needed - LLM-generated content is self-contained
-        # Date
-        current_date = datetime.datetime.now().strftime("%B %d, %Y")
-        story.append(Paragraph(current_date, self.styles['Normal']))
+        # Personal info header (left-aligned, single line)
+        header_parts = []
+        name = personal_info.get('name')
+        email = personal_info.get('email')
+        phone = personal_info.get('phone')
+        location = personal_info.get('location')
+
+        if name:
+            story.append(Paragraph(name, self.styles['Normal']))
+        if email:
+            header_parts.append(email)
+        if phone:
+            header_parts.append(phone)
+        if location:
+            header_parts.append(location)
+        if header_parts:
+            story.append(Paragraph(' - '.join(header_parts), self.styles['Normal']))
         story.append(Spacer(1, 12))
         
         # Main content - split by single newlines to match DOCX

@@ -48,7 +48,6 @@ class JobAnalysis:
     required_skills: List[str] = field(default_factory=list)
     preferred_skills: List[str] = field(default_factory=list)
     technical_keywords: List[str] = field(default_factory=list)
-    soft_skills: List[str] = field(default_factory=list)
     qualifications: List[str] = field(default_factory=list)
     responsibilities: List[str] = field(default_factory=list)
     company_values: List[str] = field(default_factory=list)
@@ -174,7 +173,6 @@ class AdvancedResumeGenerator:
             "required_skills": ["skill1", "skill2", ...],
             "preferred_skills": ["skill1", "skill2", ...],
             "technical_keywords": ["keyword1", "keyword2", ...],
-            "soft_skills": ["skill1", "skill2", ...],
             "qualifications": ["qualification1", "qualification2", ...],
             "responsibilities": ["responsibility1", "responsibility2", ...],
             "company_values": ["value1", "value2", ...],
@@ -263,7 +261,6 @@ class AdvancedResumeGenerator:
             "estimated_job_match_score": 85,
             "content_gaps": {{
                 "missing_technical_skills": ["skill1", "skill2"],
-                "missing_soft_skills": ["skill1", "skill2"],
                 "missing_achievements": ["type1", "type2"],
                 "missing_keywords": ["keyword1", "keyword2"]
             }}
@@ -429,7 +426,6 @@ class AdvancedResumeGenerator:
         - Required Skills: {', '.join(job_analysis.required_skills)}
         - Preferred Skills: {', '.join(job_analysis.preferred_skills)}
         - Technical Keywords: {', '.join(job_analysis.technical_keywords)}
-        - Soft Skills: {', '.join(job_analysis.soft_skills)}
         
         Current Skills: {', '.join(current_skills)}
         
@@ -437,7 +433,6 @@ class AdvancedResumeGenerator:
         {{
             "technical_skills": ["skill1", "skill2", ...],
             "tools_technologies": ["tool1", "tool2", ...],
-            "soft_skills": ["skill1", "skill2", ...],
             "certifications": ["cert1", "cert2", ...]
         }}
         
@@ -446,7 +441,6 @@ class AdvancedResumeGenerator:
         - Include variations of key skills (e.g., "Python", "Python Programming")
         - Maximum 8 skills per category
         - Use exact terminology from job description
-        - Balance technical and soft skills
         - Include industry-standard tools/technologies
         
         Return ONLY valid JSON.
@@ -470,7 +464,6 @@ class AdvancedResumeGenerator:
             return {
                 "technical_skills": current_skills[:8],
                 "tools_technologies": [],
-                "soft_skills": ["Communication", "Leadership", "Problem Solving"],
                 "certifications": []
             }
     
