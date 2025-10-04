@@ -37,12 +37,7 @@ const Dashboard = () => {
         }
       } catch (error) {
         console.error('Error loading profile:', error);
-        
-        // If 401 unauthorized, redirect to login
-        if (error.response?.status === 401) {
-          console.log('Session expired, redirecting to login');
-          window.location.href = '/login';
-        }
+        // Don't show error toast on initial load - user might not have profile yet
       } finally {
         setProfileLoading(false);
       }

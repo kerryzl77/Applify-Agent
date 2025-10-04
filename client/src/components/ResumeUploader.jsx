@@ -99,7 +99,8 @@ const ResumeUploader = ({ onUploadComplete }) => {
         
         // Continue polling
         setTimeout(pollResumeProgress, 1000);
-      } else if (status.step === 'complete') {
+      } else if (status.step === 'complete' && !status.data?.file_info) {
+        // This is a regular resume upload, not a tailored resume
         setUploadStatus('success');
         setUploadProgress(100);
         

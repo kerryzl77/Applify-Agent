@@ -58,25 +58,28 @@ const ContentGenerator = () => {
         
         setResumeProgress(response.data);
 
-        // CRITICAL FIX: Backend returns step='complete', not status='completed'
-        if (response.data.step === 'complete' || response.data.status === 'completed') {
+        if (response.data.status === 'completed' || response.data.step === 'completed') {
           clearInterval(pollProgress);
           setResumeTaskId(null);
           setGenerating(false);
           
-          // Set file info for download
-          if (response.data.data?.file_info) {
-            console.log('File info received:', response.data.data.file_info);
-            setFileInfo(response.data.data.file_info);
-          } else {
-            console.warn('No file_info in response:', response.data);
+          // Extract file info from the response data
+          const responseData = response.data.data || response.data;
+          if (responseData?.file_info) {
+            console.log('Setting file info:', responseData.file_info);
+            setFileInfo(responseData.file_info);
           }
           
-          const recommendations = response.data.data?.recommendations || [];
-          setGeneratedContent(recommendations.join('\n\n'));
+          // Show recommendations if available
+          const recommendations = responseData?.recommendations || [];
+          if (recommendations.length > 0) {
+            setGeneratedContent(recommendations.join('\n\n'));
+          } else {
+            setGeneratedContent('Resume optimized successfully! Click download to get your tailored resume.');
+          }
           
           toast.success('Resume generated successfully!');
-        } else if (response.data.step === 'error' || response.data.status === 'error') {
+        } else if (response.data.status === 'error' || response.data.step === 'error') {
           clearInterval(pollProgress);
           setResumeTaskId(null);
           setGenerating(false);
@@ -84,7 +87,6 @@ const ContentGenerator = () => {
         }
       } catch (error) {
         console.error('Error polling progress:', error);
-        // Don't stop polling on network errors, might be temporary
       }
     }, 1000);
 
@@ -520,42 +522,35 @@ const ContentGenerator = () => {
                   <span>Copy</span>
                 </button>
                 
-                {/* Download buttons - show file download if available */}
+                {/* Download DOCX button */}
+                <button
+                  onClick={() => handleDownload(conversationType, 'docx')}
+                  className="btn btn-sm bg-blue-600 text-white hover:bg-blue-700 flex items-center space-x-1"
+                  title="Download as Word document"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>DOCX</span>
+                </button>
+                
+                {/* Download PDF button */}
                 {fileInfo ? (
-                  <>
-                    <button
-                      onClick={() => window.open(`/api/download/${fileInfo.filename}`, '_blank')}
-                      className="btn btn-sm bg-blue-600 text-white hover:bg-blue-700 flex items-center space-x-1"
-                      title={`Download ${fileInfo.filename}`}
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>Download {fileInfo.filename.endsWith('.pdf') ? 'PDF' : 'DOCX'}</span>
-                    </button>
-                    
-                    {/* PDF conversion button if it's a DOCX */}
-                    {fileInfo.filename.endsWith('.docx') && (
-                      <button
-                        onClick={handleDownloadPDF}
-                        className="btn btn-sm bg-red-600 text-white hover:bg-red-700 flex items-center space-x-1"
-                        title="Convert to PDF"
-                      >
-                        <FileText className="w-4 h-4" />
-                        <span>Convert to PDF</span>
-                      </button>
-                    )}
-                  </>
+                  <button
+                    onClick={handleDownloadPDF}
+                    className="btn btn-sm bg-red-600 text-white hover:bg-red-700 flex items-center space-x-1"
+                    title="Download as PDF"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>PDF</span>
+                  </button>
                 ) : (
-                  <>
-                    {/* Fallback text download */}
-                    <button
-                      onClick={() => handleDownload(conversationType, 'txt')}
-                      className="btn btn-sm bg-gray-600 text-white hover:bg-gray-700 flex items-center space-x-1"
-                      title="Download as text"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>Download TXT</span>
-                    </button>
-                  </>
+                  <button
+                    onClick={() => handleDownload(conversationType, 'pdf')}
+                    className="btn btn-sm bg-red-600 text-white hover:bg-red-700 flex items-center space-x-1"
+                    title="Download as PDF"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>PDF</span>
+                  </button>
                 )}
                 
                 <button

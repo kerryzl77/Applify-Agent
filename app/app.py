@@ -53,8 +53,11 @@ is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('H
 if is_production:
     app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
     app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-site for API calls
+    app.config['SESSION_COOKIE_DOMAIN'] = None  # Let Flask handle domain
     logging.info("Production mode: Enhanced security settings enabled")
+else:
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Dev environment
 
 # Initialize Redis for caching only, not sessions
 redis_manager = RedisManager()
