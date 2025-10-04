@@ -33,9 +33,14 @@ api.interceptors.response.use(
       // Server responded with error
       const { status, data } = error.response;
 
-      if (status === 401) {
-        // Unauthorized - redirect to login (session expired or not logged in)
-        window.location.href = '/login';
+      // Don't auto-redirect on 401 from /api/auth/check to prevent infinite loops
+      // The App.jsx component handles authentication checking gracefully
+      if (status === 401 && !error.config.url.includes('/api/auth/check')) {
+        // Only redirect to login for other 401 errors (session expired during use)
+        // And only if we're not already on login/register page
+        if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+          window.location.href = '/login';
+        }
       }
 
       return Promise.reject({
@@ -76,13 +81,18 @@ export const authAPI = {
     return response.data;
   },
 
+  check: async () => {
+    const response = await api.get('/api/auth/check');
+    return response.data;
+  },
+
   getProfile: async () => {
     const response = await api.get('/api/candidate-data');
     return response.data;
   },
 
   updateProfile: async (profileData) => {
-    const response = await api.put('/api/update-candidate-data', profileData);
+    const response = await api.post('/api/update-candidate-data', profileData);
     return response.data;
   },
 };
