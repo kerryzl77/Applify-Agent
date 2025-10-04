@@ -7,8 +7,8 @@ node_modules/
 client/node_modules/
 
 # Build outputs
-client/dist/
 client/build/
+# Note: client/dist/ is committed for Heroku deployment
 
 # Logs
 *.log
