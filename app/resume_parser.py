@@ -81,7 +81,8 @@ class ResumeParser:
                 "email": "Email address",
                 "phone": "Phone number with proper formatting",
                 "linkedin": "Full LinkedIn URL if available",
-                "github": "Full GitHub URL if available"
+                "github": "Full GitHub URL if available",
+                "location": "City, State/Country if available"
             }},
             "resume": {{
                 "summary": "Generate a compelling 2-3 sentence professional summary based on the resume content if not explicitly provided",

@@ -160,7 +160,12 @@ class EnhancedResumeProcessor:
                 logger.info(f"Updated personal_info.{key} = {value} for user {user_id}")
         
         # Update resume data (replace with new data)
-        merged['resume'] = new_data.get('resume', {})
+        resume_fragment = new_data.get('resume', {})
+        merged_resume = merged.get('resume', {})
+
+        if resume_fragment:
+            merged_resume.update(resume_fragment)
+        merged['resume'] = merged_resume
         
         # Replace story bank completely with new resume-generated stories
         merged['story_bank'] = new_data.get('story_bank', [])

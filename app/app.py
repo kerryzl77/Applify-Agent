@@ -418,8 +418,36 @@ def get_candidate_data():
 @login_required
 def update_candidate_data():
     """Update candidate data and invalidate cache."""
-    data = request.json
-    db_manager.update_candidate_data(data, session['user_id'])
+    incoming_data = request.json or {}
+
+    # Preserve existing resume/profile details if request omits them
+    existing_data = db_manager.get_candidate_data(session['user_id']) or {}
+
+    merged_data = existing_data.copy()
+
+    if 'personal_info' in incoming_data:
+        merged_data['personal_info'] = {
+            **existing_data.get('personal_info', {}),
+            **incoming_data['personal_info']
+        }
+
+    if 'resume' in incoming_data:
+        existing_resume = existing_data.get('resume', {})
+        new_resume = incoming_data.get('resume') or {}
+        merged_data['resume'] = {**existing_resume, **new_resume}
+    elif 'resume' not in merged_data:
+        merged_data['resume'] = existing_data.get('resume', {})
+
+    for key in ['story_bank', 'templates', 'generated_content']:
+        if key in incoming_data:
+            merged_data[key] = incoming_data[key]
+
+    # Include any other top-level keys provided in the payload
+    for key, value in incoming_data.items():
+        if key not in merged_data and key not in ['personal_info', 'resume', 'story_bank', 'templates', 'generated_content']:
+            merged_data[key] = value
+
+    db_manager.update_candidate_data(merged_data, session['user_id'])
     
     # Invalidate user cache when profile is updated
     redis_manager.invalidate_user_cache(session['user_id'])

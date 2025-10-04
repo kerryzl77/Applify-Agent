@@ -286,16 +286,30 @@ class FastPDFGenerator:
         story = []
         story.append(Paragraph("TECHNICAL SKILLS", self.styles['SectionHeader']))
         
-        # Organize skills into categories
-        categories = [
-            ('Technical Skills', skills_data.get('technical_skills', [])),
-            ('Tools & Technologies', skills_data.get('tools_technologies', []))
-        ]
-        
-        for category_name, skill_list in categories:
-            if skill_list:
-                skills_text = f"<b>{category_name}:</b> {', '.join(skill_list[:8])}"  # Limit to 8 per category
-                story.append(Paragraph(skills_text, self.styles['Skills']))
+        combined_skills = []
+
+        if isinstance(skills_data, dict):
+            for value in skills_data.values():
+                if isinstance(value, list):
+                    combined_skills.extend(value)
+                elif isinstance(value, str):
+                    combined_skills.append(value)
+        elif isinstance(skills_data, list):
+            combined_skills = skills_data
+        elif isinstance(skills_data, str):
+            combined_skills = [skills_data]
+
+        if combined_skills:
+            unique_skills = []
+            seen = set()
+            for skill in combined_skills:
+                cleaned = skill.strip()
+                if cleaned and cleaned.lower() not in seen:
+                    unique_skills.append(cleaned)
+                    seen.add(cleaned.lower())
+
+            skills_text = f"<b>Technical Skills:</b> {', '.join(unique_skills)}"
+            story.append(Paragraph(skills_text, self.styles['Skills']))
         
         story.append(Spacer(1, 6))
         return story
