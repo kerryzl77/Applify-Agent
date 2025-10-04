@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash, send_from_directory, Response
+from flask_cors import CORS
 import os
 import sys
 import datetime
@@ -26,6 +27,9 @@ from app.cached_llm import CachedLLMGenerator
 from app.output_formatter import OutputFormatter
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
+
+# CORS configuration for React frontend
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # Simple session configuration - use built-in Flask sessions
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))

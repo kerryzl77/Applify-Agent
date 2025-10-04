@@ -1,1 +1,1 @@
-web: gunicorn app.app:app --timeout 180 --workers 2 --threads 2 --max-requests 1000
+web: node server.js & gunicorn app.app:app --timeout 180 --workers 2 --threads 2 --max-requests 1000 --bind 0.0.0.0:5001

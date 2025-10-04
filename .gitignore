@@ -1,3 +1,33 @@
 .env
 .history/
 .assets/
+
+# Dependencies
+node_modules/
+client/node_modules/
+
+# Build outputs
+client/dist/
+client/build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+client/.env.local
+client/.env.development.local
+client/.env.test.local
+client/.env.production.local
