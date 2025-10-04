@@ -34,8 +34,7 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
 
 app = Flask(__name__,
             template_folder=TEMPLATES_DIR,
-            static_folder=CLIENT_DIST,
-            static_url_path='')
+            static_folder=None)  # Disable Flask's static file handling
 
 # CORS configuration for React frontend
 # In production, specify allowed origins instead of "*"
@@ -896,20 +895,21 @@ def serve_react(path):
     if path.startswith('api/'):
         return jsonify({'error': 'Not found'}), 404
 
-    # Serve static files
-    if path and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
+    # Serve static files from client/dist
+    file_path = os.path.join(CLIENT_DIST, path)
+    if path and os.path.exists(file_path) and os.path.isfile(file_path):
+        return send_from_directory(CLIENT_DIST, path)
 
     # Serve index.html for all other routes (React Router)
-    index_path = os.path.join(app.static_folder, 'index.html')
+    index_path = os.path.join(CLIENT_DIST, 'index.html')
     if os.path.exists(index_path):
-        return send_from_directory(app.static_folder, 'index.html')
+        return send_from_directory(CLIENT_DIST, 'index.html')
     else:
         logging.error(f"index.html not found at {index_path}")
-        logging.error(f"static_folder: {app.static_folder}")
+        logging.error(f"CLIENT_DIST: {CLIENT_DIST}")
         logging.error(f"BASE_DIR: {BASE_DIR}")
-        logging.error(f"Files in static_folder: {os.listdir(app.static_folder) if os.path.exists(app.static_folder) else 'Directory does not exist'}")
-        return jsonify({'error': 'Frontend not found', 'static_folder': app.static_folder}), 500
+        logging.error(f"Files in CLIENT_DIST: {os.listdir(CLIENT_DIST) if os.path.exists(CLIENT_DIST) else 'Directory does not exist'}")
+        return jsonify({'error': 'Frontend not found', 'client_dist': CLIENT_DIST}), 500
 
 if __name__ == '__main__':
     import os
