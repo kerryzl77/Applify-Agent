@@ -153,17 +153,11 @@ class EnhancedResumeProcessor:
             'generated_content': current_data.get('generated_content', [])
         }
         
-        new_personal_info = new_data.get('personal_info', {})
-        for key in ['name', 'email', 'phone', 'linkedin', 'github', 'location', 'website']:
-            existing_value = merged['personal_info'].get(key)
-            new_value = new_personal_info.get(key)
-
-            if new_value and new_value != existing_value:
-                merged['personal_info'][key] = new_value
-                logger.info(f"Updated personal_info.{key} to new resume value for user {user_id}")
-            elif existing_value and not new_value:
-                # Preserve existing manual value
-                merged['personal_info'][key] = existing_value
+        # Merge personal info (only update empty fields)
+        for key, value in new_data.get('personal_info', {}).items():
+            if value and (not merged['personal_info'].get(key) or merged['personal_info'].get(key) == '' or merged['personal_info'].get(key) is None):
+                merged['personal_info'][key] = value
+                logger.info(f"Updated personal_info.{key} = {value} for user {user_id}")
         
         # Update resume data (replace with new data)
         merged['resume'] = new_data.get('resume', {})

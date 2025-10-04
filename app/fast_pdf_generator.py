@@ -330,10 +330,9 @@ class FastPDFGenerator:
                 if bullet.strip():
                     # Clean bullet point
                     clean_bullet = bullet.strip()
-            clean_bullet = re.sub(r'^[\u2022•\-*]+\s*', '', clean_bullet)
-            clean_bullet = re.sub(r'^\d+[\.)]\s*', '', clean_bullet)
-            if clean_bullet:
-                story.append(Paragraph(clean_bullet, self.styles['BulletPoint'], bulletText='•'))
+                    if not clean_bullet.startswith('•'):
+                        clean_bullet = f"• {clean_bullet}"
+                    story.append(Paragraph(clean_bullet, self.styles['BulletPoint']))
             
             # Add space between jobs (except last)
             if i < len(experiences) - 1:
