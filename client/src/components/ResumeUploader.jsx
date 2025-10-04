@@ -1,17 +1,19 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, File, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import useStore from '../store/useStore';
 import { resumeAPI } from '../services/api';
 import { formatFileSize } from '../utils/helpers';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 const ResumeUploader = ({ onUploadComplete }) => {
-  const { setResume, setResumeUploading } = useStore();
+  const { setResume, setResumeUploading, setProfile } = useStore();
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStatus, setUploadStatus] = useState('idle'); // idle, uploading, success, error
+  const [uploadStatus, setUploadStatus] = useState('idle'); // idle, uploading, processing, success, error
+  const [processingMessage, setProcessingMessage] = useState('');
 
   const allowedTypes = [
     'application/pdf',
@@ -80,6 +82,108 @@ const ResumeUploader = ({ onUploadComplete }) => {
     }
   };
 
+  const pollResumeProgress = async () => {
+    try {
+      const response = await axios.get('/api/resume-progress', {
+        withCredentials: true,
+      });
+
+      const status = response.data;
+      
+      if (status.step === 'queued' || status.step === 'initializing' || status.step === 'analyzing' || 
+          status.step === 'extracting' || status.step === 'text_extracted' || status.step === 'ai_parsing' || 
+          status.step === 'merging' || status.step === 'saving' || status.step === 'cache_hit') {
+        setUploadStatus('processing');
+        setProcessingMessage(status.message || 'Processing resume...');
+        setUploadProgress(status.progress || 50);
+        
+        // Continue polling
+        setTimeout(pollResumeProgress, 1000);
+      } else if (status.step === 'complete') {
+        setUploadStatus('success');
+        setUploadProgress(100);
+        
+        // CRITICAL: Fetch the complete updated profile data from backend
+        try {
+          const profileResponse = await axios.get('/api/candidate-data', {
+            withCredentials: true,
+          });
+          
+          const profileData = profileResponse.data;
+          
+          // Store complete profile data in Zustand
+          setProfile(profileData);
+          
+          // Store resume flag to indicate resume is uploaded
+          setResume({ 
+            uploaded: true,
+            filename: status.data?.original_filename || 'resume.pdf',
+            processed_at: status.data?.processed_at,
+            cached: status.data?.cached || false
+          });
+          
+          // Log for debugging
+          console.log('Profile data fetched and stored:', profileData);
+          
+          toast.success('Resume processed and profile updated successfully!');
+        } catch (profileError) {
+          console.error('Error fetching profile data:', profileError);
+          toast.error('Resume processed but failed to fetch profile data');
+        }
+        
+        if (onUploadComplete) {
+          onUploadComplete(status);
+        }
+        
+        // Reset after success
+        setTimeout(() => {
+          setFile(null);
+          setUploadProgress(0);
+          setUploadStatus('idle');
+          setResumeUploading(false);
+        }, 2000);
+      } else if (status.step === 'error') {
+        setUploadStatus('error');
+        toast.error(status.message || 'Resume processing failed');
+        setTimeout(() => {
+          setUploadStatus('idle');
+          setUploadProgress(0);
+          setResumeUploading(false);
+        }, 2000);
+      }
+    } catch (error) {
+      // If no status found, try to fetch profile anyway (might be already complete)
+      if (error.response?.status === 404) {
+        try {
+          const profileResponse = await axios.get('/api/candidate-data', {
+            withCredentials: true,
+          });
+          
+          const profileData = profileResponse.data;
+          
+          if (profileData && profileData.resume) {
+            setProfile(profileData);
+            setResume({ uploaded: true });
+            setUploadStatus('success');
+            setUploadProgress(100);
+            toast.success('Resume already processed!');
+            
+            setTimeout(() => {
+              setFile(null);
+              setUploadProgress(0);
+              setUploadStatus('idle');
+              setResumeUploading(false);
+            }, 2000);
+          }
+        } catch (profileError) {
+          console.error('Error fetching profile:', profileError);
+        }
+      } else {
+        console.error('Error polling resume progress:', error);
+      }
+    }
+  };
+
   const handleUpload = async () => {
     if (!file) return;
 
@@ -92,28 +196,31 @@ const ResumeUploader = ({ onUploadComplete }) => {
         setUploadProgress(progress);
       });
 
-      setUploadStatus('success');
-      setResume(response.resume);
-      toast.success('Resume uploaded successfully!');
-
-      if (onUploadComplete) {
-        onUploadComplete(response.resume);
-      }
-
-      // Reset after success
-      setTimeout(() => {
-        setFile(null);
-        setUploadProgress(0);
+      // Backend always returns 'queued' status for background processing
+      // Start polling immediately to track progress
+      if (response.status === 'queued') {
+        setUploadStatus('processing');
+        setProcessingMessage('Resume uploaded, starting processing...');
+        setUploadProgress(10);
+        
+        // Start polling after a short delay to allow backend to initialize
+        setTimeout(pollResumeProgress, 1000);
+      } else {
+        // Handle unexpected response format
+        console.warn('Unexpected upload response:', response);
+        toast.error('Unexpected response from server');
         setUploadStatus('idle');
-      }, 2000);
+        setResumeUploading(false);
+      }
     } catch (error) {
       setUploadStatus('error');
-      toast.error(error.message || 'Failed to upload resume');
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload resume';
+      toast.error(errorMessage);
+      console.error('Upload error:', error);
       setTimeout(() => {
         setUploadStatus('idle');
         setUploadProgress(0);
       }, 2000);
-    } finally {
       setResumeUploading(false);
     }
   };
@@ -210,10 +317,12 @@ const ResumeUploader = ({ onUploadComplete }) => {
             </div>
 
             {/* Upload progress */}
-            {uploadStatus === 'uploading' && (
+            {(uploadStatus === 'uploading' || uploadStatus === 'processing') && (
               <div className="space-y-2 mb-4">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Uploading...</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {uploadStatus === 'uploading' ? 'Uploading...' : processingMessage}
+                  </span>
                   <span className="text-gray-900 dark:text-gray-100 font-medium">
                     {uploadProgress}%
                   </span>
@@ -257,13 +366,15 @@ const ResumeUploader = ({ onUploadComplete }) => {
               </motion.button>
             )}
 
-            {uploadStatus === 'uploading' && (
+            {(uploadStatus === 'uploading' || uploadStatus === 'processing') && (
               <button
                 disabled
                 className="w-full btn btn-primary flex items-center justify-center space-x-2 opacity-50 cursor-not-allowed"
               >
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Uploading...</span>
+                <span>
+                  {uploadStatus === 'uploading' ? 'Uploading...' : 'Processing...'}
+                </span>
               </button>
             )}
           </motion.div>

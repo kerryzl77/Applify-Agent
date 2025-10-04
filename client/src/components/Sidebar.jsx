@@ -55,8 +55,10 @@ const Sidebar = () => {
   const handleNewChat = (type) => {
     const titles = {
       cover_letter: 'New Cover Letter',
-      email: 'New Email',
-      resume: 'Resume Review',
+      connection_email: 'New Connection Email',
+      hiring_manager_email: 'New Hiring Manager Email',
+      linkedin_message: 'New LinkedIn Message',
+      resume: 'Tailor Resume',
     };
     createConversation(type, titles[type]);
     navigate('/dashboard');
@@ -64,21 +66,28 @@ const Sidebar = () => {
 
   const conversationTypes = [
     { id: 'cover_letter', label: 'Cover Letter', icon: FileText, color: 'text-blue-600' },
-    { id: 'email', label: 'Email', icon: Mail, color: 'text-green-600' },
-    { id: 'resume', label: 'Resume', icon: User, color: 'text-purple-600' },
+    { id: 'connection_email', label: 'Connection Email', icon: Mail, color: 'text-green-600' },
+    { id: 'hiring_manager_email', label: 'Hiring Manager Email', icon: Mail, color: 'text-orange-600' },
+    { id: 'linkedin_message', label: 'LinkedIn Message', icon: MessageSquare, color: 'text-indigo-600' },
+    { id: 'resume', label: 'Tailor Resume', icon: User, color: 'text-purple-600' },
   ];
 
   return (
     <>
-      {/* Mobile menu button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg"
-      >
-        {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
+      {/* Toggle button - always visible */}
+      {!isOpen && (
+        <motion.button
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={() => setIsOpen(true)}
+          className="fixed top-4 left-4 z-50 p-3 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:shadow-xl transition-all hover:scale-110"
+          title="Open menu"
+        >
+          <Menu className="w-5 h-5" />
+        </motion.button>
+      )}
 
-      {/* Backdrop for mobile */}
+      {/* Backdrop for mobile/overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -92,12 +101,12 @@ const Sidebar = () => {
       </AnimatePresence>
 
       {/* Sidebar */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {isOpen && (
           <motion.aside
-            initial={{ x: -300 }}
+            initial={{ x: -320 }}
             animate={{ x: 0 }}
-            exit={{ x: -300 }}
+            exit={{ x: -320 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="fixed lg:sticky top-0 left-0 h-screen w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-40 flex flex-col"
           >
@@ -110,29 +119,41 @@ const Sidebar = () => {
                     Applify
                   </h1>
                 </div>
-                <button
-                  onClick={toggleTheme}
-                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  aria-label="Toggle theme"
-                >
-                  {theme === 'light' ? (
-                    <Moon className="w-5 h-5" />
-                  ) : (
-                    <Sun className="w-5 h-5" />
-                  )}
-                </button>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={toggleTheme}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    aria-label="Toggle theme"
+                  >
+                    {theme === 'light' ? (
+                      <Moon className="w-5 h-5" />
+                    ) : (
+                      <Sun className="w-5 h-5" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    aria-label="Close menu"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
-              {/* New chat buttons */}
-              <div className="space-y-2">
+              {/* New generation buttons */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-2 mb-1">
+                  Generate Content
+                </p>
                 {conversationTypes.map((type) => (
                   <button
                     key={type.id}
                     onClick={() => handleNewChat(type.id)}
-                    className="w-full flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 transition-all duration-200 group"
+                    className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 group"
                   >
-                    <PlusCircle className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
-                    <span className="text-sm font-medium">{type.label}</span>
+                    <type.icon className={`w-4 h-4 ${type.color} group-hover:scale-110 transition-transform duration-200`} />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">{type.label}</span>
                   </button>
                 ))}
               </div>

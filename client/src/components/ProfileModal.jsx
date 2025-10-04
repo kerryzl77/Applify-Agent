@@ -25,18 +25,39 @@ const ProfileModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (profile) {
+      // Handle structured profile data from backend (personal_info, resume, etc.)
+      const personalInfo = profile.personal_info || {};
+      const resumeData = profile.resume || {};
+      
+      // Convert arrays to comma-separated strings for display
+      const skillsStr = Array.isArray(resumeData.skills) 
+        ? resumeData.skills.join(', ') 
+        : (resumeData.skills || '');
+      
+      const experienceStr = Array.isArray(resumeData.experience)
+        ? resumeData.experience.map(exp => 
+            `${exp.title} at ${exp.company} (${exp.start_date} - ${exp.end_date}): ${exp.description}`
+          ).join('\n\n')
+        : (resumeData.experience || '');
+      
+      const educationStr = Array.isArray(resumeData.education)
+        ? resumeData.education.map(edu => 
+            `${edu.degree} at ${edu.institution} (${edu.graduation_date})`
+          ).join('\n\n')
+        : (resumeData.education || '');
+      
       setFormData({
-        name: profile.name || user?.name || '',
-        email: profile.email || user?.email || '',
-        phone: profile.phone || '',
-        location: profile.location || '',
-        linkedin: profile.linkedin || '',
-        github: profile.github || '',
-        website: profile.website || '',
-        bio: profile.bio || '',
-        skills: profile.skills || '',
-        experience: profile.experience || '',
-        education: profile.education || '',
+        name: personalInfo.name || user?.name || '',
+        email: personalInfo.email || user?.email || '',
+        phone: personalInfo.phone || '',
+        location: '', // Not in structured data
+        linkedin: personalInfo.linkedin || '',
+        github: personalInfo.github || '',
+        website: personalInfo.website || '',
+        bio: resumeData.summary || '',
+        skills: skillsStr,
+        experience: experienceStr,
+        education: educationStr,
       });
     } else if (user) {
       setFormData((prev) => ({
