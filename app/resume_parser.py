@@ -1,4 +1,5 @@
 import os
+import re
 import PyPDF2
 from docx import Document
 import magic

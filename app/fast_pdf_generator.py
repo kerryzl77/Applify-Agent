@@ -84,7 +84,7 @@ class FastPDFGenerator:
         styles.add(ParagraphStyle(
             name='SectionHeader',
             parent=styles['Heading2'],
-            fontSize=12,
+            fontSize=11,
             spaceAfter=6,
             spaceBefore=8,
             fontName='Times-Bold',
