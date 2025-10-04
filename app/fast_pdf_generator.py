@@ -65,10 +65,10 @@ class FastPDFGenerator:
         styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=styles['Heading1'],
-            fontSize=12,
-            spaceAfter=6,
+            fontSize=14,
+            spaceAfter=4,
             alignment=TA_CENTER,
-            fontName='Times-Roman',
+            fontName='Times-Bold',
             textColor=black
         ))
         
@@ -77,7 +77,7 @@ class FastPDFGenerator:
             parent=styles['Normal'],
             fontSize=11,
             alignment=TA_CENTER,
-            spaceAfter=12,
+            spaceAfter=6,
             fontName='Times-Roman'
         ))
         
@@ -255,6 +255,7 @@ class FastPDFGenerator:
         # Name
         name = personal_info.get('name', 'Your Name')
         story.append(Paragraph(name, self.styles['CustomTitle']))
+        story.append(Spacer(1, 2))
         
         # Contact info on one line
         contact_parts = []
@@ -329,9 +330,10 @@ class FastPDFGenerator:
                 if bullet.strip():
                     # Clean bullet point
                     clean_bullet = bullet.strip()
-                    if not clean_bullet.startswith('•'):
-                        clean_bullet = f"• {clean_bullet}"
-                    story.append(Paragraph(clean_bullet, self.styles['BulletPoint']))
+            clean_bullet = re.sub(r'^[\u2022•\-*]+\s*', '', clean_bullet)
+            clean_bullet = re.sub(r'^\d+[\.)]\s*', '', clean_bullet)
+            if clean_bullet:
+                story.append(Paragraph(clean_bullet, self.styles['BulletPoint'], bulletText='•'))
             
             # Add space between jobs (except last)
             if i < len(experiences) - 1:
