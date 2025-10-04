@@ -12,25 +12,23 @@ const useStore = create(
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setToken: (token) => set({ token }),
 
-      login: (user, token) => set({
-        user,
-        token,
-        isAuthenticated: true,
-        profile: null,
-        resume: null,
-        conversations: [],
-        currentConversationId: null,
-      }),
+      login: (user, token) => {
+        set({
+          user,
+          token,
+          isAuthenticated: true,
+        });
+        get().resetProfileState();
+      },
 
-      logout: () => set({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        profile: null,
-        resume: null,
-        conversations: [],
-        currentConversationId: null
-      }),
+      logout: () => {
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+        });
+        get().resetProfileState();
+      },
 
       // Theme state
       theme: 'light',
@@ -145,6 +143,13 @@ const useStore = create(
 
       setResume: (resume) => set({ resume }),
       setResumeUploading: (uploading) => set({ resumeUploading: uploading }),
+
+      resetProfileState: () => set({
+        profile: null,
+        resume: null,
+        conversations: [],
+        currentConversationId: null,
+      }),
     }),
     {
       name: 'applify-storage',
