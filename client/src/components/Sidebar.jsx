@@ -7,8 +7,6 @@ import {
   FileText,
   Mail,
   User,
-  Moon,
-  Sun,
   LogOut,
   Menu,
   X,
@@ -27,8 +25,6 @@ const Sidebar = () => {
 
   const {
     user,
-    theme,
-    toggleTheme,
     logout,
     conversations,
     currentConversationId,
@@ -119,26 +115,14 @@ const Sidebar = () => {
                     Applify
                   </h1>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <button
-                    onClick={toggleTheme}
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                    aria-label="Toggle theme"
-                  >
-                    {theme === 'light' ? (
-                      <Moon className="w-5 h-5" />
-                    ) : (
-                      <Sun className="w-5 h-5" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setIsOpen(false)}
-                    className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                    aria-label="Close menu"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  aria-label="Collapse sidebar"
+                  title="Collapse sidebar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
               {/* New generation buttons */}

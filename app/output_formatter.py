@@ -2,7 +2,7 @@ import os
 import logging
 from docx import Document
 from docx.shared import Pt, Inches
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 import datetime
 import platform
 import tempfile
@@ -270,7 +270,14 @@ class OutputFormatter:
                 if paragraph.strip():
                     p = doc.add_paragraph()
                     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                    p.add_run(paragraph.strip())
+
+                    # Set font to Times New Roman 12pt
+                    run = p.add_run(paragraph.strip())
+                    run.font.name = 'Times New Roman'
+                    run.font.size = Pt(12)
+
+                    # Set 1.5 line spacing
+                    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
             
             # # Add signature space
             # doc.add_paragraph()  # Add space
@@ -283,19 +290,8 @@ class OutputFormatter:
     
     def _format_email_docx(self, doc, content, job_data, candidate_data, content_type):
         """Format an email in DOCX."""
-        # Add subject line for emails
-        if content_type == 'connection_email':
-            subject = f"Connection Request - {candidate_data['personal_info']['name']}"
-        elif content_type == 'hiring_manager_email':
-            subject = f"Application for {job_data['job_title']} Position - {candidate_data['personal_info']['name']}"
-        
-        subject_line = doc.add_paragraph()
-        subject_line.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        subject_line.add_run('Subject: ').bold = True
-        subject_line.add_run(subject)
-        
-        # Add content
-        doc.add_paragraph()  # Add space
+        # LLM already generates subject line, so just add the content
+        # Split content into paragraphs and add them
         for paragraph in content.split('\n'):
             if paragraph.strip():
                 p = doc.add_paragraph()

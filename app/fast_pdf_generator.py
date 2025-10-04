@@ -140,7 +140,36 @@ class FastPDFGenerator:
             alignment=TA_JUSTIFY,
             leading=13
         ))
-        
+
+        # Cover Letter specific styles
+        styles.add(ParagraphStyle(
+            name='CoverLetterBody',
+            parent=styles['Normal'],
+            fontSize=12,
+            fontName='Times-Roman',
+            spaceAfter=14,  # 1.5 line spacing equivalent
+            alignment=TA_LEFT,
+            leading=18  # 1.5 line spacing (12pt * 1.5 = 18pt)
+        ))
+
+        styles.add(ParagraphStyle(
+            name='CoverLetterName',
+            parent=styles['Normal'],
+            fontSize=12,
+            fontName='Times-Bold',
+            spaceAfter=2,
+            alignment=TA_LEFT
+        ))
+
+        styles.add(ParagraphStyle(
+            name='CoverLetterContact',
+            parent=styles['Normal'],
+            fontSize=11,
+            fontName='Times-Roman',
+            spaceAfter=12,
+            alignment=TA_LEFT
+        ))
+
         return styles
     
     def generate_resume_pdf(self, resume_data, candidate_data, job_title="Position"):
@@ -416,7 +445,7 @@ class FastPDFGenerator:
 
         if has_real_info:
             if not is_placeholder(name, 'name'):
-                story.append(Paragraph(name, self.styles['Normal']))
+                story.append(Paragraph(name, self.styles['CoverLetterName']))
             if not is_placeholder(email, 'email'):
                 header_parts.append(email)
             if not is_placeholder(phone, 'phone'):
@@ -424,15 +453,15 @@ class FastPDFGenerator:
             if not is_placeholder(location, 'location'):
                 header_parts.append(location)
             if header_parts:
-                story.append(Paragraph(' - '.join(header_parts), self.styles['Normal']))
-            story.append(Spacer(1, 12))
+                story.append(Paragraph(' - '.join(header_parts), self.styles['CoverLetterContact']))
+            story.append(Spacer(1, 18))  # Extra space after header
 
-        # Main content - split by single newlines to match DOCX
+        # Main content - use proper cover letter formatting
         paragraphs = content.split('\n')
         for para in paragraphs:
             if para.strip():
-                story.append(Paragraph(para.strip(), self.styles['Normal']))
-                story.append(Spacer(1, 6))
+                # Use CoverLetterBody style for proper Times New Roman 12pt with 1.5 spacing
+                story.append(Paragraph(para.strip(), self.styles['CoverLetterBody']))
         
         return story
     

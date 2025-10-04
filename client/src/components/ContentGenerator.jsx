@@ -62,14 +62,15 @@ const ContentGenerator = () => {
           clearInterval(pollProgress);
           setResumeTaskId(null);
           setGenerating(false);
-          
+          setResumeProgress(null); // Clear progress to show download buttons
+
           // Extract file info from the response data
           const responseData = response.data.data || response.data;
           if (responseData?.file_info) {
             console.log('Setting file info:', responseData.file_info);
             setFileInfo(responseData.file_info);
           }
-          
+
           // Show recommendations if available
           const recommendations = responseData?.recommendations || [];
           if (recommendations.length > 0) {
@@ -77,7 +78,7 @@ const ContentGenerator = () => {
           } else {
             setGeneratedContent('Resume optimized successfully! Click download to get your tailored resume.');
           }
-          
+
           toast.success('Resume generated successfully!');
         } else if (response.data.status === 'error' || response.data.step === 'error') {
           clearInterval(pollProgress);
@@ -338,7 +339,7 @@ const ContentGenerator = () => {
                   type="text"
                   value={formData.person_name}
                   onChange={(e) => setFormData({ ...formData, person_name: e.target.value })}
-                  placeholder="e.g., Tony Xu"
+                  placeholder="First Last"
                   className="input w-full"
                   disabled={isGenerating}
                 />
@@ -353,7 +354,7 @@ const ContentGenerator = () => {
                   type="text"
                   value={formData.person_position}
                   onChange={(e) => setFormData({ ...formData, person_position: e.target.value })}
-                  placeholder="e.g., CEO at DoorDash"
+                  placeholder="Role at Company"
                   className="input w-full"
                   disabled={isGenerating}
                 />
@@ -369,11 +370,11 @@ const ContentGenerator = () => {
                   type="url"
                   value={formData.linkedin_url}
                   onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
-                  placeholder="https://www.linkedin.com/in/xutony/"
+                  placeholder="https://linkedin.com/in/username"
                   className="input w-full"
                   disabled={isGenerating}
                 />
-                <p className="mt-1 text-xs text-gray-500">Optional: Enhance message with LinkedIn profile data</p>
+                <p className="mt-1 text-xs text-gray-500">Optional: Enhance with LinkedIn data</p>
               </div>
             </div>
           ) : (
