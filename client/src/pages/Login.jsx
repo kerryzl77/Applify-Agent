@@ -41,7 +41,7 @@ const Login = () => {
         // Flask session-based auth - set user to trigger isAuthenticated
         setUser({ email: formData.email, user_id: response.user_id });
         toast.success(response.message || 'Welcome back!');
-        navigate('/dashboard');
+        window.location.href = '/dashboard';
       } else {
         throw new Error('Invalid response from server');
       }
