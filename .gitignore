@@ -23,7 +23,7 @@ package-lock.json.bak
 # Build outputs - commit client/dist for Heroku
 client/build/
 *.egg-info/
-dist/
+dist/ - COMMENTED OUT: client/dist must be committed for Heroku
 build/
 
 # Logs
