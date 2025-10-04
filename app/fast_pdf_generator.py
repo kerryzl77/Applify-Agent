@@ -89,8 +89,9 @@ class FastPDFGenerator:
             spaceBefore=6,
             fontName='Times-Bold',
             textColor=black,
-            borderWidth=0,
-            borderPadding=0
+            borderWidth=1,
+            borderColor=black,
+            borderPadding=1
         ))
         
         styles.add(ParagraphStyle(
