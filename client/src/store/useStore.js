@@ -9,7 +9,25 @@ const useStore = create(
       token: null,
       isAuthenticated: false,
 
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setUser: (user) => set((state) => {
+        const prevUserId = state.user?.user_id;
+        const next = {
+          user,
+          isAuthenticated: !!user,
+        };
+
+        const incomingId = user?.user_id;
+        const shouldReset = (!state.user && !!user) || (incomingId && incomingId !== prevUserId) || !user;
+
+        if (shouldReset) {
+          next.profile = null;
+          next.resume = null;
+          next.conversations = [];
+          next.currentConversationId = null;
+        }
+
+        return next;
+      }),
       setToken: (token) => set({ token }),
 
       login: (user, token) => {
