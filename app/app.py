@@ -32,11 +32,23 @@ app = Flask(__name__,
             static_url_path='')
 
 # CORS configuration for React frontend
-CORS(app, supports_credentials=True, origins="*")
+# In production, specify allowed origins instead of "*"
+allowed_origins = os.environ.get('ALLOWED_ORIGINS', '*')
+if allowed_origins != '*':
+    allowed_origins = [origin.strip() for origin in allowed_origins.split(',')]
+CORS(app, supports_credentials=True, origins=allowed_origins)
 
 # Simple session configuration - use built-in Flask sessions
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 app.permanent_session_lifetime = datetime.timedelta(days=1)
+
+# Security settings for production
+is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('HEROKU_APP_NAME')
+if is_production:
+    app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
+    app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+    logging.info("Production mode: Enhanced security settings enabled")
 
 # Initialize Redis for caching only, not sessions
 redis_manager = RedisManager()

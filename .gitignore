@@ -13,13 +13,18 @@ venv/
 env/
 ENV/
 .venv
+*.pyc
 
 # Dependencies
 node_modules/
 client/node_modules/
+package-lock.json.bak
 
 # Build outputs - commit client/dist for Heroku
 client/build/
+*.egg-info/
+dist/
+build/
 
 # Logs
 *.log
@@ -27,25 +32,56 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pip-log.txt
+celery*.log
 
-# IDE
+# IDE - LOCAL ONLY
 .vscode/
 .idea/
 *.swp
 *.swo
 .history/
+*.sublime-*
+.vscode-test/
 
 # OS
 .DS_Store
 Thumbs.db
 .assets/
+*.bak
+*~
 
 # Testing
 .coverage
 htmlcov/
 .pytest_cache/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
-# Database
+# Database - keep schema/migrations, ignore data
 *.db
 *.sqlite
 *.sqlite3
+database/users.db
+
+# Generated/Temp files
+output/*
+!output/.gitkeep
+uploads/*
+!uploads/.gitkeep
+temp/
+*.tmp
+*.temp
+
+# Security - NEVER commit these
+*.pem
+*.key
+*.cert
+*.p12
+secrets.yaml
+credentials.json
+
+# Heroku/Production
+.env.production
+heroku-deploy.log

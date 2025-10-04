@@ -11,15 +11,13 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 seconds
+  withCredentials: true, // Enable sending cookies for session management
 });
 
-// Request interceptor to add auth token
+// Request interceptor (no token needed - using Flask sessions)
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // No need to add Authorization header - using Flask sessions with cookies
     return config;
   },
   (error) => {
@@ -36,8 +34,7 @@ api.interceptors.response.use(
       const { status, data } = error.response;
 
       if (status === 401) {
-        // Unauthorized - clear local storage and redirect to login
-        localStorage.removeItem('token');
+        // Unauthorized - redirect to login (session expired or not logged in)
         window.location.href = '/login';
       }
 
@@ -65,27 +62,27 @@ api.interceptors.response.use(
 // Authentication endpoints
 export const authAPI = {
   register: async (userData) => {
-    const response = await api.post('/auth/register', userData);
+    const response = await api.post('/api/register', userData);
     return response.data;
   },
 
   login: async (credentials) => {
-    const response = await api.post('/auth/login', credentials);
+    const response = await api.post('/api/login', credentials);
     return response.data;
   },
 
   logout: async () => {
-    const response = await api.post('/auth/logout');
+    const response = await api.post('/api/logout');
     return response.data;
   },
 
   getProfile: async () => {
-    const response = await api.get('/auth/profile');
+    const response = await api.get('/api/candidate-data');
     return response.data;
   },
 
   updateProfile: async (profileData) => {
-    const response = await api.put('/auth/profile', profileData);
+    const response = await api.put('/api/update-candidate-data', profileData);
     return response.data;
   },
 };
@@ -93,17 +90,17 @@ export const authAPI = {
 // Profile management endpoints
 export const profileAPI = {
   get: async () => {
-    const response = await api.get('/profile');
+    const response = await api.get('/api/candidate-data');
     return response.data;
   },
 
   update: async (profileData) => {
-    const response = await api.put('/profile', profileData);
+    const response = await api.post('/api/update-candidate-data', profileData);
     return response.data;
   },
 
   delete: async () => {
-    const response = await api.delete('/profile');
+    const response = await api.delete('/api/candidate-data');
     return response.data;
   },
 };
@@ -114,7 +111,7 @@ export const resumeAPI = {
     const formData = new FormData();
     formData.append('resume', file);
 
-    const response = await api.post('/resume/upload', formData, {
+    const response = await api.post('/api/upload-resume', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -132,12 +129,12 @@ export const resumeAPI = {
   },
 
   get: async () => {
-    const response = await api.get('/resume');
+    const response = await api.get('/api/candidate-data');
     return response.data;
   },
 
   delete: async () => {
-    const response = await api.delete('/resume');
+    const response = await api.delete('/api/candidate-data');
     return response.data;
   },
 };
@@ -145,7 +142,8 @@ export const resumeAPI = {
 // Content generation endpoints
 export const contentAPI = {
   generateCoverLetter: async (jobDescription, additionalInfo) => {
-    const response = await api.post('/generate/cover-letter', {
+    const response = await api.post('/api/generate', {
+      content_type: 'cover_letter',
       job_description: jobDescription,
       additional_info: additionalInfo,
     });
@@ -153,7 +151,8 @@ export const contentAPI = {
   },
 
   generateEmail: async (purpose, recipient, context) => {
-    const response = await api.post('/generate/email', {
+    const response = await api.post('/api/generate', {
+      content_type: 'connection_email',
       purpose,
       recipient,
       context,
@@ -162,14 +161,15 @@ export const contentAPI = {
   },
 
   generateResumeTailored: async (jobDescription) => {
-    const response = await api.post('/generate/resume', {
+    const response = await api.post('/api/refine-resume', {
       job_description: jobDescription,
+      input_type: 'manual'
     });
     return response.data;
   },
 
   improveContent: async (content, contentType, feedback) => {
-    const response = await api.post('/generate/improve', {
+    const response = await api.post('/api/generate', {
       content,
       content_type: contentType,
       feedback,
@@ -179,7 +179,7 @@ export const contentAPI = {
 
   // Generic generation endpoint for chat-like interface
   generate: async (type, data) => {
-    const response = await api.post(`/generate/${type}`, data);
+    const response = await api.post('/api/generate', data);
     return response.data;
   },
 };
