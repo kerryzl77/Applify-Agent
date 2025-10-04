@@ -255,14 +255,14 @@ const ContentGenerator = () => {
 
   if (!currentConversationId) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <Sparkles className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
+      <div className="h-full flex items-center justify-center bg-white dark:bg-gray-950">
+        <div className="text-center p-8">
+          <Sparkles className="w-16 h-16 mx-auto text-blue-500 mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            No conversation selected
+            Welcome to Applify
           </h3>
-          <p className="text-gray-500 dark:text-gray-400">
-            Select a conversation from the sidebar or create a new one
+          <p className="text-gray-600 dark:text-gray-400">
+            Click "+" in the sidebar to create a new cover letter, email, or tailor your resume
           </p>
         </div>
       </div>
