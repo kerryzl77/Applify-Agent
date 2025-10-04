@@ -26,9 +26,15 @@ from database.db_manager import DatabaseManager
 from app.cached_llm import CachedLLMGenerator
 from app.output_formatter import OutputFormatter
 
+# Determine the correct paths for templates and static files
+# Works both in development and production (Docker/Heroku)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CLIENT_DIST = os.path.join(BASE_DIR, 'client', 'dist')
+TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
+
 app = Flask(__name__,
-            template_folder='../templates',
-            static_folder='../client/dist',
+            template_folder=TEMPLATES_DIR,
+            static_folder=CLIENT_DIST,
             static_url_path='')
 
 # CORS configuration for React frontend
@@ -892,7 +898,15 @@ def serve_react(path):
         return send_from_directory(app.static_folder, path)
 
     # Serve index.html for all other routes (React Router)
-    return send_from_directory(app.static_folder, 'index.html')
+    index_path = os.path.join(app.static_folder, 'index.html')
+    if os.path.exists(index_path):
+        return send_from_directory(app.static_folder, 'index.html')
+    else:
+        logging.error(f"index.html not found at {index_path}")
+        logging.error(f"static_folder: {app.static_folder}")
+        logging.error(f"BASE_DIR: {BASE_DIR}")
+        logging.error(f"Files in static_folder: {os.listdir(app.static_folder) if os.path.exists(app.static_folder) else 'Directory does not exist'}")
+        return jsonify({'error': 'Frontend not found', 'static_folder': app.static_folder}), 500
 
 if __name__ == '__main__':
     import os
