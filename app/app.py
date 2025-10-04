@@ -120,22 +120,6 @@ def check_auth():
     else:
         return jsonify({'authenticated': False}), 401
 
-# Serve React App
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve_react(path):
-    """Serve React app for all non-API routes."""
-    # Skip API routes
-    if path.startswith('api/'):
-        return jsonify({'error': 'Not found'}), 404
-
-    # Serve static files
-    if path and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-
-    # Serve index.html for all other routes (React Router)
-    return send_from_directory(app.static_folder, 'index.html')
-
 @app.route('/api/generate', methods=['POST'])
 @login_required
 def generate_content():
@@ -881,6 +865,22 @@ def health_check():
             'error': str(e),
             'timestamp': datetime.datetime.now().isoformat()
         }), 503
+
+# Serve React App - MUST BE LAST to not interfere with API routes
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_react(path):
+    """Serve React app for all non-API routes."""
+    # Skip API routes - return 404
+    if path.startswith('api/'):
+        return jsonify({'error': 'Not found'}), 404
+
+    # Serve static files
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+
+    # Serve index.html for all other routes (React Router)
+    return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
     import os
