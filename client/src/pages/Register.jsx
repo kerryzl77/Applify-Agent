@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User as UserIcon, UserPlus, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, UserPlus, Sparkles, Eye, EyeOff } from 'lucide-react';
 import useStore from '../store/useStore';
 import { authAPI } from '../services/api';
 import { isValidEmail, isValidPassword } from '../utils/helpers';
@@ -12,7 +12,6 @@ const Register = () => {
   const { login } = useStore();
 
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -29,7 +28,7 @@ const Register = () => {
   };
 
   const validateForm = () => {
-    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
+    if (!formData.email || !formData.password || !formData.confirmPassword) {
       toast.error('Please fill in all fields');
       return false;
     }
@@ -61,15 +60,14 @@ const Register = () => {
 
     try {
       const response = await authAPI.register({
-        name: formData.name,
         email: formData.email,
         password: formData.password,
+        confirm_password: formData.confirmPassword,
       });
 
-      if (response.token && response.user) {
-        login(response.user, response.token);
-        localStorage.setItem('token', response.token);
-        toast.success('Account created successfully!');
+      if (response.success) {
+        // Flask session-based auth - no token needed
+        toast.success(response.message || 'Account created successfully!');
         navigate('/dashboard');
       } else {
         throw new Error('Invalid response from server');
@@ -115,29 +113,6 @@ const Register = () => {
           className="card p-8"
         >
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Name field */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Full Name
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <UserIcon className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  autoComplete="name"
-                  required
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="input pl-10"
-                  placeholder="John Doe"
-                />
-              </div>
-            </div>
-
             {/* Email field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
