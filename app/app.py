@@ -26,10 +26,13 @@ from database.db_manager import DatabaseManager
 from app.cached_llm import CachedLLMGenerator
 from app.output_formatter import OutputFormatter
 
-app = Flask(__name__, template_folder='../templates', static_folder='../static')
+app = Flask(__name__,
+            template_folder='../templates',
+            static_folder='../client/dist',
+            static_url_path='')
 
 # CORS configuration for React frontend
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, supports_credentials=True, origins="*")
 
 # Simple session configuration - use built-in Flask sessions
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
@@ -56,58 +59,82 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            return redirect(url_for('login'))
+            return jsonify({'error': 'Unauthorized', 'message': 'Please log in'}), 401
         return f(*args, **kwargs)
     return decorated_function
 
-@app.route('/')
-@login_required
-def index():
-    """Render the main page."""
-    return render_template('index.html')
+# API Routes for Authentication
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    """Handle user login via JSON API."""
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        success, result = db_manager.verify_user(email, password)
-        
-        if success:
-            session['user_id'] = result
-            return redirect(url_for('index'))
-        else:
-            flash(result, 'error')
-    
-    return render_template('login.html')
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        confirm_password = request.form.get('confirm_password')
-        
-        if password != confirm_password:
-            flash('Passwords do not match', 'error')
-            return render_template('register.html')
-        
-        success, result = db_manager.register_user(email, password)
-        
-        if success:
-            session['user_id'] = result
-            return redirect(url_for('index'))
-        else:
-            flash(result, 'error')
-    
-    return render_template('register.html')
+    success, result = db_manager.verify_user(email, password)
 
-@app.route('/logout')
-def logout():
-    """Handle user logout."""
-    session.clear()  # Clear all session data
-    return redirect(url_for('login'))
+    if success:
+        session['user_id'] = result
+        session.permanent = True
+        return jsonify({'success': True, 'user_id': result, 'message': 'Login successful'})
+    else:
+        return jsonify({'error': result}), 401
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    """Handle user registration via JSON API."""
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    confirm_password = data.get('confirm_password')
+
+    if not email or not password or not confirm_password:
+        return jsonify({'error': 'All fields are required'}), 400
+
+    if password != confirm_password:
+        return jsonify({'error': 'Passwords do not match'}), 400
+
+    success, result = db_manager.register_user(email, password)
+
+    if success:
+        session['user_id'] = result
+        session.permanent = True
+        return jsonify({'success': True, 'user_id': result, 'message': 'Registration successful'})
+    else:
+        return jsonify({'error': result}), 400
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    """Handle user logout via JSON API."""
+    session.clear()
+    return jsonify({'success': True, 'message': 'Logout successful'})
+
+@app.route('/api/auth/check', methods=['GET'])
+def check_auth():
+    """Check if user is authenticated."""
+    if 'user_id' in session:
+        return jsonify({'authenticated': True, 'user_id': session['user_id']})
+    else:
+        return jsonify({'authenticated': False}), 401
+
+# Serve React App
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_react(path):
+    """Serve React app for all non-API routes."""
+    # Skip API routes
+    if path.startswith('api/'):
+        return jsonify({'error': 'Not found'}), 404
+
+    # Serve static files
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+
+    # Serve index.html for all other routes (React Router)
+    return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/api/generate', methods=['POST'])
 @login_required
