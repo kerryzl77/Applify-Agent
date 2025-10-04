@@ -179,8 +179,6 @@ const useStore = create(
         theme: state.theme,
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
-        profile: state.profile,
-        resume: state.resume,
       }),
     }
   )
