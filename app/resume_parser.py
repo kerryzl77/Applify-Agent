@@ -192,6 +192,26 @@ class ResumeParser:
             "story_bank": data.get("story_bank", [])
         }
         
+        # Preserve nested bullet points/details if provided in original text
+        experiences = cleaned_data["resume"].get("experience", [])
+        for experience in experiences:
+            if not isinstance(experience, dict):
+                continue
+
+            # Promote list descriptions to bullet_points while preserving full text
+            description = experience.get("description")
+            if isinstance(description, list):
+                experience["bullet_points"] = description
+                experience["description"] = " ".join(description)
+                continue
+
+            if description:
+                # Split bullet-like sentences (•, -, or numbered) to retain detail
+                raw_lines = re.split(r"(?:\n|\s*•\s+|\s*-\s+|\s*\d+[\.)]\s+)", description)
+                bullet_lines = [line.strip() for line in raw_lines if len(line.strip()) > 0]
+                if bullet_lines:
+                    experience.setdefault("bullet_points", bullet_lines)
+
         # Clean URLs
         if cleaned_data["personal_info"]["linkedin"] and not cleaned_data["personal_info"]["linkedin"].startswith("http"):
             cleaned_data["personal_info"]["linkedin"] = "https://linkedin.com/in/" + cleaned_data["personal_info"]["linkedin"]

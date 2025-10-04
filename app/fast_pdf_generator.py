@@ -66,7 +66,7 @@ class FastPDFGenerator:
             name='CustomTitle',
             parent=styles['Heading1'],
             fontSize=14,
-            spaceAfter=4,
+            spaceAfter=2,
             alignment=TA_CENTER,
             fontName='Times-Bold',
             textColor=black
