@@ -15,14 +15,21 @@ const useStore = create(
       login: (user, token) => set({
         user,
         token,
-        isAuthenticated: true
+        isAuthenticated: true,
+        profile: null,
+        resume: null,
+        conversations: [],
+        currentConversationId: null,
       }),
 
       logout: () => set({
         user: null,
         token: null,
         isAuthenticated: false,
-        profile: null
+        profile: null,
+        resume: null,
+        conversations: [],
+        currentConversationId: null
       }),
 
       // Theme state

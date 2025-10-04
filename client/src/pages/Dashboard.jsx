@@ -28,8 +28,18 @@ const Dashboard = () => {
         // Store profile data in Zustand
         setProfile(profileData);
 
-        // Check if resume exists in profile
-        if (profileData?.resume && Object.keys(profileData.resume).length > 0) {
+        // Check if resume has meaningful content
+        const resumeData = profileData?.resume;
+        const hasResume = Boolean(
+          resumeData && (
+            (typeof resumeData.summary === 'string' && resumeData.summary.trim().length > 0) ||
+            (Array.isArray(resumeData.experience) && resumeData.experience.length > 0) ||
+            (Array.isArray(resumeData.education) && resumeData.education.length > 0) ||
+            (Array.isArray(resumeData.skills) && resumeData.skills.length > 0)
+          )
+        );
+
+        if (hasResume) {
           setResume({ uploaded: true });
           console.log('Existing profile loaded:', profileData);
         } else {
