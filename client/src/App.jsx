@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import useStore from './store/useStore';
+import { authAPI } from './services/api';
 
 // Pages
 import Login from './pages/Login';
@@ -31,13 +32,53 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
-  const { theme, setTheme } = useStore();
+  const { theme, setTheme, logout, setUser } = useStore();
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Verify authentication with backend on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await authAPI.check();
+        if (response.authenticated) {
+          // Update user state with backend data
+          setUser({
+            user_id: response.user_id,
+            email: response.email,
+            name: response.name,
+          });
+        } else {
+          // Clear local auth state if not authenticated on backend
+          logout();
+        }
+      } catch (error) {
+        // If auth check fails, clear local state
+        logout();
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+
+    checkAuth();
+  }, [logout, setUser]);
 
   // Initialize theme on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || theme;
     setTheme(savedTheme);
   }, []);
+
+  // Don't render routes until auth is checked
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
