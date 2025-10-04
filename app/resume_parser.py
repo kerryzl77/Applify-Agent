@@ -191,6 +191,23 @@ class ResumeParser:
             },
             "story_bank": data.get("story_bank", [])
         }
+
+        # Normalize skills to a flat technical skills list
+        skills = cleaned_data["resume"].get("skills", [])
+        skills_list = []
+
+        if isinstance(skills, dict):
+            for category in skills.values():
+                if isinstance(category, list):
+                    skills_list.extend(category)
+                elif isinstance(category, str):
+                    skills_list.append(category)
+        elif isinstance(skills, list):
+            skills_list = skills
+        elif isinstance(skills, str):
+            skills_list = [skills]
+
+        cleaned_data["resume"]["skills"] = [skill.strip() for skill in skills_list if skill and skill.strip()]
         
         # Preserve nested bullet points/details if provided in original text
         experiences = cleaned_data["resume"].get("experience", [])
