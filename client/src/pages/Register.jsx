@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 
 const Register = () => {
   const navigate = useNavigate();
-  const { login } = useStore();
+  const setUser = useStore((state) => state.setUser);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -66,7 +66,8 @@ const Register = () => {
       });
 
       if (response.success) {
-        // Flask session-based auth - no token needed
+        // Flask session-based auth - set user to trigger isAuthenticated
+        setUser({ email: formData.email, user_id: response.user_id });
         toast.success(response.message || 'Account created successfully!');
         navigate('/dashboard');
       } else {

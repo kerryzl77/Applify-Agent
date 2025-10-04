@@ -16,7 +16,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 import useStore from '../store/useStore';
+import { authAPI } from '../services/api';
 import { formatDate, getInitials, getColorFromString } from '../utils/helpers';
+import toast from 'react-hot-toast';
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -35,9 +37,19 @@ const Sidebar = () => {
     deleteConversation,
   } = useStore();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      // Call backend logout endpoint to destroy server session
+      await authAPI.logout();
+    } catch (error) {
+      // Logout client-side even if backend call fails
+      console.error('Logout error:', error);
+    } finally {
+      // Clear client-side state
+      logout();
+      toast.success('Logged out successfully');
+      navigate('/login');
+    }
   };
 
   const handleNewChat = (type) => {
