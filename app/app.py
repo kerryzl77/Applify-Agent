@@ -166,7 +166,7 @@ def generate_content():
         # For connection messages, require person name and position
         if not person_name or not person_position:
             return jsonify({'error': 'Person name and position are required for connection messages'}), 400
-    elif not url and not manual_text:
+    elif not needs_profile and not url and not manual_text:
         return jsonify({'error': 'Missing required fields'}), 400
     
     # Validate URL if provided
