@@ -200,13 +200,34 @@ export const gmailAPI = {
     return response.data;
   },
 
-  startAuth: async () => {
-    const response = await api.get('/api/gmail/auth');
+  getAuthUrl: async () => {
+    const response = await api.get('/api/gmail/auth-url');
     return response.data;
   },
 
   createDraft: async (payload) => {
     const response = await api.post('/api/gmail/create-draft', payload);
+    return response.data;
+  },
+
+  disconnect: async () => {
+    const response = await api.post('/api/gmail/disconnect');
+    return response.data;
+  },
+
+  uploadClient: async (file) => {
+    const formData = new FormData();
+    formData.append('client', file);
+    const response = await api.post('/api/gmail/client', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  deleteClient: async () => {
+    const response = await api.delete('/api/gmail/client');
     return response.data;
   },
 };

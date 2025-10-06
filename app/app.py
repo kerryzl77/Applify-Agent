@@ -24,7 +24,7 @@ from scraper.retriever import DataRetriever
 from scraper.url_validator import URLValidator
 from database.db_manager import DatabaseManager
 from app.cached_llm import CachedLLMGenerator
-from app.gmail_mcp_service import GmailMCPService
+from app.gmail_service import GmailService, GmailOAuthError
 from app.output_formatter import OutputFormatter
 
 # Determine the correct paths for templates and static files
@@ -306,11 +306,9 @@ def generate_content():
     if content_type == 'linkedin_message':
         content = llm_generator.generate_linkedin_message(job_data, candidate_data, profile_data)
     elif content_type == 'connection_email':
-        email_bundle = llm_generator.generate_connection_email_bundle(job_data, candidate_data, profile_data)
-        content = email_bundle['body']
+        content = llm_generator.generate_connection_email(job_data, candidate_data, profile_data)
     elif content_type == 'hiring_manager_email':
-        email_bundle = llm_generator.generate_hiring_manager_email_bundle(job_data, candidate_data, profile_data)
-        content = email_bundle['body']
+        content = llm_generator.generate_hiring_manager_email(job_data, candidate_data, profile_data)
     elif content_type == 'cover_letter':
         content = llm_generator.generate_cover_letter(job_data, candidate_data)
     else:
@@ -318,6 +316,12 @@ def generate_content():
     
     # Format the content
     formatted_content = output_formatter.format_text(content, content_type)
+    email_bundle = None
+    if content_type in ['connection_email', 'hiring_manager_email']:
+        email_bundle = {
+            'subject': llm_generator.generate_email_subject(formatted_content, content_type.replace('_', ' ')),
+            'body_html': llm_generator._convert_to_html(formatted_content)
+        }
     
     # Cache the generated content
     redis_manager.cache_generated_content(content_type, formatted_content, job_data, session['user_id'])
@@ -370,41 +374,54 @@ def generate_content():
 @app.route('/api/gmail/status', methods=['GET'])
 @login_required
 def gmail_status():
-    service = GmailMCPService(user_id=session['user_id'])
-    status = service.check_availability()
-    return jsonify(status)
-
-
-@app.route('/api/gmail/auth', methods=['GET'])
-@login_required
-def gmail_auth_init():
-    state = request.args.get('state')
-    service = GmailMCPService(user_id=session['user_id'])
     try:
-        auth_url = service.get_auth_url(state)
-        return jsonify({'auth_url': auth_url})
-    except Exception as exc:
-        return jsonify({'error': str(exc)}), 500
+        service = GmailService(session['user_id'])
+        status = service.get_status()
+        return jsonify(status)
+    except GmailOAuthError as exc:
+        return jsonify({'availability': 'unavailable', 'authorized': False, 'error': str(exc)}), 200
 
 
-@app.route('/api/gmail/callback', methods=['GET'])
+@app.route('/api/gmail/disconnect', methods=['POST'])
 @login_required
-def gmail_auth_callback():
-    code = request.args.get('code')
+def gmail_disconnect():
+    service = GmailService(session['user_id'])
+    service.disconnect()
+    return jsonify({'success': True})
+
+
+@app.route('/api/gmail/auth-url', methods=['GET'])
+@login_required
+def gmail_auth_url():
+    try:
+        service = GmailService(session['user_id'])
+        auth_url, state = service.get_authorization_url()
+        session['gmail_oauth_state'] = state
+        return jsonify({'auth_url': auth_url})
+    except GmailOAuthError as exc:
+        return jsonify({'error': str(exc)}), 400
+
+
+@app.route('/api/gmail/oauth2callback', methods=['GET'])
+@login_required
+def gmail_oauth_callback():
     error = request.args.get('error')
-    service = GmailMCPService(user_id=session['user_id'])
+    code = request.args.get('code')
+    state = request.args.get('state')
 
     if error:
-        return jsonify({'error': error}), 400
+        return redirect_to_frontend('gmail_error')
 
-    if not code:
-        return jsonify({'error': 'Missing authorization code'}), 400
+    saved_state = session.pop('gmail_oauth_state', None)
+    if not code or not state or saved_state != state:
+        return redirect_to_frontend('gmail_invalid_state')
 
     try:
+        service = GmailService(session['user_id'])
         service.exchange_code_for_tokens(code)
-        return jsonify({'success': True})
-    except Exception as exc:
-        return jsonify({'error': str(exc)}), 500
+        return redirect_to_frontend('gmail_connected')
+    except GmailOAuthError:
+        return redirect_to_frontend('gmail_error')
 
 
 @app.route('/api/gmail/create-draft', methods=['POST'])
@@ -417,21 +434,21 @@ def gmail_create_draft():
     if missing:
         return jsonify({'error': f"Missing required fields: {', '.join(missing)}"}), 400
 
-    service = GmailMCPService(user_id=session['user_id'])
-
     try:
-        result = service.create_draft(
+        service = GmailService(session['user_id'])
+        draft = service.create_draft(
             to_email=payload['recipient_email'],
             subject=payload['subject'],
-            body=payload['body'],
-            cc=payload.get('cc') or [],
-            bcc=payload.get('bcc') or [],
-            is_html=payload.get('is_html', True)
+            body_html=payload['body'],
+            cc=payload.get('cc'),
+            bcc=payload.get('bcc'),
         )
-        status_code = 200 if result.get('success') else 500
-        return jsonify(result), status_code
+        return jsonify({'success': True, 'draft_id': draft.get('id')}), 200
+    except GmailOAuthError as exc:
+        return jsonify({'error': str(exc)}), 400
     except Exception as exc:
-        return jsonify({'error': str(exc)}), 500
+        logging.exception('Failed to create Gmail draft')
+        return jsonify({'error': 'Failed to create draft'}), 500
 
 @app.route('/api/download/<path:file_path>')
 @login_required
@@ -1028,6 +1045,16 @@ def serve_react(path):
         logging.error(f"BASE_DIR: {BASE_DIR}")
         logging.error(f"Files in CLIENT_DIST: {os.listdir(CLIENT_DIST) if os.path.exists(CLIENT_DIST) else 'Directory does not exist'}")
         return jsonify({'error': 'Frontend not found', 'client_dist': CLIENT_DIST}), 500
+
+def redirect_to_frontend(fragment: str = ""):
+    base = os.environ.get('FRONTEND_ORIGIN') or os.environ.get('PUBLIC_URL')
+    if not base:
+        target = '/'
+    else:
+        target = base
+    if fragment:
+        target = f"{target}#{fragment}"
+    return redirect(target)
 
 if __name__ == '__main__':
     import os

@@ -15,11 +15,13 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import useStore from "../store/useStore";
+import { gmailAPI } from "../services/api";
 import { copyToClipboard, downloadFile } from "../utils/helpers";
 import toast from "react-hot-toast";
 import ResumeUploader from "./ResumeUploader";
-import GmailSetup from "./GmailSetup";
 import axios from "axios";
+import GmailSetup from "./GmailSetup";
+import { Upload } from "lucide-react";
 
 const ContentGenerator = () => {
   const {
@@ -41,10 +43,7 @@ const ContentGenerator = () => {
   });
   const [generatedContent, setGeneratedContent] = useState(null);
   const [fileInfo, setFileInfo] = useState(null);
-  const [gmailStatus, setGmailStatus] = useState({
-    available: false,
-    authenticated: false,
-  });
+  const [gmailStatus, setGmailStatus] = useState({ availability: "unavailable" });
   const [emailMetadata, setEmailMetadata] = useState({
     subject: "",
     body: "",
@@ -227,91 +226,70 @@ const ContentGenerator = () => {
     return true;
   };
 
-  useEffect(() => {
-    const fetchGmailStatus = async () => {
-      try {
-        const response = await axios.get("/api/gmail/status", {
-          withCredentials: true,
-        });
-        setGmailStatus(response.data);
-      } catch (error) {
-        setGmailStatus({ available: false, authenticated: false });
-      }
-    };
-
-    if (isEmailWorkflow) {
-      fetchGmailStatus();
-    }
-  }, [isEmailWorkflow]);
-
-  useEffect(() => {
-    if (!isEmailWorkflow) {
-      return;
-    }
-    setEmailMetadata((prev) => ({
-      ...prev,
-      recipient_email: formData.recipient_email,
-    }));
-  }, [formData.recipient_email, isEmailWorkflow]);
-
   const refreshGmailStatus = useCallback(async () => {
     if (!isEmailWorkflow) {
       return;
     }
     try {
-      const response = await axios.get("/api/gmail/status", {
-        withCredentials: true,
-      });
-      setGmailStatus(response.data);
+      const response = await gmailAPI.status();
+      setGmailStatus(response);
     } catch (error) {
-      setGmailStatus({ available: false, authenticated: false });
+      setGmailStatus({ availability: "unavailable", error: error.message });
     }
   }, [isEmailWorkflow]);
+
+  useEffect(() => {
+    if (!isEmailWorkflow) {
+      return;
+    }
+    refreshGmailStatus();
+  }, [isEmailWorkflow, refreshGmailStatus]);
+
+  const handleConnectGmail = async () => {
+    try {
+      const { auth_url } = await gmailAPI.getAuthUrl();
+      window.location.href = auth_url;
+    } catch (error) {
+      toast.error(error.message || "Failed to initiate Gmail authorization");
+    }
+  };
 
   const handleCreateDraft = async () => {
     if (!isEmailWorkflow) {
       return;
     }
 
-    if (!gmailStatus.available) {
-      toast.error("Gmail MCP server is not configured.");
-      setShowGmailSetup(true);
+    if (gmailStatus.availability === "unavailable") {
+      toast.error("Gmail API is not configured");
       return;
     }
 
-    if (!gmailStatus.authenticated) {
-      toast.error("Connect your Gmail account first.");
+    if (gmailStatus.availability !== "authorized") {
+      toast.error("Connect your Gmail account first");
       setShowGmailSetup(true);
       return;
     }
 
     if (!emailMetadata.subject || !emailMetadata.body_html) {
-      toast.error("Generate the email before creating a draft.");
+      toast.error("Generate the email before creating a draft");
       return;
     }
 
     if (!emailMetadata.recipient_email) {
-      toast.error("Recipient email is required.");
+      toast.error("Recipient email is required");
       return;
     }
 
     try {
       setCreatingDraft(true);
-      await axios.post(
-        "/api/gmail/create-draft",
-        {
-          recipient_email: emailMetadata.recipient_email,
-          subject: emailMetadata.subject,
-          body: emailMetadata.body_html,
-          is_html: true,
-        },
-        { withCredentials: true },
-      );
-      toast.success("Draft created in Gmail.");
+      await gmailAPI.createDraft({
+        recipient_email: emailMetadata.recipient_email,
+        subject: emailMetadata.subject,
+        body: emailMetadata.body_html,
+      });
+      toast.success("Draft created in Gmail");
     } catch (error) {
-      const message =
-        error.response?.data?.error || "Failed to create Gmail draft.";
-      toast.error(message);
+      toast.error(error.message || "Failed to create Gmail draft");
     } finally {
       setCreatingDraft(false);
     }
@@ -412,6 +390,16 @@ const ContentGenerator = () => {
 
   const handleRegenerate = () => {
     handleGenerate();
+  };
+
+  const handleDisconnectGmail = async () => {
+    try {
+      await gmailAPI.disconnect();
+      toast.success("Gmail disconnected");
+      refreshGmailStatus();
+    } catch (error) {
+      toast.error(error.message || "Failed to disconnect Gmail");
+    }
   };
 
   if (!currentConversationId) {
@@ -701,7 +689,7 @@ const ContentGenerator = () => {
                 <div className="flex flex-col gap-2 w-full mt-4">
                   <button
                     onClick={handleCreateDraft}
-                    disabled={creatingDraft}
+                    disabled={creatingDraft || gmailStatus.availability !== "authorized"}
                     className="btn btn-secondary flex items-center justify-center gap-2"
                   >
                     {creatingDraft ? (
@@ -716,13 +704,21 @@ const ContentGenerator = () => {
                       </>
                     )}
                   </button>
-                  {!gmailStatus.authenticated && (
+                  {gmailStatus.availability === "authorized" ? (
                     <button
-                      onClick={() => setShowGmailSetup(true)}
+                      onClick={handleDisconnectGmail}
                       className="btn btn-outline flex items-center justify-center gap-2"
                     >
                       <Settings className="w-4 h-4" />
-                      Configure Gmail MCP
+                      Disconnect Gmail
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleConnectGmail}
+                      className="btn btn-outline flex items-center justify-center gap-2"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Connect Gmail
                     </button>
                   )}
                 </div>
@@ -834,10 +830,10 @@ const ContentGenerator = () => {
       <GmailSetup
         open={showGmailSetup}
         onClose={() => setShowGmailSetup(false)}
-        onConnected={() => {
-          setShowGmailSetup(false);
-          refreshGmailStatus();
-        }}
+        onConnected={refreshGmailStatus}
+        gmailStatus={gmailStatus}
+        onConnect={handleConnectGmail}
+        onDisconnect={handleDisconnectGmail}
       />
     </>
   );

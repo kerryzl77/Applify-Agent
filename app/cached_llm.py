@@ -21,21 +21,11 @@ class CachedLLMGenerator(LLMGenerator):
         """Generate connection email with caching."""
         return super().generate_connection_email(job_data, candidate_data, profile_data)
     
-    @cache_result("connection_email_bundle", ttl=3600)
-    def generate_connection_email_bundle(self, job_data, candidate_data, profile_data):
-        """Generate connection email bundle with caching."""
-        return super().generate_connection_email_bundle(job_data, candidate_data, profile_data)
-
     @cache_result("hiring_email", ttl=3600)
     def generate_hiring_manager_email(self, job_data, candidate_data, profile_data=None):
         """Generate hiring manager email with caching."""
         return super().generate_hiring_manager_email(job_data, candidate_data, profile_data)
     
-    @cache_result("hiring_email_bundle", ttl=3600)
-    def generate_hiring_manager_email_bundle(self, job_data, candidate_data, profile_data=None):
-        """Generate hiring manager email bundle with caching."""
-        return super().generate_hiring_manager_email_bundle(job_data, candidate_data, profile_data)
-
     @cache_result("cover_letter", ttl=3600)
     def generate_cover_letter(self, job_data, candidate_data):
         """Generate cover letter with caching."""

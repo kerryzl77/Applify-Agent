@@ -19,33 +19,11 @@ class LLMGenerator:
         """Generate a connection email (200 words max)."""
         prompt = self._build_connection_email_prompt(job_data, candidate_data, profile_data)
         return self._generate_text(prompt, max_tokens=300)  # ~200 words
-
-    def generate_connection_email_bundle(self, job_data, candidate_data, profile_data=None):
-        """Generate connection email body, HTML, and subject line."""
-        body = self.generate_connection_email(job_data, candidate_data, profile_data)
-        subject = self.generate_email_subject(body, "connection")
-        body_html = self._convert_to_html(body)
-        return {
-            "body": body,
-            "subject": subject,
-            "body_html": body_html,
-        }
     
     def generate_hiring_manager_email(self, job_data, candidate_data, profile_data=None):
         """Generate an email to a hiring manager (200 words max)."""
         prompt = self._build_hiring_manager_email_prompt(job_data, candidate_data, profile_data)
         return self._generate_text(prompt, max_tokens=300)  # ~200 words
-
-    def generate_hiring_manager_email_bundle(self, job_data, candidate_data, profile_data=None):
-        """Generate hiring manager email body, HTML, and subject line."""
-        body = self.generate_hiring_manager_email(job_data, candidate_data, profile_data)
-        subject = self.generate_email_subject(body, "hiring manager")
-        body_html = self._convert_to_html(body)
-        return {
-            "body": body,
-            "subject": subject,
-            "body_html": body_html,
-        }
     
     def generate_cover_letter(self, job_data, candidate_data):
         """Generate a cover letter (350 words max)."""
