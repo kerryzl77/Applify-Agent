@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-const DEFAULT_GMAIL_STATUS = { availability: 'unknown', authorized: false };
-
 const useStore = create(
   persist(
     (set, get) => ({
@@ -27,7 +25,6 @@ const useStore = create(
           next.conversations = [];
           next.currentConversationId = null;
           next.gmailStatus = { ...DEFAULT_GMAIL_STATUS };
-          next.isGmailSetupOpen = false;
         }
 
         return next;
@@ -53,11 +50,6 @@ const useStore = create(
       },
 
       // Gmail status state
-      gmailStatus: { ...DEFAULT_GMAIL_STATUS },
-      setGmailStatus: (status) => set({ gmailStatus: status }),
-      isGmailSetupOpen: false,
-      setGmailSetupOpen: (isOpen) => set({ isGmailSetupOpen: isOpen }),
-
       // Theme state
       theme: 'light',
 
@@ -177,8 +169,6 @@ const useStore = create(
         resume: null,
         conversations: [],
         currentConversationId: null,
-        gmailStatus: { ...DEFAULT_GMAIL_STATUS },
-        isGmailSetupOpen: false,
       }),
     }),
     {
@@ -191,8 +181,6 @@ const useStore = create(
         theme: state.theme,
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
-        gmailStatus: state.gmailStatus,
-        isGmailSetupOpen: state.isGmailSetupOpen,
       }),
     }
   )

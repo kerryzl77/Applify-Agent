@@ -30,10 +30,6 @@ const ContentGenerator = () => {
     isGenerating,
     setGenerating,
     resume,
-    gmailStatus,
-    setGmailStatus,
-    isGmailSetupOpen,
-    setGmailSetupOpen,
   } = useStore();
 
   const [inputType, setInputType] = useState("manual"); // 'url' or 'manual'
@@ -57,6 +53,8 @@ const ContentGenerator = () => {
   const [showResumeUploader, setShowResumeUploader] = useState(false);
   const [resumeProgress, setResumeProgress] = useState(null);
   const [resumeTaskId, setResumeTaskId] = useState(null);
+  const [gmailStatus, setGmailStatus] = useState({ availability: "unknown", authorized: false });
+  const [isGmailSetupOpen, setGmailSetupOpen] = useState(false);
 
   const currentConversation = conversations.find(
     (c) => c.id === currentConversationId,
@@ -235,7 +233,7 @@ const ContentGenerator = () => {
     } catch (error) {
       setGmailStatus({ availability: "unavailable", authorized: false, error: error.message });
     }
-  }, [setGmailStatus]);
+  }, []);
 
   useEffect(() => {
     refreshGmailStatus();
