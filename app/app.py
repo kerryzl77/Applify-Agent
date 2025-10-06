@@ -24,6 +24,7 @@ from scraper.retriever import DataRetriever
 from scraper.url_validator import URLValidator
 from database.db_manager import DatabaseManager
 from app.cached_llm import CachedLLMGenerator
+from app.gmail_mcp_service import GmailMCPService
 from app.output_formatter import OutputFormatter
 
 # Determine the correct paths for templates and static files
@@ -162,12 +163,17 @@ def generate_content():
     if not content_type:
         return jsonify({'error': 'Missing content type'}), 400
     
+    recipient_email = data.get('recipient_email', '')
+
     if needs_profile and input_type == 'url':
         # For connection messages, require person name and position
         if not person_name or not person_position:
             return jsonify({'error': 'Person name and position are required for connection messages'}), 400
     elif not needs_profile and not url and not manual_text:
         return jsonify({'error': 'Missing required fields'}), 400
+
+    if content_type in ['connection_email', 'hiring_manager_email'] and not recipient_email:
+        return jsonify({'error': 'Recipient email is required for email workflows'}), 400
     
     # Validate URL if provided
     if input_type == 'url' and url:
@@ -295,12 +301,16 @@ def generate_content():
                 return jsonify({'error': f"Failed to parse job posting: {job_data['error']}"}), 400
     
     # Generate content based on type (job_data and profile_data already prepared above)
+    email_bundle = None
+
     if content_type == 'linkedin_message':
         content = llm_generator.generate_linkedin_message(job_data, candidate_data, profile_data)
     elif content_type == 'connection_email':
-        content = llm_generator.generate_connection_email(job_data, candidate_data, profile_data)
+        email_bundle = llm_generator.generate_connection_email_bundle(job_data, candidate_data, profile_data)
+        content = email_bundle['body']
     elif content_type == 'hiring_manager_email':
-        content = llm_generator.generate_hiring_manager_email(job_data, candidate_data, profile_data)
+        email_bundle = llm_generator.generate_hiring_manager_email_bundle(job_data, candidate_data, profile_data)
+        content = email_bundle['body']
     elif content_type == 'cover_letter':
         content = llm_generator.generate_cover_letter(job_data, candidate_data)
     else:
@@ -318,8 +328,14 @@ def generate_content():
         'company_name': job_data.get('company_name', ''),
         'url': url,
         'generated_at': str(datetime.datetime.now()),
-        'input_type': input_type
+        'input_type': input_type,
     }
+    if email_bundle:
+        metadata.update({
+            'email_subject': email_bundle.get('subject', ''),
+            'email_html': email_bundle.get('body_html', ''),
+            'recipient_email': recipient_email,
+        })
     content_id = db_manager.save_generated_content(content_type, formatted_content, metadata, session['user_id'])
     
     # Create document file if needed - do this immediately for better UX
@@ -340,8 +356,82 @@ def generate_content():
         'file_info': file_info,
         'cached': False
     }
+
+    if email_bundle:
+        response.update({
+            'email_subject': email_bundle.get('subject'),
+            'email_html': email_bundle.get('body_html'),
+            'recipient_email': recipient_email,
+        })
     
     return jsonify(response)
+
+
+@app.route('/api/gmail/status', methods=['GET'])
+@login_required
+def gmail_status():
+    service = GmailMCPService(user_id=session['user_id'])
+    status = service.check_availability()
+    return jsonify(status)
+
+
+@app.route('/api/gmail/auth', methods=['GET'])
+@login_required
+def gmail_auth_init():
+    state = request.args.get('state')
+    service = GmailMCPService(user_id=session['user_id'])
+    try:
+        auth_url = service.get_auth_url(state)
+        return jsonify({'auth_url': auth_url})
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/gmail/callback', methods=['GET'])
+@login_required
+def gmail_auth_callback():
+    code = request.args.get('code')
+    error = request.args.get('error')
+    service = GmailMCPService(user_id=session['user_id'])
+
+    if error:
+        return jsonify({'error': error}), 400
+
+    if not code:
+        return jsonify({'error': 'Missing authorization code'}), 400
+
+    try:
+        service.exchange_code_for_tokens(code)
+        return jsonify({'success': True})
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/gmail/create-draft', methods=['POST'])
+@login_required
+def gmail_create_draft():
+    payload = request.get_json() or {}
+    required_fields = ['recipient_email', 'subject', 'body']
+
+    missing = [field for field in required_fields if not payload.get(field)]
+    if missing:
+        return jsonify({'error': f"Missing required fields: {', '.join(missing)}"}), 400
+
+    service = GmailMCPService(user_id=session['user_id'])
+
+    try:
+        result = service.create_draft(
+            to_email=payload['recipient_email'],
+            subject=payload['subject'],
+            body=payload['body'],
+            cc=payload.get('cc') or [],
+            bcc=payload.get('bcc') or [],
+            is_html=payload.get('is_html', True)
+        )
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
 
 @app.route('/api/download/<path:file_path>')
 @login_required

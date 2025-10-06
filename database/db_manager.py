@@ -81,6 +81,18 @@ class DatabaseManager:
                         created_at TIMESTAMP NOT NULL
                     )
                 ''')
+
+                # Create gmail_auth table for storing Gmail MCP credentials
+                cur.execute('''
+                    CREATE TABLE IF NOT EXISTS gmail_auth (
+                        user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                        access_token TEXT NOT NULL,
+                        refresh_token TEXT NOT NULL,
+                        token_expiry TIMESTAMP NOT NULL,
+                        created_at TIMESTAMP NOT NULL,
+                        updated_at TIMESTAMP NOT NULL
+                    )
+                ''')
                 
                 conn.commit()
         except Exception as e:
@@ -239,6 +251,79 @@ class DatabaseManager:
                 conn.rollback()
             print(f"Error saving generated content: {str(e)}")
             return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    # ------------------------------------------------------------------
+    # Gmail MCP credential helpers
+    # ------------------------------------------------------------------
+    def save_gmail_auth(self, user_id, access_token, refresh_token, expiry):
+        conn = None
+        now = datetime.datetime.utcnow()
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    '''
+                    INSERT INTO gmail_auth (user_id, access_token, refresh_token, token_expiry, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (user_id)
+                    DO UPDATE SET
+                        access_token = EXCLUDED.access_token,
+                        refresh_token = EXCLUDED.refresh_token,
+                        token_expiry = EXCLUDED.token_expiry,
+                        updated_at = EXCLUDED.updated_at
+                    ''',
+                    (user_id, access_token, refresh_token, expiry, now, now)
+                )
+                conn.commit()
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            print(f"Error saving gmail auth: {str(e)}")
+            raise
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_gmail_auth(self, user_id):
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT access_token, refresh_token, token_expiry FROM gmail_auth WHERE user_id = %s",
+                    (user_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                access_token, refresh_token, token_expiry = row
+                return {
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "token_expiry": token_expiry.isoformat() if hasattr(token_expiry, 'isoformat') else token_expiry,
+                }
+        except Exception as e:
+            print(f"Error retrieving gmail auth: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def delete_gmail_auth(self, user_id):
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM gmail_auth WHERE user_id = %s", (user_id,))
+                conn.commit()
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            print(f"Error deleting gmail auth: {str(e)}")
+            raise
         finally:
             if conn:
                 self._return_connection(conn)

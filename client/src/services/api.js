@@ -194,6 +194,23 @@ export const contentAPI = {
   },
 };
 
+export const gmailAPI = {
+  status: async () => {
+    const response = await api.get('/api/gmail/status');
+    return response.data;
+  },
+
+  startAuth: async () => {
+    const response = await api.get('/api/gmail/auth');
+    return response.data;
+  },
+
+  createDraft: async (payload) => {
+    const response = await api.post('/api/gmail/create-draft', payload);
+    return response.data;
+  },
+};
+
 // Job application tracking endpoints (if needed in future)
 export const applicationAPI = {
   getAll: async () => {

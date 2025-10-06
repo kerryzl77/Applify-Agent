@@ -51,7 +51,7 @@ function App() {
           // Clear local auth state if not authenticated on backend
           logout();
         }
-      } catch (error) {
+      } catch {
         // If auth check fails, clear local state
         logout();
       } finally {
