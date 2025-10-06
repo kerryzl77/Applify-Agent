@@ -24,7 +24,6 @@ const useStore = create(
           next.resume = null;
           next.conversations = [];
           next.currentConversationId = null;
-          next.gmailStatus = { ...DEFAULT_GMAIL_STATUS };
         }
 
         return next;
@@ -49,7 +48,6 @@ const useStore = create(
         get().resetProfileState();
       },
 
-      // Gmail status state
       // Theme state
       theme: 'light',
 
