@@ -82,7 +82,7 @@ class DatabaseManager:
                     )
                 ''')
 
-                # Create gmail_auth table for storing Gmail MCP credentials
+                # Create gmail_auth table for storing Gmail OAuth credentials
                 cur.execute('''
                     CREATE TABLE IF NOT EXISTS gmail_auth (
                         user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -266,7 +266,7 @@ class DatabaseManager:
                 self._return_connection(conn)
 
     # ------------------------------------------------------------------
-    # Gmail MCP credential helpers
+    # Gmail OAuth credential helpers
     # ------------------------------------------------------------------
     def save_gmail_token(self, user_id, access_token, refresh_token, expiry, scope, email):
         conn = None

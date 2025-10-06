@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Upload, User } from 'lucide-react';
+import { Mail, Settings, Upload, User } from 'lucide-react';
 import useStore from '../store/useStore';
 import Sidebar from '../components/Sidebar';
 import ContentGenerator from '../components/ContentGenerator';
@@ -10,7 +10,15 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
-  const { currentConversationId, resume, profile, setProfile, setResume } = useStore();
+  const {
+    currentConversationId,
+    resume,
+    profile,
+    setProfile,
+    setResume,
+    gmailStatus,
+    setGmailSetupOpen,
+  } = useStore();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showResumeUploader, setShowResumeUploader] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -104,6 +112,27 @@ const Dashboard = () => {
                 <span className="text-sm font-medium">Upload Resume</span>
               </motion.button>
             )}
+
+            {/* Gmail status chip */}
+            <button
+              onClick={() => setGmailSetupOpen(true)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
+                gmailStatus?.authorized
+                  ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                  : gmailStatus?.availability === 'configured'
+                  ? 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                  : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+              }`}
+            >
+              <Mail className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                {gmailStatus?.authorized
+                  ? 'Gmail Connected'
+                  : gmailStatus?.availability === 'configured'
+                  ? 'Connect Gmail'
+                  : 'Gmail Setup Required'}
+              </span>
+            </button>
 
             {/* Profile button */}
             <motion.button

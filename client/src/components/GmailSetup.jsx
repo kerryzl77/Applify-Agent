@@ -1,12 +1,25 @@
-import { useEffect } from "react";
-import { MailCheck, MailWarning } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { MailCheck, MailWarning, Settings } from "lucide-react";
+
+const getStatusVariant = (gmailStatus = {}) => {
+  if (gmailStatus.authorized) {
+    return "authorized";
+  }
+  if (gmailStatus.availability === "configured") {
+    return "configured";
+  }
+  if (gmailStatus.availability === "unavailable") {
+    return "unavailable";
+  }
+  return "unknown";
+};
 
 const GmailSetup = ({ open, onClose, onConnected, gmailStatus, onConnect, onDisconnect }) => {
   useEffect(() => {
     if (!open) {
       return;
     }
-    if (gmailStatus.availability === "authorized" && onConnected) {
+    if (gmailStatus.authorized && onConnected) {
       onConnected();
     }
   }, [open, gmailStatus, onConnected]);
@@ -15,8 +28,9 @@ const GmailSetup = ({ open, onClose, onConnected, gmailStatus, onConnect, onDisc
     return null;
   }
 
+  const statusVariant = useMemo(() => getStatusVariant(gmailStatus), [gmailStatus]);
   const renderBody = () => {
-    if (gmailStatus.availability === "unavailable") {
+    if (statusVariant === "unavailable") {
       return (
         <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
           <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
@@ -24,14 +38,14 @@ const GmailSetup = ({ open, onClose, onConnected, gmailStatus, onConnect, onDisc
             Gmail configuration missing
           </div>
           <p>
-            Provide your Google OAuth client credentials file by uploading
-            <code>gcp-oauth.keys.json</code> in the settings page.
+            Upload a valid Google OAuth client JSON in settings or set the
+            <code>GCP_OAUTH_KEYS</code> config variable.
           </p>
         </div>
       );
     }
 
-    if (gmailStatus.availability === "authorized") {
+    if (statusVariant === "authorized") {
       return (
         <div className="space-y-3">
           <div className="flex items-center gap-3 text-green-600 dark:text-green-400">
@@ -47,11 +61,24 @@ const GmailSetup = ({ open, onClose, onConnected, gmailStatus, onConnect, onDisc
 
     return (
       <div className="space-y-3">
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          Connect your Gmail account to create drafts automatically.
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Connect your Gmail account to create drafts automatically.
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              You will be redirected to Google to grant the draft scope.
+            </p>
+          </div>
+          {statusVariant === "configured" && (
+            <span className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+              <Settings className="w-3 h-3" />
+              OAuth ready
+            </span>
+          )}
+        </div>
         <button onClick={onConnect} className="btn btn-primary">
-          Connect Gmail
+          Sign in with Google
         </button>
       </div>
     );
@@ -62,7 +89,7 @@ const GmailSetup = ({ open, onClose, onConnected, gmailStatus, onConnect, onDisc
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Gmail Setup
+            Connect Gmail
           </h3>
           <button
             onClick={onClose}

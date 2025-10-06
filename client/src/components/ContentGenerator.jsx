@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -30,6 +30,10 @@ const ContentGenerator = () => {
     isGenerating,
     setGenerating,
     resume,
+    gmailStatus,
+    setGmailStatus,
+    isGmailSetupOpen,
+    setGmailSetupOpen,
   } = useStore();
 
   const [inputType, setInputType] = useState("manual"); // 'url' or 'manual'
@@ -43,14 +47,12 @@ const ContentGenerator = () => {
   });
   const [generatedContent, setGeneratedContent] = useState(null);
   const [fileInfo, setFileInfo] = useState(null);
-  const [gmailStatus, setGmailStatus] = useState({ availability: "unavailable" });
   const [emailMetadata, setEmailMetadata] = useState({
     subject: "",
     body: "",
     body_html: "",
     recipient_email: "",
   });
-  const [showGmailSetup, setShowGmailSetup] = useState(false);
   const [creatingDraft, setCreatingDraft] = useState(false);
   const [showResumeUploader, setShowResumeUploader] = useState(false);
   const [resumeProgress, setResumeProgress] = useState(null);
@@ -227,16 +229,17 @@ const ContentGenerator = () => {
   };
 
   const refreshGmailStatus = useCallback(async () => {
-    if (!isEmailWorkflow) {
-      return;
-    }
     try {
       const response = await gmailAPI.status();
       setGmailStatus(response);
     } catch (error) {
-      setGmailStatus({ availability: "unavailable", error: error.message });
+      setGmailStatus({ availability: "unavailable", authorized: false, error: error.message });
     }
-  }, [isEmailWorkflow]);
+  }, [setGmailStatus]);
+
+  useEffect(() => {
+    refreshGmailStatus();
+  }, [refreshGmailStatus]);
 
   useEffect(() => {
     if (!isEmailWorkflow) {
@@ -266,7 +269,7 @@ const ContentGenerator = () => {
 
     if (gmailStatus.availability !== "authorized") {
       toast.error("Connect your Gmail account first");
-      setShowGmailSetup(true);
+      setGmailSetupOpen(true);
       return;
     }
 
@@ -401,6 +404,24 @@ const ContentGenerator = () => {
       toast.error(error.message || "Failed to disconnect Gmail");
     }
   };
+
+  const gmailStatusVariant = useMemo(() => {
+    if (gmailStatus?.authorized) {
+      return "authorized";
+    }
+    if (gmailStatus?.availability === "configured") {
+      return "configured";
+    }
+    if (gmailStatus?.availability === "unavailable") {
+      return "unavailable";
+    }
+    return "unknown";
+  }, [gmailStatus]);
+
+  const showGmailBanner = useMemo(
+    () => ["connection_email", "hiring_manager_email"].includes(conversationType),
+    [conversationType],
+  );
 
   if (!currentConversationId) {
     return (
@@ -828,8 +849,8 @@ const ContentGenerator = () => {
       </div>
 
       <GmailSetup
-        open={showGmailSetup}
-        onClose={() => setShowGmailSetup(false)}
+        open={isGmailSetupOpen}
+        onClose={() => setGmailSetupOpen(false)}
         onConnected={refreshGmailStatus}
         gmailStatus={gmailStatus}
         onConnect={handleConnectGmail}
