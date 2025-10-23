@@ -59,10 +59,10 @@ class LLMGenerator:
         recipient_about = profile_data.get('about', '') if profile_data else ''
         recipient_experience = profile_data.get('experience', []) if profile_data else []
         
-        candidate_name = candidate_data['personal_info']['name']
+        candidate_name = candidate_data['personal_info'].get('name', 'Candidate')
         candidate_summary = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
-        candidate_skills = candidate_data['resume']['skills'][:5]
-        candidate_experience = candidate_data['resume']['experience'][:2]
+        candidate_skills = candidate_data['resume'].get('skills', [])[:5]
+        candidate_experience = candidate_data['resume'].get('experience', [])[:2]
         
         # Find connection points
         connection_points = []
@@ -124,11 +124,11 @@ class LLMGenerator:
         recipient_experience = profile_data.get('experience', []) if profile_data else []
         recipient_skills = profile_data.get('skills', []) if profile_data else []
         
-        candidate_name = candidate_data['personal_info']['name']
-        candidate_email = candidate_data['personal_info']['email']
+        candidate_name = candidate_data['personal_info'].get('name', 'Candidate')
+        candidate_email = candidate_data['personal_info'].get('email', '')
         candidate_summary = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
-        candidate_skills = candidate_data['resume']['skills']
-        candidate_experience = candidate_data['resume']['experience'][:3]
+        candidate_skills = candidate_data['resume'].get('skills', [])
+        candidate_experience = candidate_data['resume'].get('experience', [])[:3]
         
         # Advanced connection analysis
         connection_insights = []
@@ -209,13 +209,13 @@ class LLMGenerator:
         manager_experience = profile_data.get('experience', []) if profile_data else []
         
         # Extract candidate details
-        candidate_name = candidate_data['personal_info']['name']
-        candidate_email = candidate_data['personal_info']['email']
+        candidate_name = candidate_data['personal_info'].get('name', 'Candidate')
+        candidate_email = candidate_data['personal_info'].get('email', '')
         candidate_phone = candidate_data['personal_info'].get('phone', '')
         candidate_summary = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
-        candidate_skills = candidate_data['resume']['skills']
-        candidate_experience = candidate_data['resume']['experience'][:3]
-        candidate_education = candidate_data['resume']['education'][0] if candidate_data['resume']['education'] else {}
+        candidate_skills = candidate_data['resume'].get('skills', [])
+        candidate_experience = candidate_data['resume'].get('experience', [])[:3]
+        candidate_education = candidate_data['resume'].get('education', [{}])[0] if candidate_data['resume'].get('education') else {}
         
         # Analyze job-candidate fit
         matching_skills = []
@@ -296,13 +296,13 @@ class LLMGenerator:
         job_location = job_data.get('location', '')
         
         # Extract comprehensive candidate details
-        candidate_name = candidate_data['personal_info']['name']
-        candidate_email = candidate_data['personal_info']['email']
+        candidate_name = candidate_data['personal_info'].get('name', 'Candidate')
+        candidate_email = candidate_data['personal_info'].get('email', '')
         candidate_phone = candidate_data['personal_info'].get('phone', '')
         candidate_summary = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
-        candidate_skills = candidate_data['resume']['skills']
-        candidate_experience = candidate_data['resume']['experience'][:4]
-        candidate_education = candidate_data['resume']['education'][0] if candidate_data['resume']['education'] else {}
+        candidate_skills = candidate_data['resume'].get('skills', [])
+        candidate_experience = candidate_data['resume'].get('experience', [])[:4]
+        candidate_education = candidate_data['resume'].get('education', [{}])[0] if candidate_data['resume'].get('education') else {}
         
         # Advanced job-candidate matching analysis
         matching_skills = []
