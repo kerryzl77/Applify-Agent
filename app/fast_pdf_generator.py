@@ -65,10 +65,10 @@ class FastPDFGenerator:
         styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=styles['Heading1'],
-            fontSize=12,
-            spaceAfter=6,
+            fontSize=14,
+            spaceAfter=2,
             alignment=TA_CENTER,
-            fontName='Times-Roman',
+            fontName='Times-Bold',
             textColor=black
         ))
         
@@ -77,21 +77,21 @@ class FastPDFGenerator:
             parent=styles['Normal'],
             fontSize=11,
             alignment=TA_CENTER,
-            spaceAfter=12,
+            spaceAfter=6,
             fontName='Times-Roman'
         ))
         
         styles.add(ParagraphStyle(
             name='SectionHeader',
             parent=styles['Heading2'],
-            fontSize=12,
-            spaceAfter=6,
-            spaceBefore=8,
+            fontSize=11,
+            spaceAfter=4,
+            spaceBefore=6,
             fontName='Times-Bold',
             textColor=black,
             borderWidth=1,
             borderColor=black,
-            borderPadding=2
+            borderPadding=1
         ))
         
         styles.add(ParagraphStyle(
@@ -140,7 +140,36 @@ class FastPDFGenerator:
             alignment=TA_JUSTIFY,
             leading=13
         ))
-        
+
+        # Cover Letter specific styles
+        styles.add(ParagraphStyle(
+            name='CoverLetterBody',
+            parent=styles['Normal'],
+            fontSize=12,
+            fontName='Times-Roman',
+            spaceAfter=14,  # 1.5 line spacing equivalent
+            alignment=TA_LEFT,
+            leading=18  # 1.5 line spacing (12pt * 1.5 = 18pt)
+        ))
+
+        styles.add(ParagraphStyle(
+            name='CoverLetterName',
+            parent=styles['Normal'],
+            fontSize=12,
+            fontName='Times-Bold',
+            spaceAfter=2,
+            alignment=TA_LEFT
+        ))
+
+        styles.add(ParagraphStyle(
+            name='CoverLetterContact',
+            parent=styles['Normal'],
+            fontSize=11,
+            fontName='Times-Roman',
+            spaceAfter=12,
+            alignment=TA_LEFT
+        ))
+
         return styles
     
     def generate_resume_pdf(self, resume_data, candidate_data, job_title="Position"):
@@ -226,6 +255,7 @@ class FastPDFGenerator:
         # Name
         name = personal_info.get('name', 'Your Name')
         story.append(Paragraph(name, self.styles['CustomTitle']))
+        story.append(Spacer(1, 2))
         
         # Contact info on one line
         contact_parts = []
@@ -256,16 +286,30 @@ class FastPDFGenerator:
         story = []
         story.append(Paragraph("TECHNICAL SKILLS", self.styles['SectionHeader']))
         
-        # Organize skills into categories
-        categories = [
-            ('Technical Skills', skills_data.get('technical_skills', [])),
-            ('Tools & Technologies', skills_data.get('tools_technologies', []))
-        ]
-        
-        for category_name, skill_list in categories:
-            if skill_list:
-                skills_text = f"<b>{category_name}:</b> {', '.join(skill_list[:8])}"  # Limit to 8 per category
-                story.append(Paragraph(skills_text, self.styles['Skills']))
+        combined_skills = []
+
+        if isinstance(skills_data, dict):
+            for value in skills_data.values():
+                if isinstance(value, list):
+                    combined_skills.extend(value)
+                elif isinstance(value, str):
+                    combined_skills.append(value)
+        elif isinstance(skills_data, list):
+            combined_skills = skills_data
+        elif isinstance(skills_data, str):
+            combined_skills = [skills_data]
+
+        if combined_skills:
+            unique_skills = []
+            seen = set()
+            for skill in combined_skills:
+                cleaned = skill.strip()
+                if cleaned and cleaned.lower() not in seen:
+                    unique_skills.append(cleaned)
+                    seen.add(cleaned.lower())
+
+            skills_text = f"<b>Technical Skills:</b> {', '.join(unique_skills)}"
+            story.append(Paragraph(skills_text, self.styles['Skills']))
         
         story.append(Spacer(1, 6))
         return story
@@ -416,7 +460,7 @@ class FastPDFGenerator:
 
         if has_real_info:
             if not is_placeholder(name, 'name'):
-                story.append(Paragraph(name, self.styles['Normal']))
+                story.append(Paragraph(name, self.styles['CoverLetterName']))
             if not is_placeholder(email, 'email'):
                 header_parts.append(email)
             if not is_placeholder(phone, 'phone'):
@@ -424,15 +468,15 @@ class FastPDFGenerator:
             if not is_placeholder(location, 'location'):
                 header_parts.append(location)
             if header_parts:
-                story.append(Paragraph(' - '.join(header_parts), self.styles['Normal']))
-            story.append(Spacer(1, 12))
+                story.append(Paragraph(' - '.join(header_parts), self.styles['CoverLetterContact']))
+            story.append(Spacer(1, 18))  # Extra space after header
 
-        # Main content - split by single newlines to match DOCX
+        # Main content - use proper cover letter formatting
         paragraphs = content.split('\n')
         for para in paragraphs:
             if para.strip():
-                story.append(Paragraph(para.strip(), self.styles['Normal']))
-                story.append(Spacer(1, 6))
+                # Use CoverLetterBody style for proper Times New Roman 12pt with 1.5 spacing
+                story.append(Paragraph(para.strip(), self.styles['CoverLetterBody']))
         
         return story
     

@@ -1,16 +1,60 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Upload, User } from 'lucide-react';
+import { Mail, Settings, Upload, User } from 'lucide-react';
 import useStore from '../store/useStore';
 import Sidebar from '../components/Sidebar';
 import ContentGenerator from '../components/ContentGenerator';
 import ProfileModal from '../components/ProfileModal';
 import ResumeUploader from '../components/ResumeUploader';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const Dashboard = () => {
-  const { currentConversationId, resume } = useStore();
+  const { currentConversationId, resume, profile, setProfile, setResume } = useStore();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showResumeUploader, setShowResumeUploader] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  // Load profile data on component mount
+  useEffect(() => {
+    const loadProfileData = async () => {
+      try {
+        const response = await axios.get('/api/candidate-data', {
+          withCredentials: true,
+        });
+
+        const profileData = response.data;
+        
+        // Store profile data in Zustand
+        setProfile(profileData);
+
+        // Check if resume has meaningful content
+        const resumeData = profileData?.resume;
+        const hasResume = Boolean(
+          resumeData && (
+            (typeof resumeData.summary === 'string' && resumeData.summary.trim().length > 0) ||
+            (Array.isArray(resumeData.experience) && resumeData.experience.length > 0) ||
+            (Array.isArray(resumeData.education) && resumeData.education.length > 0) ||
+            (Array.isArray(resumeData.skills) && resumeData.skills.length > 0)
+          )
+        );
+
+        if (hasResume) {
+          setResume({ uploaded: true });
+          console.log('Existing profile loaded:', profileData);
+        } else {
+          setResume(null);
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        // Don't show error toast on initial load - user might not have profile yet
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    loadProfileData();
+  }, [setProfile, setResume]);
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -28,22 +72,38 @@ const Dashboard = () => {
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Resume upload button */}
-            <motion.button
-              onClick={() => setShowResumeUploader(!showResumeUploader)}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                resume
-                  ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-              }`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Upload className="w-4 h-4" />
-              <span className="text-sm font-medium">
-                {resume ? 'Resume Uploaded' : 'Upload Resume'}
-              </span>
-            </motion.button>
+            {/* Resume upload status */}
+            {resume ? (
+              <div className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                    Resume Active
+                  </span>
+                  {resume.processed_at && (
+                    <span className="text-[10px] text-green-600 dark:text-green-400">
+                      {new Date(resume.processed_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowResumeUploader(!showResumeUploader)}
+                  className="ml-2 text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline"
+                >
+                  Update
+                </button>
+              </div>
+            ) : (
+              <motion.button
+                onClick={() => setShowResumeUploader(!showResumeUploader)}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Upload className="w-4 h-4" />
+                <span className="text-sm font-medium">Upload Resume</span>
+              </motion.button>
+            )}
 
             {/* Profile button */}
             <motion.button

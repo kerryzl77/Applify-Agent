@@ -9,21 +9,44 @@ const useStore = create(
       token: null,
       isAuthenticated: false,
 
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setUser: (user) => set((state) => {
+        const prevUserId = state.user?.user_id;
+        const next = {
+          user,
+          isAuthenticated: !!user,
+        };
+
+        const incomingId = user?.user_id;
+        const shouldReset = (!state.user && !!user) || (incomingId && incomingId !== prevUserId) || !user;
+
+        if (shouldReset) {
+          next.profile = null;
+          next.resume = null;
+          next.conversations = [];
+          next.currentConversationId = null;
+        }
+
+        return next;
+      }),
       setToken: (token) => set({ token }),
 
-      login: (user, token) => set({
-        user,
-        token,
-        isAuthenticated: true
-      }),
+      login: (user, token) => {
+        set({
+          user,
+          token,
+          isAuthenticated: true,
+        });
+        get().resetProfileState();
+      },
 
-      logout: () => set({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        profile: null
-      }),
+      logout: () => {
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+        });
+        get().resetProfileState();
+      },
 
       // Theme state
       theme: 'light',
@@ -138,6 +161,13 @@ const useStore = create(
 
       setResume: (resume) => set({ resume }),
       setResumeUploading: (uploading) => set({ resumeUploading: uploading }),
+
+      resetProfileState: () => set({
+        profile: null,
+        resume: null,
+        conversations: [],
+        currentConversationId: null,
+      }),
     }),
     {
       name: 'applify-storage',
@@ -149,8 +179,6 @@ const useStore = create(
         theme: state.theme,
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
-        profile: state.profile,
-        resume: state.resume,
       }),
     }
   )

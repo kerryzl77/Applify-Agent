@@ -24,12 +24,18 @@ from scraper.retriever import DataRetriever
 from scraper.url_validator import URLValidator
 from database.db_manager import DatabaseManager
 from app.cached_llm import CachedLLMGenerator
+from app.gmail_service import GmailService, GmailOAuthError
 from app.output_formatter import OutputFormatter
 
+# Determine the correct paths for templates and static files
+# Works both in development and production (Docker/Heroku)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CLIENT_DIST = os.path.join(BASE_DIR, 'client', 'dist')
+TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
+
 app = Flask(__name__,
-            template_folder='../templates',
-            static_folder='../client/dist',
-            static_url_path='')
+            template_folder=TEMPLATES_DIR,
+            static_folder=None)  # Disable Flask's static file handling
 
 # CORS configuration for React frontend
 # In production, specify allowed origins instead of "*"
@@ -47,8 +53,11 @@ is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('H
 if is_production:
     app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
     app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-site for API calls
+    app.config['SESSION_COOKIE_DOMAIN'] = None  # Let Flask handle domain
     logging.info("Production mode: Enhanced security settings enabled")
+else:
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Dev environment
 
 # Initialize Redis for caching only, not sessions
 redis_manager = RedisManager()
@@ -154,12 +163,17 @@ def generate_content():
     if not content_type:
         return jsonify({'error': 'Missing content type'}), 400
     
+    recipient_email = data.get('recipient_email', '')
+
     if needs_profile and input_type == 'url':
         # For connection messages, require person name and position
         if not person_name or not person_position:
             return jsonify({'error': 'Person name and position are required for connection messages'}), 400
-    elif not url and not manual_text:
+    elif not needs_profile and not url and not manual_text:
         return jsonify({'error': 'Missing required fields'}), 400
+
+    if content_type in ['connection_email', 'hiring_manager_email'] and not recipient_email:
+        return jsonify({'error': 'Recipient email is required for email workflows'}), 400
     
     # Validate URL if provided
     if input_type == 'url' and url:
@@ -287,6 +301,8 @@ def generate_content():
                 return jsonify({'error': f"Failed to parse job posting: {job_data['error']}"}), 400
     
     # Generate content based on type (job_data and profile_data already prepared above)
+    email_bundle = None
+
     if content_type == 'linkedin_message':
         content = llm_generator.generate_linkedin_message(job_data, candidate_data, profile_data)
     elif content_type == 'connection_email':
@@ -300,6 +316,12 @@ def generate_content():
     
     # Format the content
     formatted_content = output_formatter.format_text(content, content_type)
+    email_bundle = None
+    if content_type in ['connection_email', 'hiring_manager_email']:
+        email_bundle = {
+            'subject': llm_generator.generate_email_subject(formatted_content, content_type.replace('_', ' ')),
+            'body_html': llm_generator._convert_to_html(formatted_content)
+        }
     
     # Cache the generated content
     redis_manager.cache_generated_content(content_type, formatted_content, job_data, session['user_id'])
@@ -310,8 +332,14 @@ def generate_content():
         'company_name': job_data.get('company_name', ''),
         'url': url,
         'generated_at': str(datetime.datetime.now()),
-        'input_type': input_type
+        'input_type': input_type,
     }
+    if email_bundle:
+        metadata.update({
+            'email_subject': email_bundle.get('subject', ''),
+            'email_html': email_bundle.get('body_html', ''),
+            'recipient_email': recipient_email,
+        })
     content_id = db_manager.save_generated_content(content_type, formatted_content, metadata, session['user_id'])
     
     # Create document file if needed - do this immediately for better UX
@@ -332,8 +360,95 @@ def generate_content():
         'file_info': file_info,
         'cached': False
     }
+
+    if email_bundle:
+        response.update({
+            'email_subject': email_bundle.get('subject'),
+            'email_html': email_bundle.get('body_html'),
+            'recipient_email': recipient_email,
+        })
     
     return jsonify(response)
+
+
+@app.route('/api/gmail/status', methods=['GET'])
+@login_required
+def gmail_status():
+    try:
+        service = GmailService(session['user_id'])
+        status = service.get_status()
+        return jsonify(status)
+    except GmailOAuthError as exc:
+        return jsonify({'availability': 'unavailable', 'authorized': False, 'error': str(exc)}), 200
+
+
+@app.route('/api/gmail/disconnect', methods=['POST'])
+@login_required
+def gmail_disconnect():
+    service = GmailService(session['user_id'])
+    service.disconnect()
+    return jsonify({'success': True})
+
+
+@app.route('/api/gmail/auth-url', methods=['GET'])
+@login_required
+def gmail_auth_url():
+    try:
+        service = GmailService(session['user_id'])
+        auth_url, state = service.get_authorization_url()
+        session['gmail_oauth_state'] = state
+        return jsonify({'auth_url': auth_url})
+    except GmailOAuthError as exc:
+        return jsonify({'error': str(exc)}), 400
+
+
+@app.route('/api/gmail/oauth2callback', methods=['GET'])
+@login_required
+def gmail_oauth_callback():
+    error = request.args.get('error')
+    code = request.args.get('code')
+    state = request.args.get('state')
+
+    if error:
+        return redirect_to_frontend('gmail_error')
+
+    saved_state = session.pop('gmail_oauth_state', None)
+    if not code or not state or saved_state != state:
+        return redirect_to_frontend('gmail_invalid_state')
+
+    try:
+        service = GmailService(session['user_id'])
+        service.exchange_code_for_tokens(code)
+        return redirect_to_frontend('gmail_connected')
+    except GmailOAuthError:
+        return redirect_to_frontend('gmail_error')
+
+
+@app.route('/api/gmail/create-draft', methods=['POST'])
+@login_required
+def gmail_create_draft():
+    payload = request.get_json() or {}
+    required_fields = ['recipient_email', 'subject', 'body']
+
+    missing = [field for field in required_fields if not payload.get(field)]
+    if missing:
+        return jsonify({'error': f"Missing required fields: {', '.join(missing)}"}), 400
+
+    try:
+        service = GmailService(session['user_id'])
+        draft = service.create_draft(
+            to_email=payload['recipient_email'],
+            subject=payload['subject'],
+            body_html=payload['body'],
+            cc=payload.get('cc'),
+            bcc=payload.get('bcc'),
+        )
+        return jsonify({'success': True, 'draft_id': draft.get('id')}), 200
+    except GmailOAuthError as exc:
+        return jsonify({'error': str(exc)}), 400
+    except Exception as exc:
+        logging.exception('Failed to create Gmail draft')
+        return jsonify({'error': 'Failed to create draft'}), 500
 
 @app.route('/api/download/<path:file_path>')
 @login_required
@@ -410,8 +525,36 @@ def get_candidate_data():
 @login_required
 def update_candidate_data():
     """Update candidate data and invalidate cache."""
-    data = request.json
-    db_manager.update_candidate_data(data, session['user_id'])
+    incoming_data = request.json or {}
+
+    # Preserve existing resume/profile details if request omits them
+    existing_data = db_manager.get_candidate_data(session['user_id']) or {}
+
+    merged_data = existing_data.copy()
+
+    if 'personal_info' in incoming_data:
+        merged_data['personal_info'] = {
+            **existing_data.get('personal_info', {}),
+            **incoming_data['personal_info']
+        }
+
+    if 'resume' in incoming_data:
+        existing_resume = existing_data.get('resume', {})
+        new_resume = incoming_data.get('resume') or {}
+        merged_data['resume'] = {**existing_resume, **new_resume}
+    elif 'resume' not in merged_data:
+        merged_data['resume'] = existing_data.get('resume', {})
+
+    for key in ['story_bank', 'templates', 'generated_content']:
+        if key in incoming_data:
+            merged_data[key] = incoming_data[key]
+
+    # Include any other top-level keys provided in the payload
+    for key, value in incoming_data.items():
+        if key not in merged_data and key not in ['personal_info', 'resume', 'story_bank', 'templates', 'generated_content']:
+            merged_data[key] = value
+
+    db_manager.update_candidate_data(merged_data, session['user_id'])
     
     # Invalidate user cache when profile is updated
     redis_manager.invalidate_user_cache(session['user_id'])
@@ -887,12 +1030,31 @@ def serve_react(path):
     if path.startswith('api/'):
         return jsonify({'error': 'Not found'}), 404
 
-    # Serve static files
-    if path and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
+    # Serve static files from client/dist
+    file_path = os.path.join(CLIENT_DIST, path)
+    if path and os.path.exists(file_path) and os.path.isfile(file_path):
+        return send_from_directory(CLIENT_DIST, path)
 
     # Serve index.html for all other routes (React Router)
-    return send_from_directory(app.static_folder, 'index.html')
+    index_path = os.path.join(CLIENT_DIST, 'index.html')
+    if os.path.exists(index_path):
+        return send_from_directory(CLIENT_DIST, 'index.html')
+    else:
+        logging.error(f"index.html not found at {index_path}")
+        logging.error(f"CLIENT_DIST: {CLIENT_DIST}")
+        logging.error(f"BASE_DIR: {BASE_DIR}")
+        logging.error(f"Files in CLIENT_DIST: {os.listdir(CLIENT_DIST) if os.path.exists(CLIENT_DIST) else 'Directory does not exist'}")
+        return jsonify({'error': 'Frontend not found', 'client_dist': CLIENT_DIST}), 500
+
+def redirect_to_frontend(fragment: str = ""):
+    base = os.environ.get('FRONTEND_ORIGIN') or os.environ.get('PUBLIC_URL')
+    if not base:
+        target = '/'
+    else:
+        target = base
+    if fragment:
+        target = f"{target}#{fragment}"
+    return redirect(target)
 
 if __name__ == '__main__':
     import os

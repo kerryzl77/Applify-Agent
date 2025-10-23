@@ -6,6 +6,101 @@ import useStore from '../store/useStore';
 import { profileAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
+const parseSkillsInput = (input, fallback = []) => {
+  if (typeof input !== 'string') return Array.isArray(fallback) ? fallback : [];
+  const trimmed = input.trim();
+  if (!trimmed) return [];
+
+  return trimmed
+    .split(/[\n,]/)
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+};
+
+const parseExperienceInput = (input, fallback = []) => {
+  if (typeof input !== 'string') return Array.isArray(fallback) ? fallback : [];
+  const trimmed = input.trim();
+  if (!trimmed) return [];
+
+  const sections = trimmed.split(/\n{2,}/);
+  const existing = Array.isArray(fallback) ? fallback : [];
+
+  return sections.map((section, index) => {
+    const text = section.trim();
+    const match = text.match(/^(.*?) at (.*?) \((.*?) - (.*?)\):\s*(.*)$/s);
+
+    if (match) {
+      const [, title, company, startDate, endDate, description] = match;
+      const previous = existing[index] || {};
+      return {
+        title: title.trim(),
+        company: company.trim(),
+        start_date: startDate.trim(),
+        end_date: endDate.trim(),
+        description: description.trim(),
+        location: previous.location || '',
+      };
+    }
+
+    const previous = existing[index];
+    if (previous) {
+      return {
+        ...previous,
+        description: text,
+      };
+    }
+
+    return {
+      title: text,
+      company: '',
+      location: '',
+      start_date: '',
+      end_date: '',
+      description: text,
+    };
+  });
+};
+
+const parseEducationInput = (input, fallback = []) => {
+  if (typeof input !== 'string') return Array.isArray(fallback) ? fallback : [];
+  const trimmed = input.trim();
+  if (!trimmed) return [];
+
+  const sections = trimmed.split(/\n{2,}/);
+  const existing = Array.isArray(fallback) ? fallback : [];
+
+  return sections.map((section, index) => {
+    const text = section.trim();
+    const match = text.match(/^(.*?) at (.*?) \((.*?)\)$/s);
+
+    if (match) {
+      const [, degree, institution, graduationDate] = match;
+      const previous = existing[index] || {};
+      return {
+        degree: degree.trim(),
+        institution: institution.trim(),
+        graduation_date: graduationDate.trim(),
+        location: previous.location || '',
+      };
+    }
+
+    const previous = existing[index];
+    if (previous) {
+      return {
+        ...previous,
+        degree: previous.degree || text,
+      };
+    }
+
+    return {
+      degree: text,
+      institution: '',
+      location: '',
+      graduation_date: '',
+    };
+  });
+};
+
 const ProfileModal = ({ isOpen, onClose }) => {
   const { profile, setProfile, user } = useStore();
   const [loading, setLoading] = useState(false);
@@ -25,18 +120,39 @@ const ProfileModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (profile) {
+      // Handle structured profile data from backend (personal_info, resume, etc.)
+      const personalInfo = profile.personal_info || {};
+      const resumeData = profile.resume || {};
+      
+      // Convert arrays to comma-separated strings for display
+      const skillsStr = Array.isArray(resumeData.skills) 
+        ? resumeData.skills.join(', ') 
+        : (resumeData.skills || '');
+      
+      const experienceStr = Array.isArray(resumeData.experience)
+        ? resumeData.experience.map(exp => 
+            `${exp.title} at ${exp.company} (${exp.start_date} - ${exp.end_date}): ${exp.description}`
+          ).join('\n\n')
+        : (resumeData.experience || '');
+      
+      const educationStr = Array.isArray(resumeData.education)
+        ? resumeData.education.map(edu => 
+            `${edu.degree} at ${edu.institution} (${edu.graduation_date})`
+          ).join('\n\n')
+        : (resumeData.education || '');
+      
       setFormData({
-        name: profile.name || user?.name || '',
-        email: profile.email || user?.email || '',
-        phone: profile.phone || '',
-        location: profile.location || '',
-        linkedin: profile.linkedin || '',
-        github: profile.github || '',
-        website: profile.website || '',
-        bio: profile.bio || '',
-        skills: profile.skills || '',
-        experience: profile.experience || '',
-        education: profile.education || '',
+        name: personalInfo.name || user?.name || '',
+        email: personalInfo.email || user?.email || '',
+        phone: personalInfo.phone || '',
+        location: personalInfo.location || '',
+        linkedin: personalInfo.linkedin || '',
+        github: personalInfo.github || '',
+        website: personalInfo.website || '',
+        bio: resumeData.summary || '',
+        skills: skillsStr,
+        experience: experienceStr,
+        education: educationStr,
       });
     } else if (user) {
       setFormData((prev) => ({
@@ -60,8 +176,35 @@ const ProfileModal = ({ isOpen, onClose }) => {
     setLoading(true);
 
     try {
-      const response = await profileAPI.update(formData);
-      setProfile(response.profile);
+      const currentProfile = profile || {};
+      const existingResume = currentProfile.resume || {};
+
+      const updatedProfile = {
+        ...currentProfile,
+        personal_info: {
+          ...(currentProfile.personal_info || {}),
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          location: formData.location.trim(),
+          linkedin: formData.linkedin.trim(),
+          github: formData.github.trim(),
+          website: formData.website.trim(),
+        },
+        resume: {
+          ...existingResume,
+          summary: formData.bio.trim(),
+          skills: parseSkillsInput(formData.skills, existingResume.skills || []),
+          experience: parseExperienceInput(formData.experience, existingResume.experience || []),
+          education: parseEducationInput(formData.education, existingResume.education || []),
+        },
+        story_bank: currentProfile.story_bank || [],
+        templates: currentProfile.templates || {},
+        generated_content: currentProfile.generated_content || [],
+      };
+
+      await profileAPI.update(updatedProfile);
+      setProfile(updatedProfile);
       toast.success('Profile updated successfully!');
       onClose();
     } catch (error) {

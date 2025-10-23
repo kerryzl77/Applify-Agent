@@ -1,214 +1,437 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import {
-  Send,
   Sparkles,
   Copy,
   Download,
   RefreshCw,
-  User,
-  Bot,
   Loader2,
-} from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import useStore from '../store/useStore';
-import { contentAPI } from '../services/api';
-import { copyToClipboard, downloadFile, formatTime } from '../utils/helpers';
-import toast from 'react-hot-toast';
-import ResumeUploader from './ResumeUploader';
+  FileText,
+  Link as LinkIcon,
+  User as UserIcon,
+  Briefcase,
+  Mail,
+  Settings,
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import useStore from "../store/useStore";
+import { gmailAPI } from "../services/api";
+import { copyToClipboard, downloadFile } from "../utils/helpers";
+import toast from "react-hot-toast";
+import ResumeUploader from "./ResumeUploader";
+import axios from "axios";
+import GmailSetup from "./GmailSetup";
+import { Upload } from "lucide-react";
 
 const ContentGenerator = () => {
   const {
     currentConversationId,
     conversations,
-    addMessage,
-    updateMessage,
     isGenerating,
     setGenerating,
     resume,
   } = useStore();
 
-  const [input, setInput] = useState('');
+  const [inputType, setInputType] = useState("manual"); // 'url' or 'manual'
+  const [formData, setFormData] = useState({
+    url: "",
+    manual_text: "",
+    person_name: "",
+    person_position: "",
+    linkedin_url: "",
+    recipient_email: "",
+  });
+  const [generatedContent, setGeneratedContent] = useState(null);
+  const [fileInfo, setFileInfo] = useState(null);
+  const [emailMetadata, setEmailMetadata] = useState({
+    subject: "",
+    body: "",
+    body_html: "",
+    recipient_email: "",
+  });
+  const [creatingDraft, setCreatingDraft] = useState(false);
   const [showResumeUploader, setShowResumeUploader] = useState(false);
-  const messagesEndRef = useRef(null);
-  const textareaRef = useRef(null);
+  const [resumeProgress, setResumeProgress] = useState(null);
+  const [resumeTaskId, setResumeTaskId] = useState(null);
+  const [gmailStatus, setGmailStatus] = useState({ availability: "unknown", authorized: false });
+  const [isGmailSetupOpen, setGmailSetupOpen] = useState(false);
 
-  const currentConversation = conversations.find((c) => c.id === currentConversationId);
+  const currentConversation = conversations.find(
+    (c) => c.id === currentConversationId,
+  );
+  const conversationType = currentConversation?.type;
+  const isEmailWorkflow = ["connection_email", "hiring_manager_email"].includes(
+    conversationType,
+  );
+  const needsPersonInfo = [
+    "connection_email",
+    "hiring_manager_email",
+    "linkedin_message",
+  ].includes(conversationType);
 
+  // Poll for resume progress
   useEffect(() => {
-    scrollToBottom();
-  }, [currentConversation?.messages]);
+    if (!resumeTaskId) return;
 
-  useEffect(() => {
-    adjustTextareaHeight();
-  }, [input]);
+    const pollProgress = setInterval(async () => {
+      try {
+        const response = await axios.get(
+          `/api/resume-refinement-progress/${resumeTaskId}`,
+          { withCredentials: true },
+        );
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+        setResumeProgress(response.data);
 
-  const adjustTextareaHeight = () => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
-    }
+        if (
+          response.data.status === "completed" ||
+          response.data.step === "completed"
+        ) {
+          clearInterval(pollProgress);
+          setResumeTaskId(null);
+          setGenerating(false);
+          setResumeProgress(null); // Clear progress to show download buttons
+
+          // Extract file info from the response data
+          const responseData = response.data.data || response.data;
+          if (responseData?.file_info) {
+            console.log("Setting file info:", responseData.file_info);
+            setFileInfo(responseData.file_info);
+          }
+
+          // Show recommendations if available
+          const recommendations = responseData?.recommendations || [];
+          if (recommendations.length > 0) {
+            setGeneratedContent(recommendations.join("\n\n"));
+          } else {
+            setGeneratedContent(
+              "Resume optimized successfully! Click download to get your tailored resume.",
+            );
+          }
+
+          toast.success("Resume generated successfully!");
+        } else if (
+          response.data.status === "error" ||
+          response.data.step === "error"
+        ) {
+          clearInterval(pollProgress);
+          setResumeTaskId(null);
+          setGenerating(false);
+          toast.error(response.data.message || "Resume generation failed");
+        }
+      } catch (error) {
+        console.error("Error polling progress:", error);
+      }
+    }, 1000);
+
+    return () => clearInterval(pollProgress);
+  }, [resumeTaskId, setGenerating]);
+
+  const resetForm = () => {
+    setFormData({
+      url: "",
+      manual_text: "",
+      person_name: "",
+      person_position: "",
+      linkedin_url: "",
+      recipient_email: "",
+    });
+    setGeneratedContent(null);
+    setFileInfo(null);
+    setResumeProgress(null);
+    setEmailMetadata({
+      subject: "",
+      body: "",
+      body_html: "",
+      recipient_email: "",
+    });
   };
 
   const handleCopy = async (content) => {
     const success = await copyToClipboard(content);
     if (success) {
-      toast.success('Copied to clipboard!');
+      toast.success("Copied to clipboard!");
     } else {
-      toast.error('Failed to copy');
+      toast.error("Failed to copy");
     }
   };
 
-  const handleDownload = (content, type) => {
-    const filename = `${type}_${Date.now()}.txt`;
-    downloadFile(content, filename, 'text/plain');
-    toast.success('Downloaded successfully!');
+  const handleDownload = (type, format = "docx") => {
+    if (fileInfo) {
+      window.open(`/api/download/${fileInfo.filename}`, "_blank");
+      toast.success("Download started!");
+    } else if (generatedContent) {
+      const filename = `${type}_${Date.now()}.${format}`;
+      const mimeType = format === "pdf" ? "application/pdf" : "text/plain";
+      downloadFile(generatedContent, filename, mimeType);
+      toast.success(`Downloaded as ${format.toUpperCase()}!`);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (fileInfo && fileInfo.filename.endsWith(".docx")) {
+      // Try to convert to PDF via backend
+      try {
+        const pdfFilename = fileInfo.filename.replace(".docx", ".pdf");
+        window.open(`/api/convert-to-pdf/${fileInfo.filename}`, "_blank");
+        toast.success("Converting to PDF...");
+      } catch (error) {
+        toast.error("PDF conversion failed. Download DOCX instead.");
+      }
+    } else if (fileInfo && fileInfo.filename.endsWith(".pdf")) {
+      // Already a PDF
+      window.open(`/api/download/${fileInfo.filename}`, "_blank");
+      toast.success("Download started!");
+    } else {
+      toast.error("No file available for PDF download");
+    }
+  };
+
+  const validateForm = () => {
+    if (!resume) {
+      toast.error("Please upload your resume first");
+      return false;
+    }
+
+    const needsPersonInfo = [
+      "connection_email",
+      "hiring_manager_email",
+      "linkedin_message",
+    ].includes(conversationType);
+
+    if (needsPersonInfo) {
+      if (!formData.person_name || !formData.person_position) {
+        toast.error("Please enter the person's name and position");
+        return false;
+      }
+      if (
+        ["connection_email", "hiring_manager_email"].includes(
+          conversationType,
+        ) &&
+        !formData.recipient_email
+      ) {
+        toast.error("Please provide the recipient's email");
+        return false;
+      }
+    } else {
+      if (inputType === "url" && !formData.url) {
+        toast.error("Please enter a job posting URL");
+        return false;
+      }
+      if (inputType === "manual" && !formData.manual_text) {
+        toast.error("Please enter the job description");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const refreshGmailStatus = useCallback(async () => {
+    try {
+      const response = await gmailAPI.status();
+      setGmailStatus(response);
+    } catch (error) {
+      setGmailStatus({ availability: "unavailable", authorized: false, error: error.message });
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshGmailStatus();
+  }, [refreshGmailStatus]);
+
+  useEffect(() => {
+    if (!isEmailWorkflow) {
+      return;
+    }
+    refreshGmailStatus();
+  }, [isEmailWorkflow, refreshGmailStatus]);
+
+  const handleConnectGmail = async () => {
+    try {
+      const { auth_url } = await gmailAPI.getAuthUrl();
+      window.location.href = auth_url;
+    } catch (error) {
+      toast.error(error.message || "Failed to initiate Gmail authorization");
+    }
+  };
+
+  const handleCreateDraft = async () => {
+    if (!isEmailWorkflow) {
+      return;
+    }
+
+    if (gmailStatus.availability === "unavailable") {
+      toast.error("Gmail API is not configured");
+      return;
+    }
+
+    if (gmailStatus.availability !== "authorized") {
+      toast.error("Connect your Gmail account first");
+      setGmailSetupOpen(true);
+      return;
+    }
+
+    if (!emailMetadata.subject || !emailMetadata.body_html) {
+      toast.error("Generate the email before creating a draft");
+      return;
+    }
+
+    if (!emailMetadata.recipient_email) {
+      toast.error("Recipient email is required");
+      return;
+    }
+
+    try {
+      setCreatingDraft(true);
+      await gmailAPI.createDraft({
+        recipient_email: emailMetadata.recipient_email,
+        subject: emailMetadata.subject,
+        body: emailMetadata.body_html,
+      });
+      toast.success("Draft created in Gmail");
+    } catch (error) {
+      toast.error(error.message || "Failed to create Gmail draft");
+    } finally {
+      setCreatingDraft(false);
+    }
   };
 
   const handleGenerate = async () => {
-    if (!input.trim() || isGenerating || !currentConversationId) return;
+    if (!validateForm() || isGenerating) return;
 
-    const userMessage = {
-      role: 'user',
-      content: input.trim(),
-      timestamp: new Date().toISOString(),
-    };
-
-    addMessage(currentConversationId, userMessage);
-    setInput('');
     setGenerating(true);
-
-    // Add a placeholder AI message
-    const aiMessageIndex = currentConversation?.messages.length || 0;
-    const aiMessage = {
-      role: 'assistant',
-      content: '',
-      timestamp: new Date().toISOString(),
-      loading: true,
-    };
-    addMessage(currentConversationId, aiMessage);
+    setGeneratedContent(null);
+    setFileInfo(null);
+    setResumeProgress(null);
 
     try {
       let response;
-      const conversationType = currentConversation?.type;
 
-      // Determine which API endpoint to use based on conversation type
-      switch (conversationType) {
-        case 'cover_letter':
-          response = await contentAPI.generateCoverLetter(input.trim(), {
-            resume: resume?.content,
+      if (conversationType === "resume") {
+        // Resume tailoring uses different endpoint
+        const payload = {
+          input_type: inputType,
+          job_description:
+            inputType === "manual" ? formData.manual_text : undefined,
+          url: inputType === "url" ? formData.url : undefined,
+        };
+
+        response = await axios.post("/api/refine-resume", payload, {
+          withCredentials: true,
+        });
+
+        if (response.data.task_id) {
+          setResumeTaskId(response.data.task_id);
+          setResumeProgress({
+            status: "processing",
+            message: "Starting resume generation...",
+            progress: 0,
           });
-          break;
+        }
+        return; // Exit here, polling will handle the rest
+      } else {
+        // Cover letter, email, connection messages
+        const payload = {
+          content_type: conversationType,
+          input_type: inputType,
+        };
 
-        case 'email':
-          response = await contentAPI.generateEmail('professional', 'Hiring Manager', input.trim());
-          break;
+        if (inputType === "url") {
+          payload.url = formData.url;
+        } else {
+          payload.manual_text = formData.manual_text;
+        }
 
-        case 'resume':
-          response = await contentAPI.generateResumeTailored(input.trim());
-          break;
+        // Add person info for connection messages
+        if (needsPersonInfo) {
+          payload.person_name = formData.person_name;
+          payload.person_position = formData.person_position;
+          if (formData.linkedin_url) {
+            payload.linkedin_url = formData.linkedin_url;
+          }
+          if (isEmailWorkflow && formData.recipient_email) {
+            payload.recipient_email = formData.recipient_email;
+          }
+        }
 
-        default:
-          response = await contentAPI.generate(conversationType, {
-            prompt: input.trim(),
-            resume: resume?.content,
+        response = await axios.post("/api/generate", payload, {
+          withCredentials: true,
+        });
+
+        setGeneratedContent(response.data.content);
+        if (response.data.file_info) {
+          setFileInfo(response.data.file_info);
+        }
+
+        if (isEmailWorkflow) {
+          setEmailMetadata({
+            subject: response.data.email_subject || "",
+            body: response.data.content || "",
+            body_html: response.data.email_html || "",
+            recipient_email: formData.recipient_email || "",
           });
+          refreshGmailStatus();
+        }
+
+        toast.success("Content generated successfully!");
       }
-
-      // Update the AI message with the response
-      updateMessage(currentConversationId, aiMessageIndex + 1, {
-        content: response.content || response.text || response.result || 'No response generated',
-        loading: false,
-      });
     } catch (error) {
-      updateMessage(currentConversationId, aiMessageIndex + 1, {
-        content: `Error: ${error.message || 'Failed to generate content'}`,
-        loading: false,
-        error: true,
-      });
-      toast.error(error.message || 'Failed to generate content');
+      const errorMsg =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to generate content";
+      toast.error(errorMsg);
+      setGeneratedContent(`Error: ${errorMsg}`);
     } finally {
-      setGenerating(false);
+      if (conversationType !== "resume") {
+        setGenerating(false);
+      }
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleGenerate();
-    }
+  const handleRegenerate = () => {
+    handleGenerate();
   };
 
-  const handleRegenerate = async (messageIndex) => {
-    if (messageIndex < 1) return;
-
-    const previousUserMessage = currentConversation?.messages[messageIndex - 1];
-    if (!previousUserMessage || previousUserMessage.role !== 'user') return;
-
-    setGenerating(true);
-    updateMessage(currentConversationId, messageIndex, {
-      loading: true,
-      content: '',
-    });
-
+  const handleDisconnectGmail = async () => {
     try {
-      let response;
-      const conversationType = currentConversation?.type;
-
-      switch (conversationType) {
-        case 'cover_letter':
-          response = await contentAPI.generateCoverLetter(previousUserMessage.content, {
-            resume: resume?.content,
-          });
-          break;
-
-        case 'email':
-          response = await contentAPI.generateEmail('professional', 'Hiring Manager', previousUserMessage.content);
-          break;
-
-        case 'resume':
-          response = await contentAPI.generateResumeTailored(previousUserMessage.content);
-          break;
-
-        default:
-          response = await contentAPI.generate(conversationType, {
-            prompt: previousUserMessage.content,
-            resume: resume?.content,
-          });
-      }
-
-      updateMessage(currentConversationId, messageIndex, {
-        content: response.content || response.text || response.result || 'No response generated',
-        loading: false,
-        timestamp: new Date().toISOString(),
-      });
+      await gmailAPI.disconnect();
+      toast.success("Gmail disconnected");
+      refreshGmailStatus();
     } catch (error) {
-      updateMessage(currentConversationId, messageIndex, {
-        content: `Error: ${error.message || 'Failed to regenerate content'}`,
-        loading: false,
-        error: true,
-      });
-      toast.error(error.message || 'Failed to regenerate content');
-    } finally {
-      setGenerating(false);
+      toast.error(error.message || "Failed to disconnect Gmail");
     }
   };
+
+  const gmailStatusVariant = useMemo(() => {
+    if (gmailStatus?.authorized) {
+      return "authorized";
+    }
+    if (gmailStatus?.availability === "configured") {
+      return "configured";
+    }
+    if (gmailStatus?.availability === "unavailable") {
+      return "unavailable";
+    }
+    return "unknown";
+  }, [gmailStatus]);
+
+  const showGmailBanner = useMemo(
+    () => ["connection_email", "hiring_manager_email"].includes(conversationType),
+    [conversationType],
+  );
 
   if (!currentConversationId) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <Sparkles className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
+      <div className="h-full flex items-center justify-center bg-white dark:bg-gray-950">
+        <div className="text-center p-8">
+          <Sparkles className="w-16 h-16 mx-auto text-blue-500 mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            No conversation selected
+            Welcome to Applify
           </h3>
-          <p className="text-gray-500 dark:text-gray-400">
-            Select a conversation from the sidebar or create a new one
+          <p className="text-gray-600 dark:text-gray-400">
+            Click "+" in the sidebar to create a new cover letter, email, or
+            tailor your resume
           </p>
         </div>
       </div>
@@ -216,177 +439,422 @@ const ContentGenerator = () => {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-6">
-        {currentConversation?.messages.length === 0 ? (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center max-w-md">
-              <Sparkles className="w-16 h-16 mx-auto text-blue-500 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                Ready to help you craft the perfect content
-              </h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-6">
-                {currentConversation?.type === 'cover_letter' &&
-                  'Paste a job description to generate a tailored cover letter'}
-                {currentConversation?.type === 'email' &&
-                  'Describe the email you need and I\'ll help you write it'}
-                {currentConversation?.type === 'resume' &&
-                  'Paste a job description to tailor your resume'}
-              </p>
-
-              {!resume && (
-                <button
-                  onClick={() => setShowResumeUploader(!showResumeUploader)}
-                  className="btn btn-outline mx-auto"
-                >
-                  {showResumeUploader ? 'Hide Resume Uploader' : 'Upload Resume First'}
-                </button>
-              )}
-
-              {showResumeUploader && (
-                <div className="mt-6">
-                  <ResumeUploader onUploadComplete={() => setShowResumeUploader(false)} />
-                </div>
-              )}
-            </div>
+    <>
+      <div className="h-full flex flex-col overflow-y-auto custom-scrollbar">
+        <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto w-full">
+          {/* Header */}
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+              {conversationType === "cover_letter" && "Generate Cover Letter"}
+              {conversationType === "resume" && "Tailor Resume"}
+              {conversationType === "connection_email" &&
+                "Generate Connection Email"}
+              {conversationType === "hiring_manager_email" &&
+                "Generate Hiring Manager Email"}
+              {conversationType === "linkedin_message" &&
+                "Generate LinkedIn Message"}
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              {conversationType === "cover_letter" &&
+                "Provide a job posting to generate a tailored cover letter"}
+              {conversationType === "resume" &&
+                "Provide a job posting to optimize your resume"}
+              {needsPersonInfo &&
+                "Enter the person's information to generate a personalized message"}
+            </p>
           </div>
-        ) : (
-          <>
-            {currentConversation?.messages.map((message, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`flex space-x-3 max-w-[85%] ${
-                    message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-                  }`}
-                >
-                  {/* Avatar */}
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.role === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gradient-to-br from-purple-600 to-blue-600 text-white'
-                    }`}
-                  >
-                    {message.role === 'user' ? (
-                      <User className="w-5 h-5" />
-                    ) : (
-                      <Bot className="w-5 h-5" />
-                    )}
-                  </div>
 
-                  {/* Message content */}
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className={`rounded-2xl px-4 py-3 ${
-                        message.role === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : message.error
-                          ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-900 dark:text-red-100'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                      }`}
-                    >
-                      {message.loading ? (
-                        <div className="flex items-center space-x-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Generating...</span>
-                        </div>
-                      ) : (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                          <ReactMarkdown>{message.content}</ReactMarkdown>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Message actions */}
-                    {message.role === 'assistant' && !message.loading && (
-                      <div className="flex items-center space-x-2 mt-2 ml-2">
-                        <span className="text-xs text-gray-400">
-                          {formatTime(message.timestamp)}
-                        </span>
-                        <button
-                          onClick={() => handleCopy(message.content)}
-                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                          title="Copy"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDownload(message.content, currentConversation?.type)}
-                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                          title="Download"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleRegenerate(index)}
-                          disabled={isGenerating}
-                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-50"
-                          title="Regenerate"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-            <div ref={messagesEndRef} />
-          </>
-        )}
-      </div>
-
-      {/* Input area */}
-      <div className="border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-900">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-end space-x-3">
-            <div className="flex-1 relative">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={
-                  currentConversation?.type === 'cover_letter'
-                    ? 'Paste the job description here...'
-                    : currentConversation?.type === 'email'
-                    ? 'Describe the email you need...'
-                    : 'Paste the job description to tailor your resume...'
-                }
-                className="w-full resize-none rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows="1"
-                disabled={isGenerating}
-              />
-            </div>
-
-            <motion.button
-              onClick={handleGenerate}
-              disabled={!input.trim() || isGenerating}
-              className="p-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-700 hover:to-purple-700 transition-all"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+          {/* Resume Upload Reminder - Only show if no resume at all */}
+          {!resume && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
             >
-              {isGenerating ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Send className="w-5 h-5" />
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                  <Upload className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                    Resume Required
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                    Upload your resume once to generate personalized cover
+                    letters, emails, and tailored resumes. Your information will
+                    be saved for all future generations.
+                  </p>
+                  <button
+                    onClick={() => setShowResumeUploader(!showResumeUploader)}
+                    className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline"
+                  >
+                    {showResumeUploader
+                      ? "Hide Uploader ↑"
+                      : "Upload Resume Now →"}
+                  </button>
+                </div>
+              </div>
+              {showResumeUploader && (
+                <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
+                  <ResumeUploader
+                    onUploadComplete={() => setShowResumeUploader(false)}
+                  />
+                </div>
               )}
-            </motion.button>
+            </motion.div>
+          )}
+
+          {/* Form */}
+          <div className="card p-6 mb-6">
+            {needsPersonInfo ? (
+              /* Person Information Form */
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <UserIcon className="inline w-4 h-4 mr-1" />
+                    Person Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.person_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, person_name: e.target.value })
+                    }
+                    placeholder="First Last"
+                    className="input w-full"
+                    disabled={isGenerating}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <Briefcase className="inline w-4 h-4 mr-1" />
+                    Position / Company *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.person_position}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        person_position: e.target.value,
+                      })
+                    }
+                    placeholder="Role at Company"
+                    className="input w-full"
+                    disabled={isGenerating}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Format: "Position at Company"
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <LinkIcon className="inline w-4 h-4 mr-1" />
+                    LinkedIn URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.linkedin_url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, linkedin_url: e.target.value })
+                    }
+                    placeholder="https://linkedin.com/in/username"
+                    className="input w-full"
+                    disabled={isGenerating}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Optional: Enhance with LinkedIn data
+                  </p>
+                </div>
+
+                {["connection_email", "hiring_manager_email"].includes(
+                  conversationType,
+                ) && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <Mail className="inline w-4 h-4 mr-1" />
+                      Recipient Email *
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.recipient_email}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          recipient_email: e.target.value,
+                        })
+                      }
+                      placeholder="contact@company.com"
+                      className="input w-full"
+                      disabled={isGenerating}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Used when creating Gmail drafts.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Job Posting Form */
+              <>
+                {/* Input Type Toggle */}
+                <div className="flex space-x-2 mb-4">
+                  <button
+                    onClick={() => setInputType("manual")}
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                      inputType === "manual"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                    }`}
+                    disabled={isGenerating}
+                  >
+                    <FileText className="inline w-4 h-4 mr-2" />
+                    Paste Description
+                  </button>
+                  <button
+                    onClick={() => setInputType("url")}
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                      inputType === "url"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                    }`}
+                    disabled={isGenerating}
+                  >
+                    <LinkIcon className="inline w-4 h-4 mr-2" />
+                    Job URL
+                  </button>
+                </div>
+
+                {inputType === "url" ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Job Posting URL
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.url}
+                      onChange={(e) =>
+                        setFormData({ ...formData, url: e.target.value })
+                      }
+                      placeholder="https://jobs.company.com/posting..."
+                      className="input w-full"
+                      disabled={isGenerating}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Enter the direct link to the job posting
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Job Description
+                    </label>
+                    <textarea
+                      value={formData.manual_text}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          manual_text: e.target.value,
+                        })
+                      }
+                      placeholder="Paste the full job description here..."
+                      className="input w-full min-h-[200px]"
+                      rows={10}
+                      disabled={isGenerating}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Paste the complete job description including requirements
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex space-x-3 mt-6">
+              <motion.button
+                onClick={handleGenerate}
+                disabled={isGenerating || !resume}
+                className="flex-1 btn btn-primary flex items-center justify-center space-x-2"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    <span>Generate</span>
+                  </>
+                )}
+              </motion.button>
+
+              {generatedContent && (
+                <motion.button
+                  onClick={resetForm}
+                  className="btn btn-outline"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  New Request
+                </motion.button>
+              )}
+              {generatedContent && isEmailWorkflow && (
+                <div className="flex flex-col gap-2 w-full mt-4">
+                  <button
+                    onClick={handleCreateDraft}
+                    disabled={creatingDraft || gmailStatus.availability !== "authorized"}
+                    className="btn btn-secondary flex items-center justify-center gap-2"
+                  >
+                    {creatingDraft ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Creating Gmail Draft...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4" />
+                        Create Gmail Draft
+                      </>
+                    )}
+                  </button>
+                  {gmailStatus.availability === "authorized" ? (
+                    <button
+                      onClick={handleDisconnectGmail}
+                      className="btn btn-outline flex items-center justify-center gap-2"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Disconnect Gmail
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleConnectGmail}
+                      className="btn btn-outline flex items-center justify-center gap-2"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Connect Gmail
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-            Press Enter to send, Shift + Enter for new line
-          </p>
+          {/* Resume Progress */}
+          {resumeProgress && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="card p-6 mb-6"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Resume Generation Progress
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {resumeProgress.message}
+                  </span>
+                  <span className="text-sm font-medium text-blue-600">
+                    {resumeProgress.progress}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${resumeProgress.progress}%` }}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Generated Content */}
+          {generatedContent && !resumeProgress && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="card p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Generated Content
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleCopy(generatedContent)}
+                    className="btn btn-sm btn-outline flex items-center space-x-1"
+                    title="Copy to clipboard"
+                  >
+                    <Copy className="w-4 h-4" />
+                    <span>Copy</span>
+                  </button>
+
+                  {/* Download DOCX button */}
+                  <button
+                    onClick={() => handleDownload(conversationType, "docx")}
+                    className="btn btn-sm bg-blue-600 text-white hover:bg-blue-700 flex items-center space-x-1"
+                    title="Download as Word document"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>DOCX</span>
+                  </button>
+
+                  {/* Download PDF button */}
+                  {fileInfo ? (
+                    <button
+                      onClick={handleDownloadPDF}
+                      className="btn btn-sm bg-red-600 text-white hover:bg-red-700 flex items-center space-x-1"
+                      title="Download as PDF"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>PDF</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleDownload(conversationType, "pdf")}
+                      className="btn btn-sm bg-red-600 text-white hover:bg-red-700 flex items-center space-x-1"
+                      title="Download as PDF"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>PDF</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleRegenerate}
+                    disabled={isGenerating}
+                    className="btn btn-sm btn-outline flex items-center space-x-1"
+                    title="Regenerate content"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Regenerate</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="prose prose-sm dark:prose-invert max-w-none bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                <ReactMarkdown>{generatedContent}</ReactMarkdown>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
-    </div>
+
+      <GmailSetup
+        open={isGmailSetupOpen}
+        onClose={() => setGmailSetupOpen(false)}
+        onConnected={refreshGmailStatus}
+        gmailStatus={gmailStatus}
+        onConnect={handleConnectGmail}
+        onDisconnect={handleDisconnectGmail}
+      />
+    </>
   );
 };
 

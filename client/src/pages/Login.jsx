@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useStore();
+  const setUser = useStore((state) => state.setUser);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -37,11 +37,11 @@ const Login = () => {
     try {
       const response = await authAPI.login(formData);
 
-      if (response.token && response.user) {
-        login(response.user, response.token);
-        localStorage.setItem('token', response.token);
-        toast.success('Welcome back!');
-        navigate('/dashboard');
+      if (response.success) {
+        // Flask session-based auth - set user to trigger isAuthenticated
+        setUser({ email: formData.email, user_id: response.user_id });
+        toast.success(response.message || 'Welcome back!');
+        window.location.href = '/dashboard';
       } else {
         throw new Error('Invalid response from server');
       }

@@ -22,6 +22,18 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy the application code
 COPY . /app
 
+# Verify client/dist exists and list its contents for debugging
+RUN if [ -d "/app/client/dist" ]; then \
+        echo "✓ client/dist directory found"; \
+        echo "Contents:"; \
+        ls -la /app/client/dist; \
+    else \
+        echo "✗ ERROR: client/dist directory NOT found!"; \
+        echo "Creating empty dist directory as fallback"; \
+        mkdir -p /app/client/dist; \
+        echo '<html><body><h1>Frontend build missing</h1></body></html>' > /app/client/dist/index.html; \
+    fi
+
 # Define environment variables
 ENV FLASK_APP=app/app.py
 ENV PYTHONPATH=/app

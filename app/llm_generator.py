@@ -45,6 +45,49 @@ class LLMGenerator:
             return response.choices[0].message.content.strip()
         except Exception as e:
             return f"Error generating text: {str(e)}"
+
+    def generate_email_subject(self, email_body: str, context_type: str) -> str:
+        """Derive an email subject line based on the generated body."""
+        if email_body.startswith("Error generating text"):
+            return ""
+
+        prompt = f"""
+        You are crafting professional email subject lines.
+
+        CONTEXT TYPE: {context_type}
+
+        EMAIL BODY:
+        {email_body[:1200]}
+
+        REQUIREMENTS:
+        - Return a single compelling subject line suitable for Gmail.
+        - Keep it under 12 words.
+        - Personalize when possible.
+        - Avoid marketing spam words.
+        - Do not add quotes or additional commentary.
+        """
+
+        subject = self._generate_text(prompt, max_tokens=32)
+        return subject.replace("Subject:", "").strip()
+
+    def _convert_to_html(self, body: str) -> str:
+        """Convert plain text output into simple HTML paragraphs for Gmail drafts."""
+        if not body:
+            return ""
+
+        lines = [line.strip() for line in body.split("\n")]
+        paragraphs = [line for line in lines if line]
+        html_paragraphs = [f"<p>{self._escape_html(p)}</p>" for p in paragraphs]
+        return "\n".join(html_paragraphs)
+
+    def _escape_html(self, text: str) -> str:
+        return (
+            text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+            .replace("'", "&#x27;")
+        )
     
     def _build_linkedin_message_prompt(self, job_data, candidate_data, profile_data=None):
         """Build prompt for LinkedIn connection message."""

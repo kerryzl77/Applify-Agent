@@ -154,13 +154,30 @@ class EnhancedResumeProcessor:
         }
         
         # Merge personal info (only update empty fields)
-        for key, value in new_data.get('personal_info', {}).items():
-            if value and (not merged['personal_info'].get(key) or merged['personal_info'].get(key) == '' or merged['personal_info'].get(key) is None):
+        incoming_personal_info = new_data.get('personal_info', {})
+        for key, value in incoming_personal_info.items():
+            if value and value != merged['personal_info'].get(key):
                 merged['personal_info'][key] = value
                 logger.info(f"Updated personal_info.{key} = {value} for user {user_id}")
+            elif value == '':
+                merged['personal_info'].pop(key, None)
         
         # Update resume data (replace with new data)
-        merged['resume'] = new_data.get('resume', {})
+        resume_fragment = new_data.get('resume', {})
+        merged_resume = merged.get('resume', {})
+
+        if resume_fragment:
+            if isinstance(resume_fragment, dict):
+                for key, value in resume_fragment.items():
+                    if key == 'experience' and value:
+                        merged_resume[key] = value
+                    elif key == 'education' and value:
+                        merged_resume[key] = value
+                    elif key == 'skills' and value:
+                        merged_resume[key] = value
+                    elif value:
+                        merged_resume[key] = value
+        merged['resume'] = merged_resume
         
         # Replace story bank completely with new resume-generated stories
         merged['story_bank'] = new_data.get('story_bank', [])

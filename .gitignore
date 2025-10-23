@@ -81,6 +81,7 @@ temp/
 *.p12
 secrets.yaml
 credentials.json
+config/gcp-oauth.keys.json
 
 # Heroku/Production
 .env.production
