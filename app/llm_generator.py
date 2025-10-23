@@ -368,7 +368,8 @@ class LLMGenerator:
                     relevance_score += 2 if skill in priority_skills else 1
             
             # Score based on job title/company relevance
-            if job_title.lower() in exp['title'].lower():
+            exp_title = exp.get('title', '')
+            if exp_title and job_title and job_title.lower() in exp_title.lower():
                 relevance_score += 3
             
             experience_analysis.append((exp, relevance_score))
