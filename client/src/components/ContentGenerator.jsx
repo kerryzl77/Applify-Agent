@@ -18,7 +18,6 @@ import useStore from "../store/useStore";
 import { gmailAPI } from "../services/api";
 import { copyToClipboard, downloadFile } from "../utils/helpers";
 import toast from "react-hot-toast";
-import ResumeUploader from "./ResumeUploader";
 import axios from "axios";
 import GmailSetup from "./GmailSetup";
 import { Upload } from "lucide-react";
@@ -50,7 +49,6 @@ const ContentGenerator = () => {
     recipient_email: "",
   });
   const [creatingDraft, setCreatingDraft] = useState(false);
-  const [showResumeUploader, setShowResumeUploader] = useState(false);
   const [resumeProgress, setResumeProgress] = useState(null);
   const [resumeTaskId, setResumeTaskId] = useState(null);
   const [gmailStatus, setGmailStatus] = useState({ availability: "unknown", authorized: false });
@@ -464,7 +462,7 @@ const ContentGenerator = () => {
             </p>
           </div>
 
-          {/* Resume Upload Reminder - Only show if no resume at all */}
+          {/* Resume Upload Reminder - Directs to top bar upload button */}
           {!resume && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -479,28 +477,11 @@ const ContentGenerator = () => {
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
                     Resume Required
                   </h3>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                    Upload your resume once to generate personalized cover
-                    letters, emails, and tailored resumes. Your information will
-                    be saved for all future generations.
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Upload your resume using the <span className="font-semibold">"Upload Resume"</span> button in the top bar to generate personalized content. Your information will be saved for all future generations.
                   </p>
-                  <button
-                    onClick={() => setShowResumeUploader(!showResumeUploader)}
-                    className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline"
-                  >
-                    {showResumeUploader
-                      ? "Hide Uploader ↑"
-                      : "Upload Resume Now →"}
-                  </button>
                 </div>
               </div>
-              {showResumeUploader && (
-                <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
-                  <ResumeUploader
-                    onUploadComplete={() => setShowResumeUploader(false)}
-                  />
-                </div>
-              )}
             </motion.div>
           )}
 

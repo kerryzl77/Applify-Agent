@@ -21,7 +21,8 @@ import toast from 'react-hot-toast';
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isOpen, setIsOpen] = useState(true);
+  // Open by default on desktop, closed on mobile
+  const [isOpen, setIsOpen] = useState(window.innerWidth >= 1024);
 
   const {
     user,
@@ -96,7 +97,7 @@ const Sidebar = () => {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* Sidebar - Fixed on mobile, static in grid on desktop */}
       <AnimatePresence mode="wait">
         {isOpen && (
           <motion.aside
@@ -104,7 +105,7 @@ const Sidebar = () => {
             animate={{ x: 0 }}
             exit={{ x: -320 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed lg:sticky top-0 left-0 h-screen w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-40 flex flex-col"
+            className="fixed lg:relative top-0 left-0 h-screen w-80 lg:w-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-40 flex flex-col overflow-hidden"
           >
             {/* Header */}
             <div className="p-4 border-b border-gray-200 dark:border-gray-800">
@@ -117,9 +118,9 @@ const Sidebar = () => {
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  aria-label="Collapse sidebar"
-                  title="Collapse sidebar"
+                  className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  aria-label="Close sidebar"
+                  title="Close sidebar"
                 >
                   <X className="w-5 h-5" />
                 </button>

@@ -57,14 +57,14 @@ const Dashboard = () => {
   }, [setProfile, setResume]);
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-950">
+    <div className="h-screen grid lg:grid-cols-[280px_1fr] overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex flex-col min-h-0 overflow-hidden">
         {/* Top bar */}
-        <div className="h-16 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center justify-between px-6">
+        <div className="h-16 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center justify-between px-6">
           <div className="flex items-center space-x-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {currentConversationId ? 'Content Generator' : 'Dashboard'}
@@ -143,9 +143,18 @@ const Dashboard = () => {
           </motion.div>
         )}
 
-        {/* Content area */}
-        <div className="flex-1 overflow-hidden">
-          <ContentGenerator />
+        {/* Content area - properly constrained with overflow */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {profileLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                <p className="text-gray-600 dark:text-gray-400">Loading your profile...</p>
+              </div>
+            </div>
+          ) : (
+            <ContentGenerator />
+          )}
         </div>
       </div>
 
