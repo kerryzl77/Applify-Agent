@@ -48,6 +48,12 @@ class OutputFormatter:
                 content = content[:197] + '...'
         
         elif content_type in ['connection_email', 'hiring_manager_email']:
+            # Remove subject line if present (LLM includes it in output)
+            lines = content.split('\n')
+            if lines and (lines[0].startswith('Subject:') or lines[0].startswith('Re:')):
+                # Remove the subject line from display
+                content = '\n'.join(lines[1:]).strip()
+
             # Ensure emails are reasonable length (roughly 200 words)
             words = content.split()
             if len(words) > 220:  # Give a little buffer
@@ -82,7 +88,8 @@ class OutputFormatter:
             
             # Generate filename with user ID to prevent conflicts
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            company_name = job_data['company_name'].replace(' ', '_')
+            # Sanitize company name - remove invalid filename characters
+            company_name = job_data['company_name'].replace(' ', '_').replace('/', '_').replace('\\', '_')
             filename = f"{content_type}_{company_name}_{timestamp}.docx"
             filepath = os.path.join(self.output_dir, filename)
             
