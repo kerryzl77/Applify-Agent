@@ -117,7 +117,7 @@ class LLMGenerator:
                 connection_points.append(f"shared expertise in {list(common_skills)[0]}")
             
             # Industry/role relevance
-            if any(skill.lower() in recipient_title.lower() for skill in candidate_skills):
+            if recipient_title and any(skill.lower() in recipient_title.lower() for skill in candidate_skills if skill):
                 connection_points.append(f"relevant {job_title} background")
         
         return f"""
@@ -132,7 +132,7 @@ class LLMGenerator:
         - Name: {candidate_name}
         - Current Summary: {candidate_summary}
         - Relevant Skills: {', '.join(candidate_skills)}
-        - Recent Experience: {candidate_experience[0]['title'] + ' at ' + candidate_experience[0]['company'] if candidate_experience else 'Professional experience'}
+        - Recent Experience: {(candidate_experience[0].get('title', '') or 'Professional') + ' at ' + (candidate_experience[0].get('company', '') or 'Company') if candidate_experience else 'Professional experience'}
         
         JOB CONTEXT:
         - Position: {job_title} at {company_name}
@@ -193,7 +193,7 @@ class LLMGenerator:
         # Job-candidate fit analysis
         job_fit_points = []
         for skill in candidate_skills[:5]:
-            if skill.lower() in job_requirements.lower() or skill.lower() in job_description.lower():
+            if skill and ((job_requirements and skill.lower() in job_requirements.lower()) or (job_description and skill.lower() in job_description.lower())):
                 job_fit_points.append(skill)
         
         return f"""
@@ -210,8 +210,8 @@ class LLMGenerator:
         - Name: {candidate_name}
         - Professional Summary: {candidate_summary}
         - Relevant Skills for this Role: {', '.join(job_fit_points[:3]) if job_fit_points else ', '.join(candidate_skills[:3])}
-        - Key Experience: {candidate_experience[0]['title'] + ' at ' + candidate_experience[0]['company'] if candidate_experience else 'Professional experience'}
-        - Notable Achievement: {candidate_experience[0].get('description', 'Professional achievements')[:100] if candidate_experience else 'Professional achievements'}
+        - Key Experience: {(candidate_experience[0].get('title', '') or 'Professional') + ' at ' + (candidate_experience[0].get('company', '') or 'Company') if candidate_experience else 'Professional experience'}
+        - Notable Achievement: {(candidate_experience[0].get('description', '') or 'Professional achievements')[:100] if candidate_experience else 'Professional achievements'}
         
         JOB CONTEXT:
         - Position: {job_title} at {company_name}
@@ -263,7 +263,7 @@ class LLMGenerator:
         # Analyze job-candidate fit
         matching_skills = []
         for skill in candidate_skills:
-            if skill.lower() in job_requirements.lower() or skill.lower() in job_description.lower():
+            if skill and ((job_requirements and skill.lower() in job_requirements.lower()) or (job_description and skill.lower() in job_description.lower())):
                 matching_skills.append(skill)
         
         # Find most relevant experience
@@ -285,8 +285,9 @@ class LLMGenerator:
             # Look for numbers/percentages in descriptions
             import re
             numbers = re.findall(r'\d+%|\$\d+|\d+[KMB]|\d+ years?|\d+ projects?|\d+ teams?', desc)
-            if numbers:
-                achievements.append(f"{exp['title']}: {desc[:100]}...")
+            exp_title = exp.get('title', 'Experience')
+            if numbers and exp_title:
+                achievements.append(f"{exp_title}: {desc[:100]}...")
         
         return f"""
         CONTEXT: Write a direct email from {candidate_name} to {manager_name} regarding the {job_title} position at {company_name}. This should demonstrate strong interest and clear value proposition while referencing the hiring manager's background.
@@ -307,11 +308,11 @@ class LLMGenerator:
         - Name: {candidate_name}
         - Contact: {candidate_email}{', ' + candidate_phone if candidate_phone else ''}
         - Professional Summary: {candidate_summary}
-        - Education: {candidate_education.get('degree', '') + ' from ' + candidate_education.get('institution', '') if candidate_education else 'Relevant education'}
+        - Education: {(candidate_education.get('degree', '') or '') + ' from ' + (candidate_education.get('institution', '') or '') if candidate_education and (candidate_education.get('degree') or candidate_education.get('institution')) else 'Relevant education'}
         
         RELEVANT QUALIFICATIONS:
         - Matching Skills: {', '.join(matching_skills[:5]) if matching_skills else ', '.join(candidate_skills[:5])}
-        - Most Relevant Experience: {relevant_experience[0][0]['title'] + ' at ' + relevant_experience[0][0]['company'] if relevant_experience else candidate_experience[0]['title'] + ' at ' + candidate_experience[0]['company'] if candidate_experience else 'Professional experience'}
+        - Most Relevant Experience: {(relevant_experience[0][0].get('title', '') or 'Professional') + ' at ' + (relevant_experience[0][0].get('company', '') or 'Company') if relevant_experience else (candidate_experience[0].get('title', '') or 'Professional') + ' at ' + (candidate_experience[0].get('company', '') or 'Company') if candidate_experience else 'Professional experience'}
         - Key Achievements: {achievements[0] if achievements else 'Professional achievements in relevant areas'}
         
         EMAIL REQUIREMENTS:
@@ -351,9 +352,11 @@ class LLMGenerator:
         matching_skills = []
         priority_skills = []
         for skill in candidate_skills:
-            if skill.lower() in job_requirements.lower():
+            if not skill:
+                continue
+            if job_requirements and skill.lower() in job_requirements.lower():
                 priority_skills.append(skill)
-            elif skill.lower() in job_description.lower():
+            elif job_description and skill.lower() in job_description.lower():
                 matching_skills.append(skill)
         
         # Analyze experience relevance with scoring
@@ -401,7 +404,8 @@ class LLMGenerator:
                     break
         
         # Company research insights (mock - in real implementation, could use web search)
-        company_insights = f"Leading company in the {job_title.split()[0] if job_title else 'industry'} space"
+        job_title_first_word = job_title.split()[0] if job_title and ' ' in job_title else (job_title if job_title else 'industry')
+        company_insights = f"Leading company in the {job_title_first_word} space"
         
         return f"""
         CONTEXT: Write a compelling, ATS-optimized cover letter for {candidate_name} applying for the {job_title} position at {company_name}. This should be highly tailored and demonstrate clear value proposition.
@@ -417,12 +421,12 @@ class LLMGenerator:
         - Name: {candidate_name}
         - Contact: {candidate_email}{', ' + candidate_phone if candidate_phone else ''}
         - Professional Summary: {candidate_summary}
-        - Education: {candidate_education.get('degree', '') + ', ' + candidate_education.get('institution', '') if candidate_education else 'Relevant educational background'}
+        - Education: {(candidate_education.get('degree', '') or '') + ', ' + (candidate_education.get('institution', '') or '') if candidate_education and (candidate_education.get('degree') or candidate_education.get('institution')) else 'Relevant educational background'}
         
         STRATEGIC MATCHING:
         - Priority Skills (match job requirements): {', '.join(priority_skills[:4]) if priority_skills else 'Core professional skills'}
         - Additional Relevant Skills: {', '.join(matching_skills[:4]) if matching_skills else ', '.join(candidate_skills[:4])}
-        - Most Relevant Experience: {top_experiences[0]['title'] + ' at ' + top_experiences[0]['company'] if top_experiences else 'Professional experience'}
+        - Most Relevant Experience: {(top_experiences[0].get('title', '') or 'Professional') + ' at ' + (top_experiences[0].get('company', '') or 'Company') if top_experiences else 'Professional experience'}
         - Key Achievements: {achievements[:2] if achievements else ['Professional accomplishments with measurable impact']}
         
         COVER LETTER REQUIREMENTS:

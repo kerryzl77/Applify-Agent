@@ -232,10 +232,11 @@ def generate_content():
         if needs_profile:
             # For connection messages: use manual person name/position
             # Optionally try to enhance with LinkedIn data if URL provided
+            position_parts = person_position.split(' at ', 1) if person_position and ' at ' in person_position else [person_position or '', '']
             profile_data = {
                 'name': person_name,
-                'title': person_position.split(' at ')[0] if ' at ' in person_position else person_position,
-                'company': person_position.split(' at ')[1] if ' at ' in person_position else '',
+                'title': position_parts[0] if position_parts else person_position,
+                'company': position_parts[1] if len(position_parts) > 1 else '',
                 'location': '',
                 'about': '',
                 'experience': [],
@@ -269,8 +270,8 @@ def generate_content():
             # Create minimal job context
             job_data = {
                 'job_title': 'the position',
-                'company_name': profile_data['company'] or 'the company',
-                'job_description': f'Opportunity at {profile_data["company"] or "the company"}',
+                'company_name': profile_data.get('company') or 'the company',
+                'job_description': f'Opportunity at {profile_data.get("company") or "the company"}',
                 'requirements': '',
                 'url': linkedin_url or ''
             }
@@ -295,8 +296,9 @@ def generate_content():
             if person_name:
                 profile_data['name'] = person_name
             if person_position:
-                profile_data['title'] = person_position.split(' at ')[0] if ' at ' in person_position else person_position
-                profile_data['company'] = person_position.split(' at ')[1] if ' at ' in person_position else ''
+                position_parts = person_position.split(' at ', 1) if ' at ' in person_position else [person_position, '']
+                profile_data['title'] = position_parts[0] if position_parts else person_position
+                profile_data['company'] = position_parts[1] if len(position_parts) > 1 else ''
             
             # Create basic job data
             job_data = {
@@ -727,7 +729,7 @@ def refine_resume():
             job_data = data_retriever.scrape_job_posting(url)
             if 'error' in job_data:
                 return jsonify({'error': f"Failed to fetch job description: {job_data['error']}"}), 400
-            job_description = job_data.get('job_description', '') + "\n\n" + job_data.get('requirements', '')
+            job_description = (job_data.get('job_description') or '') + "\n\n" + (job_data.get('requirements') or '')
         
         # Generate unique task ID
         task_id = str(uuid.uuid4())

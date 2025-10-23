@@ -89,7 +89,7 @@ class OutputFormatter:
             # Generate filename with user ID to prevent conflicts
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             # Sanitize company name - remove invalid filename characters
-            company_name = job_data['company_name'].replace(' ', '_').replace('/', '_').replace('\\', '_')
+            company_name = (job_data.get('company_name') or 'Company').replace(' ', '_').replace('/', '_').replace('\\', '_')
             filename = f"{content_type}_{company_name}_{timestamp}.docx"
             filepath = os.path.join(self.output_dir, filename)
             
@@ -299,8 +299,9 @@ class OutputFormatter:
         """Format an email in DOCX."""
         # LLM already generates subject line, so just add the content
         # Split content into paragraphs and add them
-        for paragraph in content.split('\n'):
-            if paragraph.strip():
-                p = doc.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                p.add_run(paragraph) 
+        if content:
+            for paragraph in content.split('\n'):
+                if paragraph.strip():
+                    p = doc.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    p.add_run(paragraph) 
