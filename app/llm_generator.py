@@ -156,8 +156,8 @@ class LLMGenerator:
         """Build prompt for connection email."""
         # Extract relevant data
         job_title = job_data.get('job_title', 'the position')
-        job_description = job_data.get('job_description', '')
-        job_requirements = job_data.get('requirements', '')
+        job_description = job_data.get('job_description', '') or ''
+        job_requirements = job_data.get('requirements', '') or ''
         company_name = job_data.get('company_name', 'the company')
         
         recipient_name = profile_data.get('name', '') if profile_data else ''
@@ -240,9 +240,9 @@ class LLMGenerator:
         # Extract job details
         job_title = job_data.get('job_title', 'the position')
         company_name = job_data.get('company_name', 'the company')
-        job_description = job_data.get('job_description', '')
-        job_requirements = job_data.get('requirements', '')
-        job_location = job_data.get('location', '')
+        job_description = job_data.get('job_description', '') or ''
+        job_requirements = job_data.get('requirements', '') or ''
+        job_location = job_data.get('location', '') or ''
         
         # Extract hiring manager details from profile data
         manager_name = profile_data.get('name', 'Hiring Manager') if profile_data else 'Hiring Manager'
@@ -334,9 +334,9 @@ class LLMGenerator:
         # Extract comprehensive job details
         job_title = job_data.get('job_title', 'the position')
         company_name = job_data.get('company_name', 'the company')
-        job_description = job_data.get('job_description', '')
-        job_requirements = job_data.get('requirements', '')
-        job_location = job_data.get('location', '')
+        job_description = job_data.get('job_description', '') or ''
+        job_requirements = job_data.get('requirements', '') or ''
+        job_location = job_data.get('location', '') or ''
         
         # Extract comprehensive candidate details
         candidate_name = candidate_data['personal_info'].get('name', 'Candidate')
