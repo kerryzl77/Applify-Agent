@@ -1,12 +1,28 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9-slim
 
-# Install system dependencies including curl for health checks
+# Install system dependencies including curl for health checks and Playwright dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice \
     libmagic1 \
     curl \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libdbus-1-3 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libatspi2.0-0 \
+    libwayland-client0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
@@ -18,6 +34,9 @@ COPY requirements.txt /app/requirements.txt
 # Install Python packages
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
+
+# Install Playwright browsers (must be done after playwright package is installed)
+RUN python -m playwright install chromium --with-deps
 
 # Copy the application code
 COPY . /app
