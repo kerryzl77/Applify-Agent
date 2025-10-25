@@ -116,7 +116,7 @@ class LinkedInVisionScraper:
     def _capture_profile_screenshot(self, url: str) -> Optional[str]:
         """
         Navigate to LinkedIn profile and capture screenshot.
-        
+
         Handles:
         - Browser launch with persistent session
         - LinkedIn login if needed
@@ -126,29 +126,67 @@ class LinkedInVisionScraper:
         """
         try:
             with sync_playwright() as p:
-                # Launch browser
-                self.logger.info("🚀 Launching browser...")
+                # Launch browser with stealth settings
+                self.logger.info("🚀 Launching browser with stealth mode...")
                 browser = p.chromium.launch(
-                    headless=os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() == "true"
+                    headless=os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() == "true",
+                    args=[
+                        '--disable-blink-features=AutomationControlled',
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-web-security',
+                        '--disable-features=IsolateOrigins,site-per-process',
+                        '--disable-gpu'
+                    ]
                 )
-                
-                # Load or create session
+
+                # Load or create session with stealth settings
                 context = self._load_or_create_session(browser)
                 page = context.new_page()
-                page.set_default_timeout(15000)
-                
-                # Navigate to profile
+                page.set_default_timeout(30000)  # Increased timeout
+
+                # Set realistic user agent
+                page.set_extra_http_headers({
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Referer': 'https://www.google.com/'
+                })
+
+                # Navigate to profile with retry logic
                 self.logger.info(f"🌐 Navigating to {url}...")
-                page.goto(url, wait_until='domcontentloaded')
-                time.sleep(2)  # Let page settle
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        page.goto(url, wait_until='domcontentloaded', timeout=30000)
+                        time.sleep(3)  # Let page settle
+                        break
+                    except Exception as nav_error:
+                        if attempt < max_retries - 1:
+                            self.logger.warning(f"⚠️ Navigation attempt {attempt + 1} failed, retrying... ({nav_error})")
+                            time.sleep(2)
+                        else:
+                            raise
                 
                 # Check if login is required
                 if self._is_login_required(page):
                     self.logger.info("🔐 Login required, authenticating...")
                     if self._login_to_linkedin(page):
-                        # Navigate to profile again after login
-                        page.goto(url, wait_until='domcontentloaded')
-                        time.sleep(2)
+                        # Navigate to profile again after login with retry
+                        self.logger.info(f"🔄 Re-navigating to profile after login...")
+                        for attempt in range(3):
+                            try:
+                                page.goto(url, wait_until='domcontentloaded', timeout=30000)
+                                time.sleep(2)
+                                break
+                            except Exception as nav_error:
+                                if attempt < 2:
+                                    self.logger.warning(f"⚠️ Post-login navigation attempt {attempt + 1} failed, retrying...")
+                                    time.sleep(2)
+                                else:
+                                    self.logger.error(f"❌ Failed to navigate after login: {nav_error}")
+                                    raise
                         # Save session
                         self._save_session(context)
                     else:
@@ -174,16 +212,29 @@ class LinkedInVisionScraper:
             return None
 
     def _load_or_create_session(self, browser):
-        """Load existing session or create new context."""
+        """Load existing session or create new context with stealth settings."""
+        # Stealth context options
+        context_options = {
+            'viewport': {'width': 1920, 'height': 1080},
+            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'locale': 'en-US',
+            'timezone_id': 'America/Los_Angeles',
+            'permissions': [],
+            'geolocation': None,
+            'color_scheme': 'light',
+            'java_script_enabled': True,
+        }
+
         try:
             if os.path.exists(self.session_file):
                 self.logger.info("📂 Loading existing LinkedIn session...")
-                return browser.new_context(storage_state=self.session_file)
+                context_options['storage_state'] = self.session_file
+                return browser.new_context(**context_options)
         except Exception as e:
             self.logger.debug(f"Could not load session: {e}")
-        
-        self.logger.info("🆕 Creating new browser session")
-        return browser.new_context()
+
+        self.logger.info("🆕 Creating new browser session with stealth settings")
+        return browser.new_context(**context_options)
 
     def _save_session(self, context):
         """Save browser session for future use."""
@@ -228,10 +279,20 @@ class LinkedInVisionScraper:
                 return False
             
             self.logger.info("🔐 Logging in to LinkedIn...")
-            
-            # Go to login page
-            page.goto("https://www.linkedin.com/login", wait_until='domcontentloaded')
-            time.sleep(2)
+
+            # Go to login page with retry
+            for attempt in range(3):
+                try:
+                    page.goto("https://www.linkedin.com/login", wait_until='domcontentloaded', timeout=30000)
+                    time.sleep(2)
+                    break
+                except Exception as nav_error:
+                    if attempt < 2:
+                        self.logger.warning(f"⚠️ Login page navigation attempt {attempt + 1} failed, retrying...")
+                        time.sleep(2)
+                    else:
+                        self.logger.error(f"❌ Failed to reach login page: {nav_error}")
+                        return False
             
             # Enter credentials
             email_input = page.query_selector('input[name="session_key"]')
