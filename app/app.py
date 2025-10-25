@@ -156,6 +156,15 @@ def generate_content():
     person_name = data.get('person_name', '')
     person_position = data.get('person_position', '')
 
+    # Auto-detect input type for connection emails
+    connection_types = ['linkedin_message', 'connection_email', 'hiring_manager_email']
+    if content_type in connection_types:
+        # If person name/position are provided (typical of form input), treat as URL mode
+        # even if manual_text is also set (which might be a frontend quirk)
+        if person_name or person_position or linkedin_url:
+            input_type = 'url'
+            logging.info(f"🔧 Auto-detected input_type='url' for connection email with person fields")
+
     # DEBUG: Log request parameters
     logging.info(f"🔍 Generate request: content_type={content_type}, input_type={input_type}, person_name={person_name}, linkedin_url={linkedin_url}")
     
