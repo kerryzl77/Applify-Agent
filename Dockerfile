@@ -35,10 +35,6 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers (system deps already installed above)
-# Run as root before switching to non-root user
-RUN python -m playwright install chromium
-
 # Copy the application code
 COPY . /app
 
@@ -54,19 +50,27 @@ RUN if [ -d "/app/client/dist" ]; then \
         echo '<html><body><h1>Frontend build missing</h1></body></html>' > /app/client/dist/index.html; \
     fi
 
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash appuser && \
+    chown -R appuser:appuser /app
+
+# Create necessary directories and set permissions
+RUN mkdir -p /app/output /app/uploads /tmp/flask_session && \
+    chmod 755 /app/output /app/uploads /tmp/flask_session && \
+    chown -R appuser:appuser /app/output /app/uploads /tmp/flask_session
+
+# Switch to non-root user
+USER appuser
+
+# Install Playwright browsers as appuser (after switching user)
+# This ensures browsers are installed in the correct user home directory
+RUN python -m playwright install chromium
+
 # Define environment variables
 ENV FLASK_APP=app/app.py
 ENV PYTHONPATH=/app
 ENV FLASK_ENV=production
-
-# Create necessary directories and set permissions
-RUN mkdir -p /app/output /app/uploads /tmp/flask_session && \
-    chmod 755 /app/output /app/uploads /tmp/flask_session
-
-# Create non-root user for security
-RUN useradd --create-home --shell /bin/bash appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
