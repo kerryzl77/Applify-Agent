@@ -146,7 +146,7 @@ def check_auth():
 def generate_content():
     """Generate content based on user input with Redis caching."""
     data = request.json
-    
+
     # Get content type and input data
     content_type = data.get('content_type')
     url = data.get('url')  # Primary URL (job posting or LinkedIn profile)
@@ -155,6 +155,9 @@ def generate_content():
     input_type = data.get('input_type', 'url')  # 'url' or 'manual'
     person_name = data.get('person_name', '')
     person_position = data.get('person_position', '')
+
+    # DEBUG: Log request parameters
+    logging.info(f"🔍 Generate request: content_type={content_type}, input_type={input_type}, person_name={person_name}, linkedin_url={linkedin_url}")
     
     # Validate input
     connection_types = ['linkedin_message', 'connection_email', 'hiring_manager_email']
@@ -235,7 +238,7 @@ def generate_content():
             # Optionally try to scrape LinkedIn if URL provided (may fail with 451)
             if linkedin_url and 'linkedin.com/in/' in linkedin_url:
                 try:
-                    logging.info(f"Attempting to scrape LinkedIn profile: {linkedin_url}")
+                    logging.info(f"🚀 Attempting to scrape LinkedIn profile: {linkedin_url}")
                     scraped_profile = data_retriever.scrape_linkedin_profile(linkedin_url)
                     
                     # If scraping succeeds, enhance profile_data
