@@ -10,7 +10,7 @@ import sys
 
 # Add app directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from app.linkedin_scraper import LinkedInScraper
+from app.linkedin_vision_scraper import LinkedInVisionScraper
 
 # Load environment variables
 load_dotenv()
@@ -18,8 +18,8 @@ load_dotenv()
 class DataRetriever:
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        # Initialize LinkedIn scraper with multiple data sources
-        self.linkedin_scraper = LinkedInScraper()
+        # Initialize LinkedIn scraper with Vision API (simple and reliable)
+        self.linkedin_scraper = LinkedInVisionScraper()
         
     def scrape_job_posting(self, url, job_title=None, company_name=None):
         """Scrape job posting details from a given URL using Jina Reader API."""
@@ -64,24 +64,23 @@ class DataRetriever:
     
     def scrape_linkedin_profile(self, url, job_title=None, company_name=None):
         """
-        Scrape LinkedIn profile using enterprise-grade scraping service.
+        Scrape LinkedIn profile using Playwright + GPT-4 Vision.
         
-        Uses multiple data sources:
-        1. Bright Data API (primary - most compliant)
-        2. RapidAPI LinkedIn Scraper (fallback)
-        3. Basic URL parsing (last resort)
+        Simple, reliable approach:
+        1. Screenshot the profile with Playwright
+        2. Extract data with GPT-4 Vision API
         """
         try:
             print(f"🔄 Extracting LinkedIn profile: {url}")
-            
-            # Use the new LinkedIn scraper service
+
+            # Extract profile using Vision API
             profile = self.linkedin_scraper.extract_profile_data(url)
             
-            if not profile:
+            if not profile or not profile.name:
                 print(f"❌ LinkedIn scraping failed for {url}")
                 return self._get_fallback_profile_data(url)
             
-            # Convert LinkedInProfile to legacy format for compatibility
+            # Convert LinkedInProfile to format expected by rest of application
             extracted_data = {
                 'name': profile.name or "Unknown Name",
                 'title': profile.current_position or "Unknown Title",
@@ -96,14 +95,13 @@ class DataRetriever:
                 'industry': profile.industry or "",
                 'connections': profile.connections or "",
                 'extracted_keywords': profile.extracted_keywords or [],
-                'scraping_method': 'enterprise_api'
+                'scraping_method': 'vision_api'
             }
             
             # Get job-relevant context if job info provided
             if job_title or company_name:
                 job_context = f"{job_title or ''} at {company_name or ''}".strip()
                 context = self.linkedin_scraper.get_job_relevant_context(profile, job_context)
-                extracted_data['job_relevance'] = context.get('job_relevance', {})
                 extracted_data['personalization_keywords'] = context.get('personalization_keywords', [])
             
             print(f"✅ Successfully scraped LinkedIn profile: {extracted_data['name']} - {extracted_data['title']} at {extracted_data['company']}")

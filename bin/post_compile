@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Heroku post-compile hook to install Playwright browsers
+
+echo "-----> Installing Playwright browsers"
+python -m playwright install chromium --with-deps
+
+echo "-----> Playwright installation complete"
