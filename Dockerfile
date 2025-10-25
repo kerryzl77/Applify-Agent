@@ -23,6 +23,7 @@ RUN apt-get update && \
     libasound2 \
     libatspi2.0-0 \
     libwayland-client0 \
+    libpango-1.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
