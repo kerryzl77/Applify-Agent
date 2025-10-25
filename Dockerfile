@@ -35,8 +35,9 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers (must be done after playwright package is installed)
-RUN python -m playwright install chromium --with-deps
+# Install Playwright browsers (system deps already installed above)
+# Run as root before switching to non-root user
+RUN python -m playwright install chromium
 
 # Copy the application code
 COPY . /app
