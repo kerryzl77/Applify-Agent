@@ -128,7 +128,15 @@ def duckduckgo_signals(query: str, max_n: int = 5) -> List[Dict[str, Any]]:
         logger.warning("DuckDuckGo search not available (DDGS not installed)")
         return signals
     try:
-        logger.info(f"Searching DuckDuckGo for: {query}")
+        logger.info(f"🔍 Searching DuckDuckGo for: {query}")
+        # Fix async event loop issue in gunicorn threads
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
         with DDGS() as ddgs:
             for r in ddgs.text(query, max_results=max_n):
                 signals.append({
@@ -137,9 +145,9 @@ def duckduckgo_signals(query: str, max_n: int = 5) -> List[Dict[str, Any]]:
                     "body": r.get("body"),
                     "source": r.get("source")
                 })
-        logger.info(f"DuckDuckGo returned {len(signals)} results")
+        logger.info(f"✅ DuckDuckGo returned {len(signals)} results")
     except Exception as exc:
-        logger.warning(f"DuckDuckGo search failed: {exc}")
+        logger.warning(f"⚠️ DuckDuckGo search failed: {exc}")
     return signals
 
 
@@ -151,12 +159,14 @@ def _google_cse_search(query: str, num: int = 5) -> List[Dict[str, Any]]:
     api_key = os.getenv("GOOGLE_CSE_API_KEY")
     cx = os.getenv("GOOGLE_CSE_CX")
     if not api_key or not cx:
+        logger.info("⚠️ Google CSE not configured (missing API_KEY or CX)")
         return []
     try:
+        logger.info(f"🔍 Searching Google CSE for: {query}")
         params = {"key": api_key, "cx": cx, "q": query, "num": min(num, 10)}
         resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params, timeout=15)
         if resp.status_code != 200:
-            logger.warning(f"Google CSE returned {resp.status_code} for query '{query}'")
+            logger.warning(f"⚠️ Google CSE returned {resp.status_code} for query '{query}'")
             return []
         data = resp.json()
         results: List[Dict[str, Any]] = []
@@ -169,9 +179,10 @@ def _google_cse_search(query: str, num: int = 5) -> List[Dict[str, Any]]:
                     "source": "google",
                 }
             )
+        logger.info(f"✅ Google CSE returned {len(results)} results")
         return results
     except Exception as exc:
-        logger.warning(f"Google CSE search failed: {exc}")
+        logger.warning(f"⚠️ Google CSE search failed: {exc}")
         return []
 
 
@@ -201,11 +212,15 @@ def _web_search_candidates(
 
     seen: set[str] = set()
     merged: List[Dict[str, Any]] = []
-    for q in queries:
+    logger.info(f"🔎 Running {len(queries)} search queries for candidate discovery")
+    for i, q in enumerate(queries, 1):
+        logger.info(f"  Query {i}/{len(queries)}: {q}")
         g = _google_cse_search(q, num=5)
         results = g
         if not results:
+            logger.info(f"  → Google CSE returned 0 results, trying DDG...")
             results = duckduckgo_signals(q, max_n=5)
+        logger.info(f"  → Got {len(results)} results from this query")
         for r in results:
             href = r.get("href") or ""
             if not href or href in seen:
@@ -226,7 +241,10 @@ def _web_search_candidates(
     merged.sort(key=lambda r: _priority(r.get("href", "")))
     candidates = merged[: min(3, len(merged))]
     extra = merged[min(3, len(merged)) : min(max_total, len(merged))]
-    logger.info(f"Collected {len(candidates)} candidates and {len(extra)} extra results from web search")
+    logger.info(f"✅ Collected {len(candidates)} candidates and {len(extra)} extra results from web search")
+    if candidates:
+        for i, c in enumerate(candidates, 1):
+            logger.info(f"   Candidate {i}: {c.get('title', 'No title')[:60]} - {c.get('href', '')}")
     return {"candidates": candidates, "extra": extra}
 
 
@@ -241,9 +259,16 @@ def _llm_choose_candidate(
 
     Returns 1-based index of the best candidate, or 0 if none.
     """
+    if not candidates:
+        logger.info("⚠️ No candidates to match (skipping LLM selection)")
+        return 0
+
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
+        logger.warning("⚠️ OpenAI API key not configured (skipping LLM matching)")
         return 0
+
+    logger.info(f"🤖 Running LLM candidate matching for {len(candidates)} candidates")
     client = OpenAI(api_key=api_key)
 
     lines: List[str] = []
@@ -292,30 +317,40 @@ def _llm_choose_candidate(
         data = json.loads(text)
         idx = int(data.get("matched_index", 0) or 0)
         conf = float(data.get("confidence", 0) or 0)
-        logger.info(f"LLM candidate match -> idx={idx}, confidence={conf}")
+        reasoning = data.get("reasoning", "")
         if 1 <= idx <= len(candidates) and conf >= 0.5:
+            logger.info(f"✅ LLM matched candidate #{idx} (confidence: {conf:.2f})")
+            logger.info(f"   Reasoning: {reasoning}")
+            logger.info(f"   Matched URL: {candidates[idx-1].get('href', '')}")
             return idx
-        return 0
+        else:
+            logger.info(f"⚠️ LLM match unsuccessful (idx={idx}, conf={conf:.2f})")
+            return 0
     except Exception as exc:
-        logger.warning(f"LLM choose candidate failed: {exc}")
+        logger.warning(f"⚠️ LLM choose candidate failed: {exc}")
         return 0
 
 
 def _fetch_docs(urls: List[str]) -> List[Dict[str, Any]]:
     """Fetch and extract a small set of documents (title + text)."""
+    logger.info(f"📄 Fetching up to 3 documents from {len(urls)} candidate URLs")
     docs: List[Dict[str, Any]] = []
-    for u in urls:
+    for i, u in enumerate(urls, 1):
+        logger.info(f"  Fetching doc {i}/{len(urls)}: {u}")
         html = _http_get(u)
         if not html:
+            logger.info(f"   → Failed to fetch (no HTML)")
             continue
         main = _extract_main_text(html, u)
         text = (main.get("text") or "").strip()
         if not text:
+            logger.info(f"   → No text content extracted")
             continue
+        logger.info(f"   → ✅ Extracted {len(text)} chars")
         docs.append({"url": u, "title": main.get("title", ""), "text": text})
         if len(docs) >= 3:
             break
-    logger.info(f"Fetched {len(docs)} documents for aggregation")
+    logger.info(f"✅ Fetched {len(docs)} documents for LLM aggregation")
     return docs
 
 
@@ -327,8 +362,10 @@ def _llm_profile_from_docs(
     target_url: str,
 ) -> Optional[Dict[str, Any]]:
     """Aggregate a few public documents and extract a concise professional profile."""
+    logger.info(f"🤖 Running LLM profile extraction from {len(docs)} documents")
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
+        logger.warning("⚠️ OpenAI API key not configured (skipping LLM extraction)")
         return None
     client = OpenAI(api_key=api_key)
 
@@ -387,9 +424,12 @@ def _llm_profile_from_docs(
             response_format={"type": "json_object"},
         )
         text = (resp.choices[0].message.content or "").strip()
-        return json.loads(text)
+        profile = json.loads(text)
+        logger.info(f"✅ LLM extracted profile: name={profile.get('name', 'N/A')}, title={profile.get('title', 'N/A')}")
+        logger.info(f"   Skills: {len(profile.get('skills', []))} | Experience: {len(profile.get('experience', []))} | Education: {len(profile.get('education', []))}")
+        return profile
     except Exception as exc:
-        logger.warning(f"LLM profile-from-docs failed: {exc}")
+        logger.warning(f"⚠️ LLM profile-from-docs failed: {exc}")
         return None
 
 
