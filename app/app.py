@@ -248,8 +248,16 @@ def generate_content():
             # Optionally try to scrape LinkedIn if URL provided (may fail with 451)
             if linkedin_url and 'linkedin.com/in/' in linkedin_url:
                 try:
-                    logging.info(f"🚀 Attempting to scrape LinkedIn profile: {linkedin_url}")
-                    scraped_profile = data_retriever.scrape_linkedin_profile(linkedin_url)
+                    logging.info(f"🚀 Attempting to scrape LinkedIn with UI hints: {linkedin_url}")
+                    # Parse company from position if needed
+                    company_hint = profile_data.get('company') or None
+                    # Pass UI hints to retriever for better candidate matching
+                    scraped_profile = data_retriever.scrape_linkedin_profile(
+                        linkedin_url,
+                        name=person_name,
+                        position=position_parts[0] if position_parts else person_position,
+                        company=company_hint
+                    )
                     
                     # If scraping succeeds, enhance profile_data
                     if scraped_profile and 'error' not in scraped_profile:

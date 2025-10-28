@@ -10,7 +10,7 @@ import sys
 
 # Add app directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from app.linkedin_vision_scraper import LinkedInVisionScraper
+from app.universal_extractor import extract_url, extract_linkedin_profile
 
 # Load environment variables
 load_dotenv()
@@ -18,8 +18,7 @@ load_dotenv()
 class DataRetriever:
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        # Initialize LinkedIn scraper with Vision API (simple and reliable)
-        self.linkedin_scraper = LinkedInVisionScraper()
+        # Playwright/Vision removed; use text-first extractor
         
     def scrape_job_posting(self, url, job_title=None, company_name=None):
         """Scrape job posting details from a given URL using Jina Reader API."""
@@ -62,47 +61,52 @@ class DataRetriever:
             print(f"Error scraping job posting: {str(e)}")
             return {'error': str(e)}
     
-    def scrape_linkedin_profile(self, url, job_title=None, company_name=None):
-        """
-        Scrape LinkedIn profile using Playwright + GPT-4 Vision.
-        
-        Simple, reliable approach:
-        1. Screenshot the profile with Playwright
-        2. Extract data with GPT-4 Vision API
+    def scrape_linkedin_profile(self, url, name=None, position=None, company=None, job_title=None, company_name=None):
+        """Scrape LinkedIn profile using text-first extraction with search fallback.
+
+        Args:
+            url: LinkedIn profile URL
+            name: Person's name (UI hint for better matching)
+            position: Person's position/title (UI hint for better matching)
+            company: Person's company (UI hint for better matching)
+            job_title: (Legacy) Job title context
+            company_name: (Legacy) Company name context
         """
         try:
             print(f"🔄 Extracting LinkedIn profile: {url}")
+            if name or position or company:
+                print(f"📝 Using UI hints - Name: {name}, Position: {position}, Company: {company}")
 
-            # Extract profile using Vision API
-            profile = self.linkedin_scraper.extract_profile_data(url)
+            # Pass hints to universal extractor for better candidate matching
+            profile_data = extract_linkedin_profile(url, name=name, position=position, company=company)
             
-            if not profile or not profile.name:
-                print(f"❌ LinkedIn scraping failed for {url}")
+            if not profile_data or not profile_data.get('name'):
+                print(f"❌ LinkedIn extraction failed for {url}")
                 return self._get_fallback_profile_data(url)
             
-            # Convert LinkedInProfile to format expected by rest of application
+            # Convert to format expected by rest of application
             extracted_data = {
-                'name': profile.name or "Unknown Name",
-                'title': profile.current_position or "Unknown Title",
-                'company': profile.current_company or "Unknown Company", 
-                'location': profile.location or "Unknown Location",
-                'about': profile.about or "",
-                'experience': profile.experience[:3],  # Top 3 for context
-                'education': profile.education[:2],   # Top 2 for context
-                'skills': profile.skills[:10],        # Top 10 skills
+                'name': profile_data.get('name') or "Unknown Name",
+                'title': profile_data.get('title') or "Unknown Title",
+                'company': profile_data.get('company') or "Unknown Company", 
+                'location': profile_data.get('location') or "Unknown Location",
+                'about': profile_data.get('about') or "",
+                'experience': profile_data.get('experience', [])[:3],
+                'education': profile_data.get('education', [])[:2],
+                'skills': profile_data.get('skills', [])[:10],
                 'url': url,
-                'headline': profile.headline or "",
-                'industry': profile.industry or "",
-                'connections': profile.connections or "",
-                'extracted_keywords': profile.extracted_keywords or [],
-                'scraping_method': 'vision_api'
+                'headline': profile_data.get('headline') or "",
+                'industry': profile_data.get('industry') or "",
+                'connections': profile_data.get('connections') or "",
+                'extracted_keywords': profile_data.get('extracted_keywords', []),
+                'scraping_method': profile_data.get('scraping_method', 'text_first')
             }
             
             # Get job-relevant context if job info provided
             if job_title or company_name:
-                job_context = f"{job_title or ''} at {company_name or ''}".strip()
-                context = self.linkedin_scraper.get_job_relevant_context(profile, job_context)
-                extracted_data['personalization_keywords'] = context.get('personalization_keywords', [])
+                # Minimal personalization keywords based on title/company tokens
+                tokens = re.findall(r"[A-Za-z0-9]+", f"{job_title or ''} {company_name or ''}")
+                extracted_data['personalization_keywords'] = tokens[:10]
             
             print(f"✅ Successfully scraped LinkedIn profile: {extracted_data['name']} - {extracted_data['title']} at {extracted_data['company']}")
             
