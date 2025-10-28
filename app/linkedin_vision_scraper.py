@@ -24,6 +24,17 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 from playwright.sync_api import sync_playwright, Browser, Page, TimeoutError as PlaywrightTimeoutError
 from openai import OpenAI
+from app.redis_manager import RedisManager
+from io import BytesIO
+from PIL import Image
+import hashlib
+import random
+
+try:
+    from playwright_stealth import stealth_sync  # type: ignore
+except Exception:  # pragma: no cover
+    def stealth_sync(page: Page):  # type: ignore
+        return None
 
 @dataclass
 class LinkedInProfile:
@@ -53,14 +64,17 @@ class LinkedInVisionScraper:
     - No DOM parsing, no brittle selectors
     """
 
-    def __init__(self, api_key: str = None):
-        """Initialize the scraper with OpenAI API key."""
+    def __init__(self, api_key: str = None, redis_manager: Optional[RedisManager] = None):
+        """Initialize the scraper with OpenAI API key and optional Redis for session persistence."""
         self.logger = logging.getLogger(__name__)
         self.openai_client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
         self.last_request_time = 0
         self.min_request_interval = 3.0  # 3 seconds between requests
         self.session_dir = "./playwright-data"
         self.session_file = os.path.join(self.session_dir, "linkedin_session.json")
+        self.redis = redis_manager or RedisManager()
+        self.linkedin_email = os.getenv("LINKEDIN_EMAIL", "public")
+        self._session_redis_key = self._make_session_key(self.linkedin_email)
 
     def extract_profile_data(self, linkedin_url: str) -> Optional[LinkedInProfile]:
         """
@@ -83,20 +97,24 @@ class LinkedInVisionScraper:
 
             self.logger.info(f"🔄 Extracting profile: {clean_url}")
 
-            # Step 1: Navigate and screenshot
-            screenshot_path = self._capture_profile_screenshot(clean_url)
-            if not screenshot_path:
+            # Step 1: Navigate and screenshot(s)
+            screenshot_paths = self._capture_profile_screenshots(clean_url)
+            if not screenshot_paths:
                 self.logger.error("❌ Failed to capture screenshot")
                 return None
 
-            self.logger.info(f"📸 Screenshot saved: {screenshot_path}")
+            self.logger.info(f"📸 Captured {len(screenshot_paths)} screenshot segment(s)")
 
             # Step 2: Extract data using GPT-4 Vision
-            profile = self._extract_with_vision_api(screenshot_path, clean_url)
+            profile = self._extract_with_vision_api(screenshot_paths, clean_url)
             
             # Cleanup screenshot
             try:
-                os.remove(screenshot_path)
+                for p in screenshot_paths:
+                    try:
+                        os.remove(p)
+                    except Exception:
+                        pass
             except:
                 pass
 
@@ -113,16 +131,16 @@ class LinkedInVisionScraper:
             traceback.print_exc()
             return None
 
-    def _capture_profile_screenshot(self, url: str) -> Optional[str]:
+    def _capture_profile_screenshots(self, url: str) -> Optional[List[str]]:
         """
-        Navigate to LinkedIn profile and capture screenshot.
+        Navigate to LinkedIn profile and capture segmented, compressed screenshots to minimize memory.
 
         Handles:
         - Browser launch with persistent session
         - LinkedIn login if needed
         - Navigation
         - Content scrolling
-        - Full-page screenshot
+        - Segmented viewport screenshots (JPEG, compressed)
         """
         try:
             with sync_playwright() as p:
@@ -146,6 +164,12 @@ class LinkedInVisionScraper:
                 page = context.new_page()
                 page.set_default_timeout(30000)  # Increased timeout
 
+                # Apply stealth JS shims when available
+                try:
+                    stealth_sync(page)
+                except Exception:
+                    pass
+
                 # Set realistic user agent
                 page.set_extra_http_headers({
                     'Accept-Language': 'en-US,en;q=0.9',
@@ -160,7 +184,7 @@ class LinkedInVisionScraper:
                 for attempt in range(max_retries):
                     try:
                         page.goto(url, wait_until='domcontentloaded', timeout=30000)
-                        time.sleep(3)  # Let page settle
+                        time.sleep(2.0 + random.uniform(0.2, 0.8))  # Let page settle
                         break
                     except Exception as nav_error:
                         if attempt < max_retries - 1:
@@ -178,7 +202,7 @@ class LinkedInVisionScraper:
                         for attempt in range(3):
                             try:
                                 page.goto(url, wait_until='domcontentloaded', timeout=30000)
-                                time.sleep(2)
+                                time.sleep(1.5 + random.uniform(0.1, 0.4))
                                 break
                             except Exception as nav_error:
                                 if attempt < 2:
@@ -199,13 +223,12 @@ class LinkedInVisionScraper:
                 self.logger.info("📜 Scrolling to load content...")
                 self._scroll_page(page)
                 
-                # Take full-page screenshot
-                screenshot_path = tempfile.mktemp(suffix='.png')
-                page.screenshot(path=screenshot_path, full_page=True)
-                
+                # Capture segmented screenshots to limit memory pressure
+                segments = self._capture_segmented_screenshots(page, max_segments=5)
+
                 context.close()
                 browser.close()
-                return screenshot_path
+                return segments
 
         except Exception as e:
             self.logger.error(f"❌ Screenshot capture failed: {str(e)}")
@@ -226,6 +249,13 @@ class LinkedInVisionScraper:
         }
 
         try:
+            # Load from Redis if available
+            if self.redis and self.redis.is_available():
+                state = self.redis.get(self._session_redis_key)
+                if state:
+                    self.logger.info("📂 Loading LinkedIn session from Redis")
+                    context_options['storage_state'] = state
+                    return browser.new_context(**context_options)
             if os.path.exists(self.session_file):
                 self.logger.info("📂 Loading existing LinkedIn session...")
                 context_options['storage_state'] = self.session_file
@@ -240,8 +270,11 @@ class LinkedInVisionScraper:
         """Save browser session for future use."""
         try:
             os.makedirs(self.session_dir, exist_ok=True)
-            context.storage_state(path=self.session_file)
-            self.logger.info("💾 Saved LinkedIn session")
+            state = context.storage_state(path=self.session_file)
+            self.logger.info("💾 Saved LinkedIn session to file")
+            if self.redis and self.redis.is_available():
+                self.redis.set(self._session_redis_key, state, ttl=7*24*3600)
+                self.logger.info("💾 Saved LinkedIn session to Redis")
         except Exception as e:
             self.logger.debug(f"Could not save session: {e}")
 
@@ -294,32 +327,40 @@ class LinkedInVisionScraper:
                         self.logger.error(f"❌ Failed to reach login page: {nav_error}")
                         return False
             
-            # Enter credentials
-            email_input = page.query_selector('input[name="session_key"]')
-            password_input = page.query_selector('input[name="session_password"]')
-            
-            if not email_input or not password_input:
+            # Enter credentials robustly
+            try:
+                page.wait_for_selector('input[name="session_key"]', state='visible', timeout=15000)
+                page.wait_for_selector('input[name="session_password"]', state='visible', timeout=15000)
+            except Exception:
                 self.logger.error("❌ Could not find login form")
                 return False
-            
-            email_input.fill(email)
-            password_input.fill(password)
-            
-            # Click sign in
-            sign_in_button = page.query_selector('button[type="submit"]')
-            if sign_in_button:
-                sign_in_button.click()
-                time.sleep(3)  # Wait for login
-                
-                # Check if login was successful
-                if "feed" in page.url or "in/" in page.url:
-                    self.logger.info("✅ Successfully logged in to LinkedIn")
-                    return True
-                else:
-                    self.logger.warning("⚠️  Login may have failed - unexpected page")
-                    return False
-            
-            return False
+
+            page.locator('input[name="session_key"]').fill(email)
+            time.sleep(0.2 + random.uniform(0.05, 0.2))
+            page.locator('input[name="session_password"]').fill(password)
+            time.sleep(0.2 + random.uniform(0.05, 0.2))
+            page.locator('button[type="submit"]').click()
+
+            try:
+                page.wait_for_load_state('domcontentloaded', timeout=20000)
+            except Exception:
+                pass
+
+            success = False
+            for _ in range(10):
+                current_url = page.url
+                content_lower = page.content().lower()
+                if ("/feed/" in current_url) or ("/in/" in current_url and "sign in" not in content_lower):
+                    success = True
+                    break
+                time.sleep(0.5)
+
+            if success:
+                self.logger.info("✅ Successfully logged in to LinkedIn")
+                return True
+            else:
+                self.logger.warning("⚠️  Login may have failed - unexpected page")
+                return False
             
         except Exception as e:
             self.logger.error(f"❌ Login error: {str(e)}")
@@ -359,7 +400,7 @@ class LinkedInVisionScraper:
         except:
             pass
 
-    def _extract_with_vision_api(self, screenshot_path: str, url: str) -> Optional[LinkedInProfile]:
+    def _extract_with_vision_api(self, screenshot_paths: List[str], url: str) -> Optional[LinkedInProfile]:
         """
         Extract LinkedIn profile data from screenshot using GPT-4 Vision API.
         
@@ -368,9 +409,11 @@ class LinkedInVisionScraper:
         try:
             self.logger.info("🤖 Analyzing screenshot with GPT-4 Vision...")
             
-            # Read and encode screenshot
-            with open(screenshot_path, 'rb') as image_file:
-                image_base64 = base64.b64encode(image_file.read()).decode('utf-8')
+            # Read and encode all screenshots
+            images_base64 = []
+            for path in screenshot_paths:
+                with open(path, 'rb') as image_file:
+                    images_base64.append(base64.b64encode(image_file.read()).decode('utf-8'))
 
             # Vision API prompt
             prompt = """Analyze this LinkedIn profile screenshot and extract the following information as a JSON object:
@@ -422,28 +465,33 @@ Rules:
                                 "type": "text",
                                 "text": prompt
                             },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{image_base64}"
-                                }
-                            }
+                            *[
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{img}"
+                                    }
+                                } for img in images_base64
+                            ]
                         ]
                     }
                 ],
-                max_tokens=2000,
-                temperature=0.2  # Low temperature for accuracy
+                max_tokens=1500,
+                temperature=0.2,  # Low temperature for accuracy
+                response_format={"type": "json_object"}
             )
 
             # Parse response
             response_text = response.choices[0].message.content.strip()
             
-            # Clean JSON from markdown if present
-            response_text = re.sub(r'^```json\s*', '', response_text)
-            response_text = re.sub(r'\s*```$', '', response_text)
-            
             import json
-            data = json.loads(response_text)
+            try:
+                data = json.loads(response_text)
+            except json.JSONDecodeError:
+                # Clean JSON from markdown if present
+                response_text = re.sub(r'^```json\s*', '', response_text)
+                response_text = re.sub(r'\s*```$', '', response_text)
+                data = json.loads(response_text)
             
             # Convert to LinkedInProfile
             profile = LinkedInProfile(
@@ -542,6 +590,52 @@ Rules:
             time.sleep(sleep_time)
         
         self.last_request_time = time.time()
+
+    def _make_session_key(self, email: str) -> str:
+        base = (email or "public").strip().lower()
+        h = hashlib.sha256(base.encode()).hexdigest()[:16]
+        return f"playwright:linkedin:session:{h}"
+
+    def _capture_segmented_screenshots(self, page: Page, max_segments: int = 5) -> List[str]:
+        """Capture multiple viewport screenshots as compressed JPEG segments."""
+        try:
+            page.set_viewport_size({"width": 1200, "height": 1100})
+        except Exception:
+            pass
+
+        segments: List[str] = []
+        try:
+            total_height = page.evaluate("document.body.scrollHeight")
+        except Exception:
+            total_height = 5000
+
+        viewport = page.viewport_size or {"height": 1100}
+        viewport_h = viewport.get("height", 1100)
+        steps = min(max_segments, max(1, int(total_height / max(800, viewport_h - 100))))
+
+        for i in range(steps):
+            y = int((total_height - viewport_h) * (i / max(1, steps - 1))) if steps > 1 else 0
+            try:
+                page.evaluate(f"window.scrollTo(0, {y})")
+                time.sleep(0.4 + random.uniform(0.05, 0.15))
+            except Exception:
+                pass
+
+            png_bytes = page.screenshot(full_page=False)
+            try:
+                img = Image.open(BytesIO(png_bytes)).convert("RGB")
+                buf = BytesIO()
+                img.save(buf, format="JPEG", quality=70, optimize=True)
+                jpeg_bytes = buf.getvalue()
+            except Exception:
+                jpeg_bytes = png_bytes
+
+            fpath = tempfile.mktemp(suffix='.jpg')
+            with open(fpath, 'wb') as f:
+                f.write(jpeg_bytes)
+            segments.append(fpath)
+
+        return segments
 
     def get_job_relevant_context(self, profile: LinkedInProfile, job_description: str = "") -> Dict[str, Any]:
         """
