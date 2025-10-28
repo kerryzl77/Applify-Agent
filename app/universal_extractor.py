@@ -542,12 +542,17 @@ def extract_linkedin_profile(
     except Exception:
         llm_profile = None
 
-    # If LLM found substantial info, return early
-    if llm_profile and (
-        llm_profile.get("name")
-        or llm_profile.get("headline")
-        or llm_profile.get("company")
-    ):
+    # Only return early if we have RICH profile data (not just name/title)
+    # For 300-word context-rich emails, we need experience, education, or skills
+    has_rich_data = llm_profile and (
+        (len(llm_profile.get("experience", [])) >= 2)  # At least 2 work experiences
+        or (len(llm_profile.get("education", [])) >= 1)  # At least 1 education entry
+        or (len(llm_profile.get("skills", [])) >= 5)  # At least 5 skills
+        or (len(llm_profile.get("about", "")) >= 100)  # Substantial about section
+    )
+
+    if has_rich_data:
+        logger.info(f"✅ Step 1 found rich profile data - returning early (text_llm)")
         return {
             "name": llm_profile.get("name") or name_hint or "LinkedIn Profile",
             "title": llm_profile.get("title") or "",
@@ -564,6 +569,9 @@ def extract_linkedin_profile(
             "extracted_keywords": llm_profile.get("skills", [])[:10],
             "scraping_method": "text_llm",
         }
+
+    # Otherwise, proceed to enrichment pipeline (search + LLM matching + doc fetch)
+    logger.info(f"⚠️ Step 1 found minimal data - proceeding to enrichment pipeline")
 
     # Step 2: Minimal web search for candidates
     buckets = _web_search_candidates(name_hint, position, company, url, max_total=6)
