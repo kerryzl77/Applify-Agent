@@ -227,8 +227,7 @@ def _web_search_candidates(
                 continue
             seen.add(href)
             merged.append(r)
-        if len(merged) >= max_total:
-            break
+        # Don't break early - we need Query 3 (github/resume/cv) for non-LinkedIn sources!
 
     def _priority(u: str) -> int:
         u_low = u.lower()
@@ -575,16 +574,22 @@ def extract_linkedin_profile(
     idx = _llm_choose_candidate(url, candidates, name_hint, position, company)
     chosen_url = candidates[idx - 1]["href"] if (idx > 0 and idx <= len(candidates)) else None
 
-    # Step 4: Fetch a few documents and extract
+    # Step 4: Fetch documents from NON-LinkedIn sources for rich profile data
+    # LinkedIn URLs work for LLM matching, but fail to scrape (999 error with no content)
+    # Instead, fetch from GitHub, personal sites, Medium, etc. found in search results
     doc_urls: List[str] = []
-    # Skip LinkedIn URLs in chosen candidate (they return 999 with no content)
-    if chosen_url and "linkedin.com/" not in chosen_url.lower():
-        doc_urls.append(chosen_url)
-    for r in extra:
-        h = (r.get("href") or "").lower()
-        if not h or "linkedin.com/" in h:
+
+    # Prioritize non-LinkedIn sources from all search results
+    all_results = candidates + extra
+    for r in all_results:
+        h = r.get("href") or ""
+        if not h:
             continue
-        doc_urls.append(r.get("href") or "")
+        # Skip LinkedIn URLs - they can't be scraped (999 error)
+        if "linkedin.com/" in h.lower():
+            logger.debug(f"  Skipping LinkedIn URL for document fetch: {h}")
+            continue
+        doc_urls.append(h)
         if len(doc_urls) >= 3:
             break
 
