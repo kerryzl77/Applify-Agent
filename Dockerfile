@@ -1,29 +1,12 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9-slim
 
-# Install system dependencies including curl for health checks and Playwright dependencies
+# Install system dependencies (minimal set for production)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice \
     libmagic1 \
     curl \
-    libnss3 \
-    libnspr4 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libdbus-1-3 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libatspi2.0-0 \
-    libwayland-client0 \
-    libpango-1.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
@@ -63,15 +46,10 @@ RUN mkdir -p /app/output /app/uploads /tmp/flask_session && \
 # Switch to non-root user
 USER appuser
 
-# Install Playwright browsers as appuser (after switching user)
-# This ensures browsers are installed in the correct user home directory
-RUN python -m playwright install chromium
-
 # Define environment variables
 ENV FLASK_APP=app/app.py
 ENV PYTHONPATH=/app
 ENV FLASK_ENV=production
-ENV PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
