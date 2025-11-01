@@ -173,6 +173,52 @@ SEARXNG_URL=https://your-instance.com python test_searxng.py
 - Some public instances may be slow
 - Self-host for consistent <2s response times
 
+### Local self‑host returns 403 from /search
+- Some SearXNG deployments block JSON GET or enforce strict rate limits by default.
+- Fix: run with a minimal settings.yml that enables JSON and disables the limiter.
+
+```bash
+mkdir -p searxng
+cat > searxng/settings.yml << 'YAML'
+server:
+  bind_address: 0.0.0.0
+  port: 8080
+  base_url: http://localhost:8080/
+  secret_key: change-me
+  limiter: false  # disable built-in rate limiter for local testing
+
+search:
+  formats:
+    - html
+    - json
+
+engines:
+  - name: duckduckgo
+    disabled: false
+  - name: brave
+    disabled: false
+  - name: google
+    disabled: false
+YAML
+
+docker rm -f searxng 2>/dev/null || true
+docker run -d --name searxng -p 8080:8080 \
+  -v "$PWD/searxng:/etc/searxng:ro" \
+  searxng/searxng:latest
+
+# App config
+export SEARXNG_URL=http://localhost:8080
+
+# Verify container is healthy and /search returns JSON
+docker ps -a | grep searxng
+docker logs searxng --tail 100
+curl -i "http://localhost:8080/search?q=test&format=json"
+```
+
+Notes:
+- The app auto-appends `/search`, so set `SEARXNG_URL` to the base host (no trailing `/search`).
+- If GET still returns 403, the client now retries with POST automatically.
+
 ## Monitoring
 
 Check search provider usage in logs:

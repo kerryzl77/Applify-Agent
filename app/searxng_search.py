@@ -125,7 +125,11 @@ class SearXNGSearch:
 
         # Setup session
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": USER_AGENT})
+        self.session.headers.update({
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json, text/plain;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        })
 
         # Setup cache
         self.cache = LRUCache(cache_size, cache_ttl) if enable_cache else None
@@ -163,7 +167,8 @@ class SearXNGSearch:
         if time_range:
             params["time_range"] = time_range
 
-        endpoint = f"{instance_url.rstrip('/')}/search"
+        endpoint = self._normalize_endpoint(instance_url)
+        headers = self._headers_for_instance(instance_url)
 
         for attempt in range(self.max_retries + 1):
             try:
@@ -175,6 +180,7 @@ class SearXNGSearch:
                     endpoint,
                     params=params,
                     timeout=self.timeout,
+                    headers=headers,
                 )
 
                 if response.status_code == 200:
@@ -202,6 +208,40 @@ class SearXNGSearch:
                         f"⚠️ SearXNG ({instance_url}) returned status {response.status_code}"
                     )
 
+                    # Some SearXNG deployments forbid GET for JSON; try POST fallback
+                    if response.status_code in (403, 405):
+                        try:
+                            post_resp = self.session.post(
+                                endpoint,
+                                data=params,
+                                timeout=self.timeout,
+                                headers=headers,
+                            )
+                            if post_resp.status_code == 200:
+                                data = post_resp.json()
+                                raw_results = data.get("results", [])
+                                results = []
+                                for r in raw_results[:num_results]:
+                                    results.append({
+                                        "title": r.get("title", ""),
+                                        "href": r.get("url", ""),
+                                        "body": r.get("content", ""),
+                                        "source": "searxng",
+                                        "engine": r.get("engine", ""),
+                                    })
+                                logger.info(
+                                    f"✅ SearXNG ({instance_url}) POST returned {len(results)} results for: {query}"
+                                )
+                                return results
+                            else:
+                                logger.warning(
+                                    f"⚠️ SearXNG ({instance_url}) POST returned status {post_resp.status_code}"
+                                )
+                        except requests.exceptions.RequestException as e:
+                            logger.warning(
+                                f"⚠️ SearXNG ({instance_url}) POST error: {e}"
+                            )
+
             except requests.exceptions.Timeout:
                 logger.warning(
                     f"⚠️ SearXNG ({instance_url}) timeout (attempt {attempt + 1}/{self.max_retries + 1})"
@@ -221,6 +261,30 @@ class SearXNGSearch:
                 time.sleep(wait_time)
 
         return None
+
+    def _normalize_endpoint(self, instance_url: str) -> str:
+        """Ensure we target the correct /search endpoint without duplication.
+
+        Accepts either base host (e.g., https://searx.example.com) or
+        a full search endpoint (e.g., https://searx.example.com/search).
+        """
+        url = instance_url.rstrip('/')
+        if url.endswith('/search'):
+            return url
+        return f"{url}/search"
+
+    def _headers_for_instance(self, instance_url: str) -> Dict[str, str]:
+        """Build per-request headers that can appease some SearXNG reverse proxies.
+
+        Sets Referer to the instance base URL, which can help bypass strict 403 rules.
+        """
+        base = instance_url.rstrip('/')
+        return {
+            "Referer": f"{base}/",
+            "Accept": "application/json, text/plain;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "User-Agent": USER_AGENT,
+        }
 
     def search(
         self,

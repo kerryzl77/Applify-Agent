@@ -48,6 +48,8 @@ Set these in Heroku dashboard or via CLI:
 - `GOOGLE_CSE_API_KEY` - Google CSE fallback (optional)
 - `GOOGLE_CSE_CX` - Google CSE context ID (optional)
 
+Note: Set `SEARXNG_URL` to the base host (e.g., `https://searx.yourdomain.com`). The app auto-appends `/search` and falls back to POST if GET is forbidden.
+
 ## Automatic Variables (Set by Heroku)
 
 These are automatically populated by addons:

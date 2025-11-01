@@ -143,7 +143,15 @@ def duckduckgo_signals(query: str, max_n: int = 5) -> List[Dict[str, Any]]:
             asyncio.set_event_loop(loop)
 
         with DDGS() as ddgs:
-            for r in ddgs.text(query, max_results=max_n):
+            # Use conservative settings and HTML backend to avoid 202 rate limits
+            for r in ddgs.text(
+                query,
+                max_results=max_n,
+                region="us-en",
+                safesearch="moderate",
+                timelimit="y",
+                backend="html",
+            ):
                 signals.append({
                     "title": r.get("title"),
                     "href": r.get("href"),
