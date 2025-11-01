@@ -26,81 +26,80 @@ git push heroku main  # Works immediately with public instances
 
 **Note:** Public instances may rate-limit. For production (1k+ queries/day), self-host.
 
-## Production Setup (Self-Hosted SearXNG)
+## Production Setup (Heroku — Tested & Recommended)
 
-### Option 1: Deploy SearXNG on Heroku (Recommended)
+Follow these steps to run a dedicated SearXNG instance on Heroku and connect this app to it.
 
-1. **Create a new Heroku app for SearXNG:**
+1) Create a dedicated Heroku app for SearXNG
 
 ```bash
 heroku create your-searxng-app
 heroku stack:set container -a your-searxng-app
 ```
 
-2. **Clone and deploy SearXNG:**
+2) Prepare a minimal SearXNG deployment
 
 ```bash
 git clone https://github.com/searxng/searxng-docker.git
 cd searxng-docker
 
-# Create heroku.yml for container deployment
-cat > heroku.yml << EOF
+# Minimal settings enabling JSON results
+mkdir -p searxng
+cat > searxng/settings.yml << 'YAML'
+server:
+  bind_address: 0.0.0.0
+  port: 8080               # container listens on 8080
+  base_url: /              # Heroku will inject the public URL
+  secret_key: change-me
+
+search:
+  formats:
+    - html
+    - json
+
+engines:
+  - name: duckduckgo
+    disabled: false
+  - name: brave
+    disabled: false
+  - name: google
+    disabled: false
+YAML
+
+# Add Heroku container configuration
+cat > heroku.yml << 'YAML'
 build:
   docker:
     web: Dockerfile
 run:
   web: python searx/webapp.py
-EOF
+YAML
 
-# Deploy to Heroku
-git add heroku.yml
-git commit -m "Add Heroku configuration"
+# Commit and deploy
+git add searxng/settings.yml heroku.yml
+git commit -m "Add minimal SearXNG settings and Heroku config"
 heroku git:remote -a your-searxng-app
 git push heroku main
 ```
 
-3. **Configure your main app to use your SearXNG instance:**
+3) Verify the SearXNG app
+
+```bash
+heroku logs --tail -a your-searxng-app | sed -n '1,50p'
+
+# Probe the JSON API (replace with your actual Heroku app hostname)
+curl -s "https://your-searxng-app.herokuapp.com/search?q=test&format=json" | head -c 200
+```
+
+4) Point this app to your SearXNG instance
 
 ```bash
 heroku config:set SEARXNG_URL=https://your-searxng-app.herokuapp.com -a your-app-name
 ```
 
-### Option 2: Deploy SearXNG on Railway/Render/Fly.io
-
-**Railway (1-click deploy):**
-```bash
-# Fork https://github.com/searxng/searxng-docker
-# Connect to Railway and deploy
-# Copy the public URL
-heroku config:set SEARXNG_URL=https://your-searxng.railway.app -a your-app-name
-```
-
-**Render:**
-```bash
-# Create new Web Service from Docker
-# Use image: searxng/searxng:latest
-# Port: 8080
-heroku config:set SEARXNG_URL=https://your-searxng.onrender.com -a your-app-name
-```
-
-**Fly.io:**
-```bash
-flyctl launch --image searxng/searxng:latest
-heroku config:set SEARXNG_URL=https://your-searxng.fly.dev -a your-app-name
-```
-
-### Option 3: Use External VPS (DigitalOcean, AWS, etc.)
-
-```bash
-# On your VPS
-docker run -d -p 8080:8080 searxng/searxng:latest
-
-# Configure firewall to allow port 8080
-# Point your domain (e.g., searxng.yourdomain.com) to VPS IP
-
-# Update Heroku app
-heroku config:set SEARXNG_URL=https://searxng.yourdomain.com -a your-app-name
-```
+Notes:
+- Set `SEARXNG_URL` to the base host (no trailing `/search`). The client auto-appends it and falls back to POST if GET is blocked.
+- Keep the built-in limiter enabled in production; disable it only for local testing.
 
 ## Environment Variables
 
@@ -173,9 +172,9 @@ SEARXNG_URL=https://your-instance.com python test_searxng.py
 - Some public instances may be slow
 - Self-host for consistent <2s response times
 
-### Local self‑host returns 403 from /search
+### Local self‑host returns 403/405 from /search
 - Some SearXNG deployments block JSON GET or enforce strict rate limits by default.
-- Fix: run with a minimal settings.yml that enables JSON and disables the limiter.
+- Our client auto-retries with POST. For local testing, you can disable the limiter via the sample below.
 
 ```bash
 mkdir -p searxng
