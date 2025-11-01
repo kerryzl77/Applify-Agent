@@ -1,5 +1,13 @@
 # Heroku Deployment Guide
 
+## Search Provider: SearXNG (Default)
+
+✅ **No API keys required** - Works out of the box with public SearXNG instances
+✅ **Free & unlimited** - No monthly query caps
+✅ **Production-ready** - 3-tier fallback: SearXNG → Google CSE → DuckDuckGo
+
+See [SEARXNG_SETUP.md](SEARXNG_SETUP.md) for self-hosted deployment guide.
+
 ## Quick Setup Commands
 
 ```bash
@@ -33,6 +41,12 @@ Set these in Heroku dashboard or via CLI:
 - `OPENAI_API_KEY` - Your OpenAI API key
 - `SECRET_KEY` - Flask secret key (generate with: `openssl rand -base64 32`)
 - `FLASK_ENV=production`
+
+## Optional Environment Variables (Search)
+
+- `SEARXNG_URL` - Custom SearXNG instance (recommended for production, see SEARXNG_SETUP.md)
+- `GOOGLE_CSE_API_KEY` - Google CSE fallback (optional)
+- `GOOGLE_CSE_CX` - Google CSE context ID (optional)
 
 ## Automatic Variables (Set by Heroku)
 

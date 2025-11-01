@@ -18,6 +18,11 @@ try:
 except Exception:
     DDGS = None
 
+try:
+    from .searxng_search import searxng_search
+except Exception:
+    searxng_search = None
+
 logger = logging.getLogger(__name__)
 
 USER_AGENT = (
@@ -195,6 +200,11 @@ def _web_search_candidates(
 ) -> Dict[str, List[Dict[str, Any]]]:
     """Collect minimal web search results for candidate identification.
 
+    Search priority:
+      1. SearXNG (default, free, scalable)
+      2. Google CSE (if configured)
+      3. DuckDuckGo (ultimate fallback)
+
     Returns a dict with keys:
       - candidates: prioritized list of results (dict with title, href, body, source)
       - extra: additional results for context building
@@ -215,12 +225,36 @@ def _web_search_candidates(
     logger.info(f"🔎 Running {len(queries)} search queries for candidate discovery")
     for i, q in enumerate(queries, 1):
         logger.info(f"  Query {i}/{len(queries)}: {q}")
-        g = _google_cse_search(q, num=5)
-        results = g
+
+        # Try SearXNG first (default, free, scalable) unless disabled
+        results = []
+        disable_searxng = os.getenv("DISABLE_SEARXNG", "0").strip().lower() in ("1", "true", "yes")
+
+        if searxng_search and not disable_searxng:
+            try:
+                results = searxng_search(q, num_results=5)
+                if results:
+                    logger.info(f"  → SearXNG returned {len(results)} results")
+            except Exception as exc:
+                logger.warning(f"  → SearXNG error: {exc}")
+        elif disable_searxng:
+            logger.info(f"  → SearXNG disabled via DISABLE_SEARXNG flag")
+
+        # Fallback to Google CSE if SearXNG fails or returns no results
         if not results:
-            logger.info(f"  → Google CSE returned 0 results, trying DDG...")
+            logger.info(f"  → Trying Google CSE...")
+            results = _google_cse_search(q, num=5)
+            if results:
+                logger.info(f"  → Google CSE returned {len(results)} results")
+
+        # Ultimate fallback to DuckDuckGo
+        if not results:
+            logger.info(f"  → Trying DuckDuckGo...")
             results = duckduckgo_signals(q, max_n=5)
-        logger.info(f"  → Got {len(results)} results from this query")
+            if results:
+                logger.info(f"  → DuckDuckGo returned {len(results)} results")
+
+        logger.info(f"  → Total results for this query: {len(results)}")
         for r in results:
             href = r.get("href") or ""
             if not href or href in seen:
