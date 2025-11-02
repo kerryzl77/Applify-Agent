@@ -14,7 +14,7 @@ from bs4 import BeautifulSoup
 from openai import OpenAI
 
 try:
-    from ddgs import DDGS
+    from duckduckgo_search import DDGS
 except Exception:
     DDGS = None
 
