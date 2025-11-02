@@ -27,6 +27,15 @@ from app.cached_llm import CachedLLMGenerator
 from app.gmail_service import GmailService, GmailOAuthError
 from app.output_formatter import OutputFormatter
 
+# Configure logging BEFORE any other code that uses logging
+# This ensures all loggers (including from imported modules) have handlers
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
+
 # Determine the correct paths for templates and static files
 # Works both in development and production (Docker/Heroku)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -55,16 +64,16 @@ if is_production:
     app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-site for API calls
     app.config['SESSION_COOKIE_DOMAIN'] = None  # Let Flask handle domain
-    logging.info("Production mode: Enhanced security settings enabled")
+    logger.info("Production mode: Enhanced security settings enabled")
 else:
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Dev environment
 
 # Initialize Redis for caching only, not sessions
 redis_manager = RedisManager()
 if redis_manager.is_available():
-    logging.info("Redis available for caching")
+    logger.info("Redis available for caching")
 else:
-    logging.warning("Redis unavailable, caching disabled")
+    logger.warning("Redis unavailable, caching disabled")
 
 # Initialize components
 data_retriever = DataRetriever()
@@ -163,10 +172,10 @@ def generate_content():
         # even if manual_text is also set (which might be a frontend quirk)
         if person_name or person_position or linkedin_url:
             input_type = 'url'
-            logging.info(f"🔧 Auto-detected input_type='url' for connection email with person fields")
+            logger.info(f"🔧 Auto-detected input_type='url' for connection email with person fields")
 
     # DEBUG: Log request parameters
-    logging.info(f"🔍 Generate request: content_type={content_type}, input_type={input_type}, person_name={person_name}, linkedin_url={linkedin_url}")
+    logger.info(f"🔍 Generate request: content_type={content_type}, input_type={input_type}, person_name={person_name}, linkedin_url={linkedin_url}")
     
     # Validate input
     connection_types = ['linkedin_message', 'connection_email', 'hiring_manager_email']
@@ -199,7 +208,7 @@ def generate_content():
         # Check for warnings
         if 'warning' in url_validation:
             # Log warning but continue processing
-            logging.warning(f"URL warning for {url}: {url_validation['warning']}")
+            logger.warning(f"URL warning for {url}: {url_validation['warning']}")
         
         # Update URL if normalized
         url = url_validation['url']

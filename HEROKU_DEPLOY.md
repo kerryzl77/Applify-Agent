@@ -20,6 +20,9 @@ heroku addons:create heroku-redis:mini -a your-app-name
 heroku config:set OPENAI_API_KEY=your_api_key_here -a your-app-name
 heroku config:set SECRET_KEY=$(openssl rand -base64 32) -a your-app-name
 heroku config:set FLASK_ENV=production -a your-app-name
+# Optional: Google Custom Search for enhanced LinkedIn scraping
+heroku config:set GOOGLE_CSE_API_KEY=your_google_cse_api_key -a your-app-name
+heroku config:set GOOGLE_CSE_CX=your_google_cse_cx_id -a your-app-name
 
 # 6. Deploy from GitHub
 # Connect your GitHub repo in Heroku dashboard, then:
@@ -30,9 +33,16 @@ git push heroku main
 
 Set these in Heroku dashboard or via CLI:
 
+**Required:**
 - `OPENAI_API_KEY` - Your OpenAI API key
 - `SECRET_KEY` - Flask secret key (generate with: `openssl rand -base64 32`)
 - `FLASK_ENV=production`
+
+**Optional (for enhanced LinkedIn scraping):**
+- `GOOGLE_CSE_API_KEY` - Google Custom Search Engine API key
+- `GOOGLE_CSE_CX` - Google Custom Search Engine ID (CX)
+
+Without Google CSE, the system will fall back to DuckDuckGo search.
 
 ## Automatic Variables (Set by Heroku)
 

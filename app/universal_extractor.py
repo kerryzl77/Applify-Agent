@@ -568,17 +568,19 @@ def extract_linkedin_profile(
     except Exception:
         llm_profile = None
 
-    # Only return early if we have RICH profile data (not just name/title)
-    # For 300-word context-rich emails, we need experience, education, or skills
-    has_rich_data = llm_profile and (
-        (len(llm_profile.get("experience", [])) >= 2)  # At least 2 work experiences
-        or (len(llm_profile.get("education", [])) >= 1)  # At least 1 education entry
-        or (len(llm_profile.get("skills", [])) >= 5)  # At least 5 skills
-        or (len(llm_profile.get("about", "")) >= 100)  # Substantial about section
+    # Check if we have EXCEPTIONALLY RICH profile data that makes search unnecessary
+    # We require MULTIPLE strong signals to skip the search enrichment pipeline
+    has_exceptional_data = llm_profile and (
+        # Need at least 3 experiences AND (education OR 10+ skills OR 200+ char about)
+        (len(llm_profile.get("experience", [])) >= 3 and (
+            len(llm_profile.get("education", [])) >= 1
+            or len(llm_profile.get("skills", [])) >= 10
+            or len(llm_profile.get("about", "")) >= 200
+        ))
     )
 
-    if has_rich_data:
-        logger.info(f"✅ Step 1 found rich profile data - returning early (text_llm)")
+    if has_exceptional_data:
+        logger.info(f"✅ Step 1 found exceptional profile data - returning early (text_llm)")
         return {
             "name": llm_profile.get("name") or name_hint or "LinkedIn Profile",
             "title": llm_profile.get("title") or "",
@@ -596,8 +598,9 @@ def extract_linkedin_profile(
             "scraping_method": "text_llm",
         }
 
-    # Otherwise, proceed to enrichment pipeline (search + LLM matching + doc fetch)
-    logger.info(f"⚠️ Step 1 found minimal data - proceeding to enrichment pipeline")
+    # Proceed to enrichment pipeline with Google CSE/DuckDuckGo search + LLM matching + doc fetch
+    # This provides better data quality and cross-source verification
+    logger.info(f"🔍 Step 1 data insufficient - activating Google CSE/DuckDuckGo enrichment pipeline")
 
     # Step 2: Minimal web search for candidates
     buckets = _web_search_candidates(name_hint, position, company, url, max_total=6)
