@@ -101,6 +101,7 @@ class LLMGenerator:
         recipient_company = profile_data.get('company', '') if profile_data else ''
         recipient_about = profile_data.get('about', '') if profile_data else ''
         recipient_experience = profile_data.get('experience', []) if profile_data else []
+        search_context = profile_data.get('search_context', '') if profile_data else ''
         
         candidate_name = candidate_data['personal_info'].get('name', 'Candidate')
         candidate_summary = candidate_data['resume'].get('summary', 'Professional seeking new opportunities')
@@ -127,6 +128,7 @@ class LLMGenerator:
         - Name: {recipient_name}
         - Current Role: {recipient_title} at {recipient_company}
         - Background: {recipient_about[:200] if recipient_about else 'Industry professional'}
+        - Web Research: {search_context[:200] if search_context else 'Limited context available'}
         
         CANDIDATE PROFILE:
         - Name: {candidate_name}
@@ -166,6 +168,7 @@ class LLMGenerator:
         recipient_about = profile_data.get('about', '') if profile_data else ''
         recipient_experience = profile_data.get('experience', []) if profile_data else []
         recipient_skills = profile_data.get('skills', []) if profile_data else []
+        search_context = profile_data.get('search_context', '') if profile_data else ''
         
         candidate_name = candidate_data['personal_info'].get('name', 'Candidate')
         candidate_email = candidate_data['personal_info'].get('email', '')
@@ -206,6 +209,9 @@ class LLMGenerator:
         - Key Skills: {', '.join(recipient_skills[:5]) if recipient_skills else 'Professional expertise'}
         - Current Experience: {recipient_experience[0]['title'] if recipient_experience else 'Industry professional'}
         
+        WEB SEARCH INTELLIGENCE (USE THIS TO PERSONALIZE):
+        {search_context if search_context else 'No additional web context available'}
+        
         CANDIDATE PROFILE:
         - Name: {candidate_name}
         - Professional Summary: {candidate_summary}
@@ -226,11 +232,13 @@ class LLMGenerator:
         3. Professional introduction with current role/background
         4. Specific mention of the {job_title} role and why you're reaching out to them specifically
         5. Highlight 2-3 relevant qualifications that match the job requirements
-        6. Reference any connection insights to create rapport
-        7. Ask for specific advice/insights about the role, team, or company culture
-        8. Professional closing with actual contact: {candidate_email}
-        9. Maximum 200 words
-        10. Tone: Professional, respectful, genuinely interested (not pushy)
+        6. **CRITICAL: Use the Web Search Intelligence above to add personalized context about the recipient's work, projects, or recent activities**
+        7. Reference any connection insights to create rapport
+        8. Ask for specific advice/insights about the role, team, or company culture
+        9. Professional closing with actual contact: {candidate_email}
+        10. Maximum 200 words
+        11. Tone: Professional, respectful, genuinely interested (not pushy)
+        12. **The email MUST feel personalized based on web research, not generic**
         
         Write the complete email including subject line:
         """
@@ -250,6 +258,7 @@ class LLMGenerator:
         manager_company = profile_data.get('company', company_name) if profile_data else company_name
         manager_about = profile_data.get('about', '') if profile_data else ''
         manager_experience = profile_data.get('experience', []) if profile_data else []
+        search_context = profile_data.get('search_context', '') if profile_data else ''
         
         # Extract candidate details
         candidate_name = candidate_data['personal_info'].get('name', 'Candidate')
@@ -297,6 +306,9 @@ class LLMGenerator:
         - Current Role: {manager_title} at {manager_company}
         - Professional Background: {manager_about[:250] if manager_about else 'Industry professional'}
         - Experience: {manager_experience[0]['title'] if manager_experience else 'Leadership role in hiring'}
+        
+        WEB SEARCH INTELLIGENCE (USE THIS TO PERSONALIZE):
+        {search_context if search_context else 'No additional web context available'}
 
         JOB ANALYSIS:
         - Position: {job_title} at {company_name}

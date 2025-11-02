@@ -633,6 +633,16 @@ def extract_linkedin_profile(
     docs = _fetch_docs(doc_urls)
     profile = _llm_profile_from_docs(docs, name_hint, position, company, url) if docs else None
 
+    # Build search context summary for email generation
+    search_context_snippets = []
+    for candidate in candidates[:3]:
+        title = candidate.get("title", "")[:100]
+        body = candidate.get("body", "")[:150]
+        if title or body:
+            search_context_snippets.append(f"• {title}: {body}")
+    
+    search_context = "\n".join(search_context_snippets) if search_context_snippets else ""
+
     if profile:
         profile.setdefault("name", name_hint or "")
         profile.setdefault("skills", [])
@@ -645,10 +655,20 @@ def extract_linkedin_profile(
         profile["url"] = url
         profile["extracted_keywords"] = profile.get("skills", [])[:10]
         profile["scraping_method"] = "multi_source_llm"
+        profile["search_context"] = search_context  # NEW: Add web search context
         return profile
 
     # Final fallback: Use UI hints if provided, otherwise minimal search-based enrichment
     fallback_name = name_hint or parse_linkedin_slug(url)
+
+    # Build search context from candidates even if using UI hints
+    search_context_snippets = []
+    for candidate in candidates[:3]:
+        title = candidate.get("title", "")[:100]
+        body = candidate.get("body", "")[:150]
+        if title or body:
+            search_context_snippets.append(f"• {title}: {body}")
+    search_context = "\n".join(search_context_snippets) if search_context_snippets else ""
 
     # If we have strong hints from UI, use them directly (Google-quality UX: trust user input)
     if name_hint and (position or company):
@@ -668,11 +688,27 @@ def extract_linkedin_profile(
             "connections": "",
             "extracted_keywords": [],
             "scraping_method": "ui_hints_primary",
+            "search_context": search_context,  # NEW: Add web search context
         }
 
     # Otherwise try DDG search as final fallback
     signals = duckduckgo_signals(fallback_name or url, max_n=5)
     enriched = build_profile_from_signals(signals, fallback_name)
+    
+    # Build search context from all available sources
+    search_context_snippets = []
+    for candidate in candidates[:3]:
+        title = candidate.get("title", "")[:100]
+        body = candidate.get("body", "")[:150]
+        if title or body:
+            search_context_snippets.append(f"• {title}: {body}")
+    for signal in signals[:2]:
+        title = signal.get("title", "")[:100]
+        body = signal.get("body", "")[:150]
+        if title or body and (title, body) not in [(c.get("title", "")[:100], c.get("body", "")[:150]) for c in candidates]:
+            search_context_snippets.append(f"• {title}: {body}")
+    search_context = "\n".join(search_context_snippets) if search_context_snippets else ""
+    
     return {
         "name": enriched.get("name") or fallback_name or "LinkedIn Profile",
         "title": enriched.get("headline") or "",
@@ -688,6 +724,7 @@ def extract_linkedin_profile(
         "connections": "",
         "extracted_keywords": [],
         "scraping_method": "search_fallback",
+        "search_context": search_context,  # NEW: Add web search context
     }
 
 
