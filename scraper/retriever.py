@@ -233,34 +233,6 @@ class DataRetriever:
                 'url': url,
                 'error': str(e)
             }
-    
-    def _filter_linkedin_content(self, content):
-        """Minimal filter for LinkedIn content to extract just essential profile information."""
-        try:
-            # Extract just the title/name from the content (usually in the first few lines)
-            lines = content.split('\n')
-            
-            # Get the first few relevant lines
-            filtered_content = ""
-            
-            # Extract title line (usually contains "Name - Title | LinkedIn")
-            title_line = next((line for line in lines if "LinkedIn" in line), "Unknown - Unknown | LinkedIn")
-            filtered_content += f"Title: {title_line}\n"
-            
-            # Add minimal location information if present
-            location_line = next((line for line in lines if "Area" in line or ", " in line and len(line) < 50), "")
-            if location_line:
-                filtered_content += f"Location: {location_line.strip()}\n"
-            
-            # Add minimal additional context (just to help GPT make sense of the data)
-            filtered_content += "Profile Summary: LinkedIn profile extraction\n"
-            
-            return filtered_content
-            
-        except Exception as e:
-            print(f"Error filtering LinkedIn content: {str(e)}")
-            # Return just the first 100 characters as a fallback
-            return content[:100] + "\n(Content truncated due to processing error)"
 
     def _extract_profile_data_with_gpt(self, content_text, url, job_title=None, company_name=None):
         """Use GPT to extract structured LinkedIn profile data from text content."""

@@ -137,8 +137,10 @@ class GmailService:
                 credentials.refresh(Request())
                 self._store_credentials(credentials, token_record.get("email"))
             except Exception as exc:
-                logger.exception("Failed to refresh Gmail credentials")
-                raise GmailOAuthError("Failed to refresh Gmail credentials") from exc
+                # Token refresh can fail for many reasons (revoked, expired, etc.)
+                # This is expected - log as INFO and raise for proper handling upstream
+                logger.info(f"Gmail token refresh failed for user {self.user_id}: {exc.__class__.__name__}")
+                raise GmailOAuthError("Gmail token expired or revoked") from exc
 
         return credentials
 
@@ -161,7 +163,9 @@ class GmailService:
     def get_status(self) -> dict:
         try:
             credentials = self._load_credentials()
-        except GmailOAuthError:
+        except GmailOAuthError as e:
+            # Expected when token expires - handle gracefully without ERROR logs
+            logger.info(f"Gmail token invalid/expired for user {self.user_id}, clearing token")
             self.db.delete_gmail_token(self.user_id)
             return {"availability": "configured", "authorized": False}
 
