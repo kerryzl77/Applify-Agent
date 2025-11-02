@@ -14,14 +14,9 @@ from bs4 import BeautifulSoup
 from openai import OpenAI
 
 try:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
 except Exception:
     DDGS = None
-
-try:
-    from .searxng_search import searxng_search
-except Exception:
-    searxng_search = None
 
 logger = logging.getLogger(__name__)
 
@@ -132,35 +127,53 @@ def duckduckgo_signals(query: str, max_n: int = 5) -> List[Dict[str, Any]]:
     if not DDGS:
         logger.warning("DuckDuckGo search not available (DDGS not installed)")
         return signals
-    try:
-        logger.info(f"🔍 Searching DuckDuckGo for: {query}")
-        # Fix async event loop issue in gunicorn threads
-        import asyncio
+    
+    # Retry configuration for rate limit handling
+    max_retries = 3
+    retry_delay = 2.0  # seconds
+    
+    for attempt in range(max_retries):
         try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            logger.info(f"🔍 Searching DuckDuckGo for: {query} (attempt {attempt + 1}/{max_retries})")
+            # Fix async event loop issue in gunicorn threads
+            import asyncio
+            import time
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
 
-        with DDGS() as ddgs:
-            # Use conservative settings and HTML backend to avoid 202 rate limits
-            for r in ddgs.text(
-                query,
-                max_results=max_n,
-                region="us-en",
-                safesearch="moderate",
-                timelimit="y",
-                backend="html",
-            ):
-                signals.append({
-                    "title": r.get("title"),
-                    "href": r.get("href"),
-                    "body": r.get("body"),
-                    "source": r.get("source")
-                })
-        logger.info(f"✅ DuckDuckGo returned {len(signals)} results")
-    except Exception as exc:
-        logger.warning(f"⚠️ DuckDuckGo search failed: {exc}")
+            # Add delay between attempts to avoid rate limiting
+            if attempt > 0:
+                delay = retry_delay * (2 ** (attempt - 1))  # exponential backoff
+                logger.info(f"  ⏳ Waiting {delay}s before retry...")
+                time.sleep(delay)
+
+            with DDGS(timeout=20) as ddgs:
+                for r in ddgs.text(query, max_results=max_n):
+                    signals.append({
+                        "title": r.get("title"),
+                        "href": r.get("href"),
+                        "body": r.get("body"),
+                        "source": r.get("source")
+                    })
+            
+            logger.info(f"✅ DuckDuckGo returned {len(signals)} results")
+            return signals  # Success - exit retry loop
+            
+        except Exception as exc:
+            error_msg = str(exc)
+            if "Ratelimit" in error_msg or "202" in error_msg:
+                logger.warning(f"⚠️ Rate limit hit (attempt {attempt + 1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    continue  # Try again
+                else:
+                    logger.warning("⚠️ Max retries reached, returning empty results")
+            else:
+                logger.warning(f"⚠️ DuckDuckGo search failed: {exc}")
+                break  # Non-rate-limit error, don't retry
+    
     return signals
 
 
@@ -208,11 +221,6 @@ def _web_search_candidates(
 ) -> Dict[str, List[Dict[str, Any]]]:
     """Collect minimal web search results for candidate identification.
 
-    Search priority:
-      1. SearXNG (default, free, scalable)
-      2. Google CSE (if configured)
-      3. DuckDuckGo (ultimate fallback)
-
     Returns a dict with keys:
       - candidates: prioritized list of results (dict with title, href, body, source)
       - extra: additional results for context building
@@ -233,36 +241,12 @@ def _web_search_candidates(
     logger.info(f"🔎 Running {len(queries)} search queries for candidate discovery")
     for i, q in enumerate(queries, 1):
         logger.info(f"  Query {i}/{len(queries)}: {q}")
-
-        # Try SearXNG first (default, free, scalable) unless disabled
-        results = []
-        disable_searxng = os.getenv("DISABLE_SEARXNG", "0").strip().lower() in ("1", "true", "yes")
-
-        if searxng_search and not disable_searxng:
-            try:
-                results = searxng_search(q, num_results=5)
-                if results:
-                    logger.info(f"  → SearXNG returned {len(results)} results")
-            except Exception as exc:
-                logger.warning(f"  → SearXNG error: {exc}")
-        elif disable_searxng:
-            logger.info(f"  → SearXNG disabled via DISABLE_SEARXNG flag")
-
-        # Fallback to Google CSE if SearXNG fails or returns no results
+        g = _google_cse_search(q, num=5)
+        results = g
         if not results:
-            logger.info(f"  → Trying Google CSE...")
-            results = _google_cse_search(q, num=5)
-            if results:
-                logger.info(f"  → Google CSE returned {len(results)} results")
-
-        # Ultimate fallback to DuckDuckGo
-        if not results:
-            logger.info(f"  → Trying DuckDuckGo...")
+            logger.info(f"  → Google CSE returned 0 results, trying DDG...")
             results = duckduckgo_signals(q, max_n=5)
-            if results:
-                logger.info(f"  → DuckDuckGo returned {len(results)} results")
-
-        logger.info(f"  → Total results for this query: {len(results)}")
+        logger.info(f"  → Got {len(results)} results from this query")
         for r in results:
             href = r.get("href") or ""
             if not href or href in seen:

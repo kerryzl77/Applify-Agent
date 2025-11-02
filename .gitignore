@@ -78,9 +78,6 @@ temp/
 playwright-data/
 .playwright/
 
-# Local SearXNG testing
-searxng/
-
 # Security - NEVER commit these
 *.pem
 *.key
@@ -92,4 +89,4 @@ config/gcp-oauth.keys.json
 
 # Heroku/Production
 .env.production
-heroku-deploy.log
+heroku-deploy.logsearxng/
