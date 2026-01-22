@@ -89,4 +89,23 @@ config/gcp-oauth.keys.json
 
 # Heroku/Production
 .env.production
-heroku-deploy.logsearxng/
+heroku-deploy.log
+
+# SearXNG (local search engine)
+searxng/
+
+# Cursor AI
+.cursor/
+.cursorignore
+
+# JWT/Auth tokens (never commit)
+*.token
+tokens.json
+
+# Backup files
+*.backup
+*.orig
+
+# Local development
+.python-version
+*.local
