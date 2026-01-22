@@ -334,6 +334,126 @@ export const gmailAPI = {
   },
 };
 
+// Jobs discovery endpoints
+export const jobsAPI = {
+  getFeed: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.ats) queryParams.set('ats', params.ats);
+    if (params.q) queryParams.set('q', params.q);
+    if (params.location) queryParams.set('location', params.location);
+    if (params.company) queryParams.set('company', params.company);
+    if (params.page) queryParams.set('page', params.page.toString());
+    if (params.page_size) queryParams.set('page_size', params.page_size.toString());
+    
+    const queryString = queryParams.toString();
+    const url = queryString ? `/api/jobs/feed?${queryString}` : '/api/jobs/feed';
+    const response = await api.get(url);
+    return response.data;
+  },
+
+  getJob: async (jobId, includeJd = false) => {
+    const url = includeJd ? `/api/jobs/${jobId}?include_jd=true` : `/api/jobs/${jobId}`;
+    const response = await api.get(url);
+    return response.data;
+  },
+
+  extractJob: async (url) => {
+    const response = await api.post('/api/jobs/extract', { url });
+    return response.data;
+  },
+
+  saveJob: async (jobId) => {
+    const response = await api.post(`/api/jobs/${jobId}/save`);
+    return response.data;
+  },
+
+  startCampaign: async (jobId) => {
+    const response = await api.post(`/api/jobs/${jobId}/start-campaign`);
+    return response.data;
+  },
+
+  startRefresh: async () => {
+    const response = await api.post('/api/jobs/refresh');
+    return response.data;
+  },
+
+  getRefreshStatus: async () => {
+    const response = await api.get('/api/jobs/refresh/status');
+    return response.data;
+  },
+
+  // Returns an EventSource for SSE streaming
+  streamRefreshProgress: () => {
+    const token = localStorage.getItem('access_token');
+    const baseUrl = api.defaults.baseURL || '';
+    const url = `${baseUrl}/api/jobs/refresh/stream`;
+    
+    // Create EventSource with auth header via fetch
+    return {
+      subscribe: (onMessage, onError, onComplete) => {
+        let isClosed = false;
+        
+        const fetchStream = async () => {
+          try {
+            const response = await fetch(url, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'text/event-stream',
+              },
+            });
+            
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            
+            while (!isClosed) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+              
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const data = JSON.parse(line.slice(6));
+                    onMessage(data);
+                    
+                    if (data.status === 'completed' || data.status === 'error' || data.status === 'timeout') {
+                      onComplete?.(data);
+                      isClosed = true;
+                      return;
+                    }
+                  } catch (e) {
+                    // Ignore parse errors
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            if (!isClosed) {
+              onError?.(error);
+            }
+          }
+        };
+        
+        fetchStream();
+        
+        return {
+          close: () => {
+            isClosed = true;
+          },
+        };
+      },
+    };
+  },
+};
+
 // Health check endpoint
 export const healthCheck = async () => {
   const response = await api.get('/health');

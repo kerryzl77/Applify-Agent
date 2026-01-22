@@ -12,6 +12,7 @@ import {
   X,
   Settings,
   Sparkles,
+  Compass,
 } from 'lucide-react';
 import useStore from '../store/useStore';
 import { authAPI } from '../services/api';
@@ -125,6 +126,22 @@ const Sidebar = () => {
                   <X className="w-5 h-5" />
                 </button>
               </div>
+
+              {/* Discover Jobs Button */}
+              <Link
+                to="/discover"
+                onClick={() => setIsOpen(false)}
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg mb-4 transition-all duration-200 group ${
+                  location.pathname === '/discover'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                    : 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/30 dark:hover:to-purple-900/30'
+                }`}
+              >
+                <Compass className={`w-5 h-5 ${location.pathname === '/discover' ? 'text-white' : 'text-blue-600 dark:text-blue-400'} group-hover:scale-110 transition-transform duration-200`} />
+                <span className={`text-sm font-semibold ${location.pathname === '/discover' ? 'text-white' : 'text-blue-700 dark:text-blue-300'}`}>
+                  Discover Jobs
+                </span>
+              </Link>
 
               {/* New generation buttons */}
               <div className="space-y-1.5">

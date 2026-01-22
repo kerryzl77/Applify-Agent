@@ -8,6 +8,7 @@ import { authAPI } from './services/api';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import DiscoverJobs from './pages/DiscoverJobs';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -107,6 +108,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/discover"
+          element={
+            <ProtectedRoute>
+              <DiscoverJobs />
             </ProtectedRoute>
           }
         />

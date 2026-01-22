@@ -1,0 +1,512 @@
+{
+  "version": "1.0",
+  "description": "Seed list of 100 ATS job board roots (50 Greenhouse + 50 Ashby) for daily ingestion",
+  "last_updated": "2026-01-22",
+  "companies": [
+    {
+      "company_name": "Alma",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/alma"
+    },
+    {
+      "company_name": "Komodo Health",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/komodohealth"
+    },
+    {
+      "company_name": "Scale AI",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/scaleai"
+    },
+    {
+      "company_name": "Remote",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/remotecom"
+    },
+    {
+      "company_name": "Uniswap Labs",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/uniswaplabs"
+    },
+    {
+      "company_name": "xAI",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/xai"
+    },
+    {
+      "company_name": "Mercury",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/mercury"
+    },
+    {
+      "company_name": "Carbon",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/carbon"
+    },
+    {
+      "company_name": "Figment",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/figment"
+    },
+    {
+      "company_name": "GoFundMe",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/gofundme"
+    },
+    {
+      "company_name": "Maven Clinic",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/mavenclinic"
+    },
+    {
+      "company_name": "Grow Therapy",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/growtherapy"
+    },
+    {
+      "company_name": "Roadie",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/roadie"
+    },
+    {
+      "company_name": "Office Hours",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/officehours"
+    },
+    {
+      "company_name": "Pacaso",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/pacaso"
+    },
+    {
+      "company_name": "Endor Labs",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/endorlabs"
+    },
+    {
+      "company_name": "Boulevard",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/boulevard"
+    },
+    {
+      "company_name": "Pump",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/pumpcareers"
+    },
+    {
+      "company_name": "Roo",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/roo"
+    },
+    {
+      "company_name": "Check",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/check"
+    },
+    {
+      "company_name": "At-Bay",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/atbayjobs"
+    },
+    {
+      "company_name": "DoorDash",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/doordashusa"
+    },
+    {
+      "company_name": "Reddit",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/reddit"
+    },
+    {
+      "company_name": "Affirm",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/affirm"
+    },
+    {
+      "company_name": "10a Labs",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/10alabs"
+    },
+    {
+      "company_name": "WITHIN / brkfst",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/agencywithin"
+    },
+    {
+      "company_name": "Liquid I.V.",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/liquidiv"
+    },
+    {
+      "company_name": "Little Spoon",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/littlespoon"
+    },
+    {
+      "company_name": "Aypa Power",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/aypapower"
+    },
+    {
+      "company_name": "Clearway Energy",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/clearwayjobs"
+    },
+    {
+      "company_name": "Flex",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/getflex"
+    },
+    {
+      "company_name": "Offshore Launch",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/offshorelaunch"
+    },
+    {
+      "company_name": "Merit America",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/meritamerica"
+    },
+    {
+      "company_name": "ThalamusGME",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/thalamusgme"
+    },
+    {
+      "company_name": "Alt",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/alt"
+    },
+    {
+      "company_name": "Nira Energy",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/niraenergy"
+    },
+    {
+      "company_name": "Fueled",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/fueledcareers"
+    },
+    {
+      "company_name": "Productiv",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/productiv"
+    },
+    {
+      "company_name": "Vacation Inc.",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/vacationinc"
+    },
+    {
+      "company_name": "iCapital",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/icapitalnetwork"
+    },
+    {
+      "company_name": "CarGurus",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/cargurus"
+    },
+    {
+      "company_name": "C3 AI",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/c3iot"
+    },
+    {
+      "company_name": "Maravai LifeSciences",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/maravailifesciences"
+    },
+    {
+      "company_name": "NYISO",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/nyiso"
+    },
+    {
+      "company_name": "NYCEDC",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/nycedc"
+    },
+    {
+      "company_name": "Guild",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/guild"
+    },
+    {
+      "company_name": "GiveDirectly",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/givedirectly"
+    },
+    {
+      "company_name": "Known",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/known"
+    },
+    {
+      "company_name": "The New York Times",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/thenewyorktimes"
+    },
+    {
+      "company_name": "Dropbox",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/dropbox"
+    },
+    {
+      "company_name": "Zapier",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/zapier"
+    },
+    {
+      "company_name": "1Password",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/1password"
+    },
+    {
+      "company_name": "RevenueCat",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/revenuecat"
+    },
+    {
+      "company_name": "Modern Treasury",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/moderntreasury"
+    },
+    {
+      "company_name": "Modal",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/modal"
+    },
+    {
+      "company_name": "Clipboard Health",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/clipboardhealth"
+    },
+    {
+      "company_name": "Talos Trading",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/Talos-Trading"
+    },
+    {
+      "company_name": "Notable",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/notable"
+    },
+    {
+      "company_name": "Network Right",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/networkright"
+    },
+    {
+      "company_name": "Rillet",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/rillet"
+    },
+    {
+      "company_name": "Stepful",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/stepful"
+    },
+    {
+      "company_name": "Doss",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/doss"
+    },
+    {
+      "company_name": "Air Apps",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/airapps"
+    },
+    {
+      "company_name": "Casium",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/casium"
+    },
+    {
+      "company_name": "Arlo",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/arlo"
+    },
+    {
+      "company_name": "Bedrock Ocean",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/bedrockocean"
+    },
+    {
+      "company_name": "Makai Labs",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/makai-labs"
+    },
+    {
+      "company_name": "Elliptic",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/elliptic"
+    },
+    {
+      "company_name": "Kraken",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/kraken.com"
+    },
+    {
+      "company_name": "Replit",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/replit"
+    },
+    {
+      "company_name": "Eight Sleep",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/eightsleep"
+    },
+    {
+      "company_name": "SandboxAQ",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/sandboxaq"
+    },
+    {
+      "company_name": "Sobek AI",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/sobek-ai"
+    },
+    {
+      "company_name": "Kikoff",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/kikoff"
+    },
+    {
+      "company_name": "Dust",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/dust"
+    },
+    {
+      "company_name": "Assembled",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/assembledhq"
+    },
+    {
+      "company_name": "humans&",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/humans-and"
+    },
+    {
+      "company_name": "Revic",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/revic"
+    },
+    {
+      "company_name": "fermàt",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/fermat"
+    },
+    {
+      "company_name": "Spherical",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/spherical"
+    },
+    {
+      "company_name": "Filed",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/filed"
+    },
+    {
+      "company_name": "Medal",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/medal"
+    },
+    {
+      "company_name": "Vori",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/Vori"
+    },
+    {
+      "company_name": "Applied Compute",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/Applied%20Compute"
+    },
+    {
+      "company_name": "Quilter",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/quilter"
+    },
+    {
+      "company_name": "OpenAI",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/openai"
+    },
+    {
+      "company_name": "Anthropic",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/anthropic"
+    },
+    {
+      "company_name": "Scale AI (Ashby)",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/scaleai"
+    },
+    {
+      "company_name": "Perplexity AI",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/perplexityai"
+    },
+    {
+      "company_name": "Linear",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/linear"
+    },
+    {
+      "company_name": "Figma",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/figma"
+    },
+    {
+      "company_name": "Ramp",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/ramp"
+    },
+    {
+      "company_name": "Mercury (Ashby)",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/mercury"
+    },
+    {
+      "company_name": "Retro",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/retro"
+    },
+    {
+      "company_name": "Harvey",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/harvey"
+    },
+    {
+      "company_name": "Glean",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/glean"
+    },
+    {
+      "company_name": "Airtable",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/airtable"
+    },
+    {
+      "company_name": "Notion",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/notion"
+    },
+    {
+      "company_name": "Vercel",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/vercel"
+    },
+    {
+      "company_name": "Retool",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/retool"
+    }
+  ],
+  "stats": {
+    "total_companies": 100,
+    "greenhouse_count": 50,
+    "ashby_count": 50
+  }
+}

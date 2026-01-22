@@ -7,6 +7,9 @@ import uuid
 import psycopg2
 from psycopg2.extras import Json
 from psycopg2 import pool
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DatabaseManager:
     _instance = None
@@ -27,6 +30,7 @@ class DatabaseManager:
                 os.environ.get('DATABASE_URL')
             )
             self._ensure_tables_exist()
+            self._run_migrations()
         except Exception as e:
             print(f"Error initializing connection pool: {str(e)}")
             raise
@@ -110,6 +114,65 @@ class DatabaseManager:
                 conn.rollback()
             print(f"Error creating tables: {str(e)}")
             raise
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def _run_migrations(self):
+        """Run SQL migrations from database/migrations/ directory."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                # Create schema_migrations table if not exists
+                cur.execute('''
+                    CREATE TABLE IF NOT EXISTS schema_migrations (
+                        version TEXT PRIMARY KEY,
+                        applied_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                ''')
+                conn.commit()
+
+                # Get already applied migrations
+                cur.execute("SELECT version FROM schema_migrations ORDER BY version")
+                applied = set(row[0] for row in cur.fetchall())
+
+                # Find migrations directory
+                migrations_dir = Path(__file__).parent / "migrations"
+                if not migrations_dir.exists():
+                    logger.info("No migrations directory found, skipping migrations")
+                    return
+
+                # Get and sort migration files
+                migration_files = sorted(migrations_dir.glob("*.sql"))
+
+                for migration_file in migration_files:
+                    version = migration_file.stem  # e.g., "001_jobs_tables"
+                    if version in applied:
+                        continue
+
+                    logger.info(f"Applying migration: {version}")
+                    sql_content = migration_file.read_text()
+
+                    try:
+                        cur.execute(sql_content)
+                        cur.execute(
+                            "INSERT INTO schema_migrations (version) VALUES (%s)",
+                            (version,)
+                        )
+                        conn.commit()
+                        logger.info(f"Successfully applied migration: {version}")
+                    except Exception as e:
+                        conn.rollback()
+                        logger.error(f"Failed to apply migration {version}: {str(e)}")
+                        raise
+
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error running migrations: {str(e)}")
+            # Don't raise - allow app to start even if migrations fail
+            # This prevents blocking existing functionality
         finally:
             if conn:
                 self._return_connection(conn)
@@ -417,4 +480,389 @@ class DatabaseManager:
             return []
         finally:
             if conn:
-                self._return_connection(conn) 
+                self._return_connection(conn)
+
+    # ------------------------------------------------------------------
+    # ATS Company Sources CRUD
+    # ------------------------------------------------------------------
+    def upsert_ats_company_source(self, company_name, ats_type, board_root_url, tags=None):
+        """Upsert an ATS company source."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO ats_company_sources (company_name, ats_type, board_root_url, tags)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (board_root_url)
+                    DO UPDATE SET
+                        company_name = EXCLUDED.company_name,
+                        ats_type = EXCLUDED.ats_type,
+                        tags = EXCLUDED.tags,
+                        updated_at = NOW()
+                    RETURNING id
+                """, (company_name, ats_type, board_root_url, tags or []))
+                result = cur.fetchone()
+                conn.commit()
+                return result[0] if result else None
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error upserting ATS company source: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_ats_company_sources(self, ats_type=None, is_active=True):
+        """Get ATS company sources with optional filtering."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                query = "SELECT id, company_name, ats_type, board_root_url, is_active, tags, last_success_at FROM ats_company_sources WHERE 1=1"
+                params = []
+                if ats_type:
+                    query += " AND ats_type = %s"
+                    params.append(ats_type)
+                if is_active is not None:
+                    query += " AND is_active = %s"
+                    params.append(is_active)
+                query += " ORDER BY company_name"
+                cur.execute(query, params)
+                results = cur.fetchall()
+                return [{
+                    'id': row[0],
+                    'company_name': row[1],
+                    'ats_type': row[2],
+                    'board_root_url': row[3],
+                    'is_active': row[4],
+                    'tags': row[5],
+                    'last_success_at': row[6].isoformat() if row[6] else None
+                } for row in results]
+        except Exception as e:
+            logger.error(f"Error getting ATS company sources: {str(e)}")
+            return []
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def update_ats_source_last_success(self, source_id):
+        """Update last_success_at for an ATS source."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE ats_company_sources SET last_success_at = NOW(), updated_at = NOW() WHERE id = %s",
+                    (source_id,)
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error updating ATS source last success: {str(e)}")
+            return False
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    # ------------------------------------------------------------------
+    # Job Posts CRUD
+    # ------------------------------------------------------------------
+    def upsert_job_post(self, source_type, company_name, ats_type, title, url,
+                        company_source_id=None, created_by_user_id=None,
+                        external_job_id=None, location=None, team=None,
+                        employment_type=None, hash_value=None, raw_json=None):
+        """Upsert a job post by URL."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO job_posts (
+                        source_type, company_source_id, created_by_user_id,
+                        external_job_id, company_name, ats_type, title,
+                        location, team, employment_type, url, hash, raw_json
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (url)
+                    DO UPDATE SET
+                        title = EXCLUDED.title,
+                        location = EXCLUDED.location,
+                        team = EXCLUDED.team,
+                        employment_type = EXCLUDED.employment_type,
+                        hash = EXCLUDED.hash,
+                        raw_json = EXCLUDED.raw_json,
+                        last_seen_at = NOW(),
+                        updated_at = NOW()
+                    RETURNING id
+                """, (
+                    source_type, company_source_id, created_by_user_id,
+                    external_job_id, company_name, ats_type, title,
+                    location, team, employment_type, url, hash_value,
+                    Json(raw_json) if raw_json else None
+                ))
+                result = cur.fetchone()
+                conn.commit()
+                return result[0] if result else None
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error upserting job post: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_job_posts_feed(self, user_id, ats_type=None, company=None, location=None,
+                           query=None, page=1, page_size=20):
+        """Get paginated job posts feed with optional filters."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                # Build query - show ATS jobs + user's own external jobs
+                base_query = """
+                    SELECT jp.id, jp.source_type, jp.company_name, jp.ats_type, jp.title,
+                           jp.location, jp.team, jp.employment_type, jp.url, jp.last_seen_at,
+                           usj.status as saved_status
+                    FROM job_posts jp
+                    LEFT JOIN user_saved_jobs usj ON jp.id = usj.job_post_id AND usj.user_id = %s
+                    WHERE (jp.source_type = 'ats' OR jp.created_by_user_id = %s)
+                """
+                params = [user_id, user_id]
+
+                if ats_type and ats_type != 'all':
+                    base_query += " AND jp.ats_type = %s"
+                    params.append(ats_type)
+                if company:
+                    base_query += " AND jp.company_name ILIKE %s"
+                    params.append(f"%{company}%")
+                if location:
+                    base_query += " AND jp.location ILIKE %s"
+                    params.append(f"%{location}%")
+                if query:
+                    base_query += " AND (jp.title ILIKE %s OR jp.company_name ILIKE %s)"
+                    params.extend([f"%{query}%", f"%{query}%"])
+
+                # Count total
+                count_query = f"SELECT COUNT(*) FROM ({base_query}) as subq"
+                cur.execute(count_query, params)
+                total = cur.fetchone()[0]
+
+                # Paginate
+                base_query += " ORDER BY jp.last_seen_at DESC LIMIT %s OFFSET %s"
+                params.extend([page_size, (page - 1) * page_size])
+                cur.execute(base_query, params)
+                results = cur.fetchall()
+
+                jobs = [{
+                    'id': row[0],
+                    'source_type': row[1],
+                    'company_name': row[2],
+                    'ats_type': row[3],
+                    'title': row[4],
+                    'location': row[5],
+                    'team': row[6],
+                    'employment_type': row[7],
+                    'url': row[8],
+                    'last_seen_at': row[9].isoformat() if row[9] else None,
+                    'saved_status': row[10]
+                } for row in results]
+
+                return {
+                    'jobs': jobs,
+                    'total': total,
+                    'page': page,
+                    'page_size': page_size,
+                    'total_pages': (total + page_size - 1) // page_size
+                }
+        except Exception as e:
+            logger.error(f"Error getting job posts feed: {str(e)}")
+            return {'jobs': [], 'total': 0, 'page': 1, 'page_size': page_size, 'total_pages': 0}
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_job_post_by_id(self, job_id, user_id=None):
+        """Get a single job post by ID."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT jp.id, jp.source_type, jp.company_source_id, jp.created_by_user_id,
+                           jp.external_job_id, jp.company_name, jp.ats_type, jp.title,
+                           jp.location, jp.team, jp.employment_type, jp.url,
+                           jp.last_seen_at, jp.hash, jp.raw_json, jp.created_at,
+                           usj.status as saved_status
+                    FROM job_posts jp
+                    LEFT JOIN user_saved_jobs usj ON jp.id = usj.job_post_id AND usj.user_id = %s
+                    WHERE jp.id = %s
+                """, (user_id, job_id))
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {
+                    'id': row[0],
+                    'source_type': row[1],
+                    'company_source_id': row[2],
+                    'created_by_user_id': row[3],
+                    'external_job_id': row[4],
+                    'company_name': row[5],
+                    'ats_type': row[6],
+                    'title': row[7],
+                    'location': row[8],
+                    'team': row[9],
+                    'employment_type': row[10],
+                    'url': row[11],
+                    'last_seen_at': row[12].isoformat() if row[12] else None,
+                    'hash': row[13],
+                    'raw_json': row[14],
+                    'created_at': row[15].isoformat() if row[15] else None,
+                    'saved_status': row[16]
+                }
+        except Exception as e:
+            logger.error(f"Error getting job post by ID: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_job_post_by_url(self, url):
+        """Get a job post by URL."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM job_posts WHERE url = %s", (url,))
+                row = cur.fetchone()
+                return row[0] if row else None
+        except Exception as e:
+            logger.error(f"Error getting job post by URL: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    # ------------------------------------------------------------------
+    # User Saved Jobs CRUD
+    # ------------------------------------------------------------------
+    def save_job(self, user_id, job_post_id, status='saved'):
+        """Save or update a job for a user."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO user_saved_jobs (user_id, job_post_id, status)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (user_id, job_post_id)
+                    DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
+                    RETURNING id, status
+                """, (user_id, job_post_id, status))
+                result = cur.fetchone()
+                conn.commit()
+                return {'id': result[0], 'status': result[1]} if result else None
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error saving job: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_user_saved_jobs(self, user_id, status=None):
+        """Get saved jobs for a user."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                query = """
+                    SELECT usj.id, usj.job_post_id, usj.status, usj.created_at,
+                           jp.title, jp.company_name, jp.location, jp.url
+                    FROM user_saved_jobs usj
+                    JOIN job_posts jp ON usj.job_post_id = jp.id
+                    WHERE usj.user_id = %s
+                """
+                params = [user_id]
+                if status:
+                    query += " AND usj.status = %s"
+                    params.append(status)
+                query += " ORDER BY usj.updated_at DESC"
+                cur.execute(query, params)
+                results = cur.fetchall()
+                return [{
+                    'id': row[0],
+                    'job_post_id': row[1],
+                    'status': row[2],
+                    'saved_at': row[3].isoformat() if row[3] else None,
+                    'title': row[4],
+                    'company_name': row[5],
+                    'location': row[6],
+                    'url': row[7]
+                } for row in results]
+        except Exception as e:
+            logger.error(f"Error getting user saved jobs: {str(e)}")
+            return []
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    # ------------------------------------------------------------------
+    # Job Campaigns CRUD
+    # ------------------------------------------------------------------
+    def create_job_campaign(self, user_id, job_post_id, initial_state=None):
+        """Create a job campaign."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO job_campaigns (user_id, job_post_id, state)
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                """, (user_id, job_post_id, Json(initial_state or {})))
+                result = cur.fetchone()
+                conn.commit()
+                return result[0] if result else None
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error creating job campaign: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_job_campaign(self, campaign_id, user_id=None):
+        """Get a job campaign by ID."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                query = "SELECT id, user_id, job_post_id, state, created_at FROM job_campaigns WHERE id = %s"
+                params = [campaign_id]
+                if user_id:
+                    query += " AND user_id = %s"
+                    params.append(user_id)
+                cur.execute(query, params)
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {
+                    'id': row[0],
+                    'user_id': row[1],
+                    'job_post_id': row[2],
+                    'state': row[3],
+                    'created_at': row[4].isoformat() if row[4] else None
+                }
+        except Exception as e:
+            logger.error(f"Error getting job campaign: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)

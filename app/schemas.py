@@ -219,3 +219,76 @@ class ErrorResponse(BaseModel):
     """Generic error response."""
     error: str
     detail: Optional[str] = None
+
+
+# ============================================================
+# Jobs Discovery Schemas
+# ============================================================
+
+class JobCard(BaseModel):
+    """Job card for feed display."""
+    id: int
+    source_type: str  # 'ats' or 'external'
+    company_name: str
+    ats_type: str  # 'greenhouse', 'ashby', or 'external'
+    title: str
+    location: Optional[str] = None
+    team: Optional[str] = None
+    employment_type: Optional[str] = None
+    url: str
+    last_seen_at: Optional[str] = None
+    saved_status: Optional[str] = None  # 'saved', 'campaign_started', 'archived', or None
+
+
+class JobsFeedResponse(BaseModel):
+    """Paginated jobs feed response."""
+    jobs: List[JobCard]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class JobDetailResponse(BaseModel):
+    """Full job detail response."""
+    id: int
+    source_type: str
+    company_name: str
+    ats_type: str
+    title: str
+    location: Optional[str] = None
+    team: Optional[str] = None
+    employment_type: Optional[str] = None
+    url: str
+    last_seen_at: Optional[str] = None
+    created_at: Optional[str] = None
+    saved_status: Optional[str] = None
+    job_description: Optional[str] = None  # Extracted JD content
+    requirements: Optional[str] = None
+
+
+class JobExtractRequest(BaseModel):
+    """Request to extract job from a URL."""
+    url: str
+
+
+class JobExtractResponse(BaseModel):
+    """Response from job extraction."""
+    success: bool
+    job_id: Optional[int] = None
+    job: Optional[JobCard] = None
+    message: Optional[str] = None
+
+
+class SaveJobResponse(BaseModel):
+    """Response from saving a job."""
+    success: bool
+    saved_job_id: Optional[int] = None
+    status: Optional[str] = None
+
+
+class StartCampaignResponse(BaseModel):
+    """Response from starting a campaign."""
+    success: bool
+    campaign_id: Optional[int] = None
+    message: Optional[str] = None

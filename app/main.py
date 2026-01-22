@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.config import get_settings
-from app.routers import auth_router, content_router, resume_router, gmail_router
+from app.routers import auth_router, content_router, resume_router, gmail_router, jobs_router
 from app.dependencies import get_db, get_redis
 
 # Configure logging
@@ -60,6 +60,7 @@ app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(content_router, prefix="/api/content", tags=["Content Generation"])
 app.include_router(resume_router, prefix="/api/resume", tags=["Resume"])
 app.include_router(gmail_router, prefix="/api/gmail", tags=["Gmail"])
+app.include_router(jobs_router, prefix="/api/jobs", tags=["Jobs Discovery"])
 
 # Legacy endpoint aliases for backward compatibility
 # These redirect to the new endpoints
