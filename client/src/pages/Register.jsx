@@ -65,14 +65,10 @@ const Register = () => {
         confirm_password: formData.confirmPassword,
       });
 
-      if (response.success) {
-        // Flask session-based auth - set user to trigger isAuthenticated
-        setUser({ email: formData.email, user_id: response.user_id });
-        toast.success(response.message || 'Account created successfully!');
-        navigate('/dashboard');
-      } else {
-        throw new Error('Invalid response from server');
-      }
+      // JWT auth - tokens stored by api.js
+      setUser({ email: formData.email, user_id: 'authenticated' });
+      toast.success('Account created successfully!');
+      navigate('/dashboard');
     } catch (error) {
       toast.error(error.message || 'Registration failed. Please try again.');
     } finally {
@@ -81,7 +77,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-white to-indigo-50 dark:from-[#0a0a0b] dark:via-gray-950 dark:to-[#0a0a0b] p-4 bg-pattern">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -94,7 +90,7 @@ const Register = () => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 mb-4"
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 shadow-lg shadow-violet-500/30 mb-4"
           >
             <Sparkles className="w-8 h-8 text-white" />
           </motion.div>
@@ -215,15 +211,15 @@ const Register = () => {
                 name="terms"
                 type="checkbox"
                 required
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-0.5"
               />
               <label htmlFor="terms" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                 I agree to the{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                <a href="#" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
                   Terms of Service
                 </a>{' '}
                 and{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                <a href="#" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
                   Privacy Policy
                 </a>
               </label>
@@ -262,7 +258,7 @@ const Register = () => {
               Already have an account?{' '}
               <Link
                 to="/login"
-                className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
               >
                 Sign in
               </Link>

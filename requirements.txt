@@ -1,23 +1,42 @@
-Flask==2.3.3
-Flask-CORS==4.0.0
-beautifulsoup4==4.12.2
-requests==2.31.0
-python-docx==0.8.11
+# FastAPI and ASGI server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+
+# Authentication
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+pydantic-settings>=2.0.0
+
+# Database
+psycopg2-binary==2.9.10
+
+# Caching
+redis==5.0.1
+
+# AI/LLM
 openai>=2.6.0
 httpx>=0.28.0
+
+# Document processing
+python-docx==0.8.11
 reportlab==4.0.8
 xhtml2pdf==0.2.16
-python-dotenv==1.0.0
 PyPDF2==3.0.1
+Pillow==10.4.0
 python-magic==0.4.27
-psycopg2-binary==2.9.10
-redis==5.0.1
-gunicorn==21.2.0
+
+# Web scraping
+beautifulsoup4==4.12.2
+requests==2.31.0
+html-text==0.7.1
+readability-lxml==0.8.1
+duckduckgo-search>=6.3.0
+
+# Google APIs (Gmail OAuth)
 google-api-python-client==2.146.0
 google-auth==2.35.0
 google-auth-oauthlib==1.2.1
-Pillow==10.4.0
-html-text==0.7.1
-beautifulsoup4==4.12.2
-readability-lxml==0.8.1
-duckduckgo-search>=6.3.0
+
+# Environment
+python-dotenv==1.0.0

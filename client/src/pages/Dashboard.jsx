@@ -19,9 +19,7 @@ const Dashboard = () => {
   useEffect(() => {
     const loadProfileData = async () => {
       try {
-        const response = await axios.get('/api/candidate-data', {
-          withCredentials: true,
-        });
+        const response = await axios.get('/api/content/candidate-data');
 
         const profileData = response.data;
         

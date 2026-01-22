@@ -1,8 +1,29 @@
 import axios from 'axios';
 
 // Get API base URL from environment variables or use default
-// In production, use empty string to make requests to the same origin (Flask serves both frontend and API)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+// Token storage keys
+const ACCESS_TOKEN_KEY = 'applify_access_token';
+const REFRESH_TOKEN_KEY = 'applify_refresh_token';
+
+// Token management utilities
+export const tokenManager = {
+  getAccessToken: () => localStorage.getItem(ACCESS_TOKEN_KEY),
+  getRefreshToken: () => localStorage.getItem(REFRESH_TOKEN_KEY),
+  
+  setTokens: (accessToken, refreshToken) => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  },
+  
+  clearTokens: () => {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  },
+  
+  hasTokens: () => !!localStorage.getItem(ACCESS_TOKEN_KEY),
+};
 
 // Create axios instance with default config
 const api = axios.create({
@@ -10,14 +31,31 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 seconds
-  withCredentials: true, // Enable sending cookies for session management
+  timeout: 30000,
 });
 
-// Request interceptor (no token needed - using Flask sessions)
+// Flag to prevent multiple refresh attempts
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Request interceptor - add Authorization header
 api.interceptors.request.use(
   (config) => {
-    // No need to add Authorization header - using Flask sessions with cookies
+    const token = tokenManager.getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -25,37 +63,91 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Response interceptor - handle token refresh on 401
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    
     if (error.response) {
-      // Server responded with error
       const { status, data } = error.response;
-
-      // Don't auto-redirect on 401 from /api/auth/check to prevent infinite loops
-      // The App.jsx component handles authentication checking gracefully
-      if (status === 401 && !error.config.url.includes('/api/auth/check')) {
-        // Only redirect to login for other 401 errors (session expired during use)
-        // And only if we're not already on login/register page
-        if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
-          window.location.href = '/login';
+      
+      // Handle 401 - try to refresh token
+      if (status === 401 && !originalRequest._retry) {
+        // Don't retry refresh or auth check endpoints
+        if (originalRequest.url.includes('/api/auth/refresh') || 
+            originalRequest.url.includes('/api/auth/check')) {
+          tokenManager.clearTokens();
+          if (!window.location.pathname.includes('/login') && 
+              !window.location.pathname.includes('/register')) {
+            window.location.href = '/login';
+          }
+          return Promise.reject(error);
+        }
+        
+        if (isRefreshing) {
+          // Wait for the refresh to complete
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          }).then(token => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          }).catch(err => {
+            return Promise.reject(err);
+          });
+        }
+        
+        originalRequest._retry = true;
+        isRefreshing = true;
+        
+        const refreshToken = tokenManager.getRefreshToken();
+        
+        if (!refreshToken) {
+          tokenManager.clearTokens();
+          isRefreshing = false;
+          if (!window.location.pathname.includes('/login') && 
+              !window.location.pathname.includes('/register')) {
+            window.location.href = '/login';
+          }
+          return Promise.reject(error);
+        }
+        
+        try {
+          const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
+            refresh_token: refreshToken,
+          });
+          
+          const { access_token, refresh_token } = response.data;
+          tokenManager.setTokens(access_token, refresh_token);
+          
+          processQueue(null, access_token);
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          
+          return api(originalRequest);
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          tokenManager.clearTokens();
+          if (!window.location.pathname.includes('/login') && 
+              !window.location.pathname.includes('/register')) {
+            window.location.href = '/login';
+          }
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
         }
       }
-
+      
       return Promise.reject({
-        message: data.error || data.message || 'An error occurred',
+        message: data.detail || data.error || data.message || 'An error occurred',
         status,
         data,
       });
     } else if (error.request) {
-      // Request made but no response
       return Promise.reject({
         message: 'No response from server. Please check your connection.',
         status: 0,
       });
     } else {
-      // Something else happened
       return Promise.reject({
         message: error.message || 'An unexpected error occurred',
         status: 0,
@@ -67,32 +159,48 @@ api.interceptors.response.use(
 // Authentication endpoints
 export const authAPI = {
   register: async (userData) => {
-    const response = await api.post('/api/register', userData);
+    const response = await api.post('/api/auth/register', userData);
+    const { access_token, refresh_token } = response.data;
+    tokenManager.setTokens(access_token, refresh_token);
     return response.data;
   },
 
   login: async (credentials) => {
-    const response = await api.post('/api/login', credentials);
-    return response.data;
+    const response = await api.post('/api/auth/login', credentials);
+    const { access_token, refresh_token } = response.data;
+    tokenManager.setTokens(access_token, refresh_token);
+    return { success: true, ...response.data };
   },
 
   logout: async () => {
-    const response = await api.post('/api/logout');
-    return response.data;
+    try {
+      await api.post('/api/auth/logout');
+    } catch {
+      // Ignore errors - we're logging out anyway
+    }
+    tokenManager.clearTokens();
+    return { success: true };
   },
 
   check: async () => {
-    const response = await api.get('/api/auth/check');
-    return response.data;
+    if (!tokenManager.hasTokens()) {
+      return { authenticated: false };
+    }
+    try {
+      const response = await api.get('/api/auth/check');
+      return response.data;
+    } catch {
+      return { authenticated: false };
+    }
   },
 
   getProfile: async () => {
-    const response = await api.get('/api/candidate-data');
+    const response = await api.get('/api/content/candidate-data');
     return response.data;
   },
 
   updateProfile: async (profileData) => {
-    const response = await api.post('/api/update-candidate-data', profileData);
+    const response = await api.post('/api/content/candidate-data', profileData);
     return response.data;
   },
 };
@@ -100,17 +208,17 @@ export const authAPI = {
 // Profile management endpoints
 export const profileAPI = {
   get: async () => {
-    const response = await api.get('/api/candidate-data');
+    const response = await api.get('/api/content/candidate-data');
     return response.data;
   },
 
   update: async (profileData) => {
-    const response = await api.post('/api/update-candidate-data', profileData);
+    const response = await api.post('/api/content/candidate-data', profileData);
     return response.data;
   },
 
   delete: async () => {
-    const response = await api.delete('/api/candidate-data');
+    const response = await api.delete('/api/content/candidate-data');
     return response.data;
   },
 };
@@ -121,7 +229,7 @@ export const resumeAPI = {
     const formData = new FormData();
     formData.append('resume', file);
 
-    const response = await api.post('/api/upload-resume', formData, {
+    const response = await api.post('/api/resume/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -139,12 +247,17 @@ export const resumeAPI = {
   },
 
   get: async () => {
-    const response = await api.get('/api/candidate-data');
+    const response = await api.get('/api/content/candidate-data');
     return response.data;
   },
 
-  delete: async () => {
-    const response = await api.delete('/api/candidate-data');
+  getProgress: async () => {
+    const response = await api.get('/api/resume/progress');
+    return response.data;
+  },
+
+  clearProgress: async () => {
+    const response = await api.post('/api/resume/clear-progress');
     return response.data;
   },
 };
@@ -152,16 +265,17 @@ export const resumeAPI = {
 // Content generation endpoints
 export const contentAPI = {
   generateCoverLetter: async (jobDescription, additionalInfo) => {
-    const response = await api.post('/api/generate', {
+    const response = await api.post('/api/content/generate', {
       content_type: 'cover_letter',
-      job_description: jobDescription,
+      manual_text: jobDescription,
+      input_type: 'manual',
       additional_info: additionalInfo,
     });
     return response.data;
   },
 
   generateEmail: async (purpose, recipient, context) => {
-    const response = await api.post('/api/generate', {
+    const response = await api.post('/api/content/generate', {
       content_type: 'connection_email',
       purpose,
       recipient,
@@ -171,7 +285,7 @@ export const contentAPI = {
   },
 
   generateResumeTailored: async (jobDescription) => {
-    const response = await api.post('/api/refine-resume', {
+    const response = await api.post('/api/resume/refine', {
       job_description: jobDescription,
       input_type: 'manual'
     });
@@ -179,7 +293,7 @@ export const contentAPI = {
   },
 
   improveContent: async (content, contentType, feedback) => {
-    const response = await api.post('/api/generate', {
+    const response = await api.post('/api/content/generate', {
       content,
       content_type: contentType,
       feedback,
@@ -187,9 +301,13 @@ export const contentAPI = {
     return response.data;
   },
 
-  // Generic generation endpoint for chat-like interface
   generate: async (type, data) => {
-    const response = await api.post('/api/generate', data);
+    const response = await api.post('/api/content/generate', data);
+    return response.data;
+  },
+
+  validateUrl: async (url) => {
+    const response = await api.post('/api/content/validate-url', { url });
     return response.data;
   },
 };
@@ -212,50 +330,6 @@ export const gmailAPI = {
 
   disconnect: async () => {
     const response = await api.post('/api/gmail/disconnect');
-    return response.data;
-  },
-
-  uploadClient: async (file) => {
-    const formData = new FormData();
-    formData.append('client', file);
-    const response = await api.post('/api/gmail/client', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  },
-
-  deleteClient: async () => {
-    const response = await api.delete('/api/gmail/client');
-    return response.data;
-  },
-};
-
-// Job application tracking endpoints (if needed in future)
-export const applicationAPI = {
-  getAll: async () => {
-    const response = await api.get('/applications');
-    return response.data;
-  },
-
-  getById: async (id) => {
-    const response = await api.get(`/applications/${id}`);
-    return response.data;
-  },
-
-  create: async (applicationData) => {
-    const response = await api.post('/applications', applicationData);
-    return response.data;
-  },
-
-  update: async (id, applicationData) => {
-    const response = await api.put(`/applications/${id}`, applicationData);
-    return response.data;
-  },
-
-  delete: async (id) => {
-    const response = await api.delete(`/applications/${id}`);
     return response.data;
   },
 };

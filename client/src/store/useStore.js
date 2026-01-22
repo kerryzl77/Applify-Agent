@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { tokenManager } from '../services/api';
 
 const useStore = create(
   persist(
     (set, get) => ({
       // User authentication state
       user: null,
-      token: null,
       isAuthenticated: false,
 
       setUser: (user) => set((state) => {
@@ -28,21 +28,20 @@ const useStore = create(
 
         return next;
       }),
-      setToken: (token) => set({ token }),
 
-      login: (user, token) => {
+      login: (user) => {
         set({
           user,
-          token,
           isAuthenticated: true,
         });
         get().resetProfileState();
       },
 
       logout: () => {
+        // Clear tokens
+        tokenManager.clearTokens();
         set({
           user: null,
-          token: null,
           isAuthenticated: false,
         });
         get().resetProfileState();
@@ -174,7 +173,6 @@ const useStore = create(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         user: state.user,
-        token: state.token,
         isAuthenticated: state.isAuthenticated,
         theme: state.theme,
         conversations: state.conversations,

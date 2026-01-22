@@ -38,9 +38,9 @@ const Login = () => {
       const response = await authAPI.login(formData);
 
       if (response.success) {
-        // Flask session-based auth - set user to trigger isAuthenticated
-        setUser({ email: formData.email, user_id: response.user_id });
-        toast.success(response.message || 'Welcome back!');
+        // JWT auth - tokens are stored by api.js, set user to trigger isAuthenticated
+        setUser({ email: formData.email, user_id: response.user_id || 'authenticated' });
+        toast.success('Welcome back!');
         window.location.href = '/dashboard';
       } else {
         throw new Error('Invalid response from server');
@@ -53,7 +53,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-violet-50 dark:from-[#0a0a0b] dark:via-gray-950 dark:to-[#0a0a0b] p-4 bg-pattern">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -66,7 +66,7 @@ const Login = () => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 mb-4"
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 shadow-lg shadow-indigo-500/30 mb-4"
           >
             <Sparkles className="w-8 h-8 text-white" />
           </motion.div>
@@ -158,7 +158,7 @@ const Login = () => {
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
                   Forgot password?
                 </a>
               </div>
@@ -197,7 +197,7 @@ const Login = () => {
               Don't have an account?{' '}
               <Link
                 to="/register"
-                className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
               >
                 Sign up
               </Link>
@@ -205,17 +205,6 @@ const Login = () => {
           </div>
         </motion.div>
 
-        {/* Demo credentials (remove in production) */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <p className="text-xs text-blue-800 dark:text-blue-300 text-center">
-            Demo Mode: Use any email and password to login
-          </p>
-        </motion.div>
       </motion.div>
     </div>
   );

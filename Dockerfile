@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # Install system dependencies (minimal set for production)
 RUN apt-get update && \
@@ -39,21 +39,20 @@ RUN useradd --create-home --shell /bin/bash appuser && \
     chown -R appuser:appuser /app
 
 # Create necessary directories and set permissions
-RUN mkdir -p /app/output /app/uploads /tmp/flask_session && \
-    chmod 755 /app/output /app/uploads /tmp/flask_session && \
-    chown -R appuser:appuser /app/output /app/uploads /tmp/flask_session
+RUN mkdir -p /app/output /app/uploads /tmp/app_session && \
+    chmod 755 /app/output /app/uploads /tmp/app_session && \
+    chown -R appuser:appuser /app/output /app/uploads /tmp/app_session
 
 # Switch to non-root user
 USER appuser
 
 # Define environment variables
-ENV FLASK_APP=app/app.py
 ENV PYTHONPATH=/app
-ENV FLASK_ENV=production
+ENV ENVIRONMENT=production
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Run the application with gunicorn (will be overridden by heroku.yml)
-CMD ["gunicorn", "app.app:app", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "2", "--timeout", "120"]
+# Run the application with uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "2", "--timeout-keep-alive", "180"]

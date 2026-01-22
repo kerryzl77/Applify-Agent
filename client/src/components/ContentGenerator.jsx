@@ -74,8 +74,7 @@ const ContentGenerator = () => {
     const pollProgress = setInterval(async () => {
       try {
         const response = await axios.get(
-          `/api/resume-refinement-progress/${resumeTaskId}`,
-          { withCredentials: true },
+          `/api/resume/refinement-progress/${resumeTaskId}`,
         );
 
         setResumeProgress(response.data);
@@ -155,7 +154,7 @@ const ContentGenerator = () => {
 
   const handleDownload = (type, format = "docx") => {
     if (fileInfo) {
-      window.open(`/api/download/${fileInfo.filename}`, "_blank");
+      window.open(`/api/content/download/${fileInfo.filename}`, "_blank");
       toast.success("Download started!");
     } else if (generatedContent) {
       const filename = `${type}_${Date.now()}.${format}`;
@@ -170,14 +169,14 @@ const ContentGenerator = () => {
       // Try to convert to PDF via backend
       try {
         const pdfFilename = fileInfo.filename.replace(".docx", ".pdf");
-        window.open(`/api/convert-to-pdf/${fileInfo.filename}`, "_blank");
+        window.open(`/api/content/convert-to-pdf/${fileInfo.filename}`, "_blank");
         toast.success("Converting to PDF...");
       } catch (error) {
         toast.error("PDF conversion failed. Download DOCX instead.");
       }
     } else if (fileInfo && fileInfo.filename.endsWith(".pdf")) {
       // Already a PDF
-      window.open(`/api/download/${fileInfo.filename}`, "_blank");
+      window.open(`/api/content/download/${fileInfo.filename}`, "_blank");
       toast.success("Download started!");
     } else {
       toast.error("No file available for PDF download");
@@ -314,9 +313,7 @@ const ContentGenerator = () => {
           url: inputType === "url" ? formData.url : undefined,
         };
 
-        response = await axios.post("/api/refine-resume", payload, {
-          withCredentials: true,
-        });
+        response = await axios.post("/api/resume/refine", payload);
 
         if (response.data.task_id) {
           setResumeTaskId(response.data.task_id);
@@ -352,9 +349,7 @@ const ContentGenerator = () => {
           }
         }
 
-        response = await axios.post("/api/generate", payload, {
-          withCredentials: true,
-        });
+        response = await axios.post("/api/content/generate", payload);
 
         setGeneratedContent(response.data.content);
         if (response.data.file_info) {

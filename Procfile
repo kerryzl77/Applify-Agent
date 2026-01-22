@@ -1,1 +1,1 @@
-web: gunicorn app.app:app --timeout 180 --workers 1 --threads ${GUNICORN_THREADS:-2} --max-requests 200 --max-requests-jitter 50
+web: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2 --timeout-keep-alive 180

@@ -84,9 +84,7 @@ const ResumeUploader = ({ onUploadComplete }) => {
 
   const pollResumeProgress = async () => {
     try {
-      const response = await axios.get('/api/resume-progress', {
-        withCredentials: true,
-      });
+      const response = await axios.get('/api/resume/progress');
 
       const status = response.data;
       
@@ -106,9 +104,7 @@ const ResumeUploader = ({ onUploadComplete }) => {
         
         // CRITICAL: Fetch the complete updated profile data from backend
         try {
-          const profileResponse = await axios.get('/api/candidate-data', {
-            withCredentials: true,
-          });
+          const profileResponse = await axios.get('/api/content/candidate-data');
           
           const profileData = profileResponse.data;
           
@@ -156,9 +152,7 @@ const ResumeUploader = ({ onUploadComplete }) => {
       // If no status found, try to fetch profile anyway (might be already complete)
       if (error.response?.status === 404) {
         try {
-          const profileResponse = await axios.get('/api/candidate-data', {
-            withCredentials: true,
-          });
+          const profileResponse = await axios.get('/api/content/candidate-data');
           
           const profileData = profileResponse.data;
           

@@ -177,6 +177,16 @@ class RedisManager:
         except Exception as e:
             logger.error(f"Error invalidating cache for user {user_id}: {str(e)}")
 
+    def scan_keys(self, pattern: str) -> list:
+        """Scan for keys matching pattern. Returns list of key names."""
+        try:
+            if not self.is_available():
+                return []
+            return self._redis_client.keys(pattern)
+        except Exception as e:
+            logger.error(f"Redis SCAN error for pattern {pattern}: {str(e)}")
+            return []
+
 
 def cache_result(prefix: str, ttl: int = 3600):
     """Decorator to cache function results."""
