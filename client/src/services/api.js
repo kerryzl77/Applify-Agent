@@ -384,8 +384,10 @@ export const jobsAPI = {
 
   // Returns an EventSource for SSE streaming
   streamRefreshProgress: () => {
-    const token = localStorage.getItem('access_token');
-    const baseUrl = api.defaults.baseURL || '';
+    // Use the same token key as the rest of the app
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    // Use window.location.origin as base for SSE since we need full URL for fetch
+    const baseUrl = window.location.origin;
     const url = `${baseUrl}/api/jobs/refresh/stream`;
     
     // Create EventSource with auth header via fetch
@@ -395,6 +397,7 @@ export const jobsAPI = {
         
         const fetchStream = async () => {
           try {
+            console.log('SSE connecting to:', url, 'with token:', token ? 'present' : 'missing');
             const response = await fetch(url, {
               headers: {
                 'Authorization': `Bearer ${token}`,
