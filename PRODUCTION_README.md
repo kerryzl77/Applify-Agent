@@ -1,322 +1,385 @@
-# Applify - Production-Ready Job Application Assistant
+# Applify - AI Job Application Assistant
 
-## 🎯 **Production Status: ✅ DEPLOYED & LIVE**
+## Production Status: ✅ DEPLOYED
 
 **Live URL:** https://applify-f333088ea507.herokuapp.com/
 
 ---
 
-## 📊 Architecture Overview
+## Architecture Overview
 
-### **Single-Server Architecture**
 ```
-Flask (Python)
-  ├── Backend API (/api/*)      ← Python business logic
-  └── Frontend (/)              ← React SPA (served from client/dist/)
+FastAPI (Python) + React SPA
+├── Backend API (/api/*)     ← FastAPI with JWT auth
+├── Frontend (/)             ← React SPA (served from client/dist/)
+├── PostgreSQL               ← User data, profiles
+└── Redis                    ← Caching, session state
 ```
 
-**Benefits:**
-- ✅ Simplified deployment (one dyno)
-- ✅ Reduced complexity
-- ✅ Lower latency (no proxy overhead)
-- ✅ Cost-effective
+**Deployment:** Single Heroku dyno (container stack)
+**Server:** Uvicorn ASGI with 2 workers
 
 ---
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 job-application-llm/
-├── app/                      # Flask Backend (UNCHANGED)
-│   ├── app.py               # Main Flask application
-│   ├── cached_llm.py        # LLM integration
-│   ├── resume_parser.py     # Resume processing
-│   └── *.py                 # Other backend modules
+├── app/                          # FastAPI Backend
+│   ├── main.py                   # App entry point, router registration
+│   ├── config.py                 # Settings (JWT, CORS, env vars)
+│   ├── schemas.py                # Pydantic models for request/response
+│   ├── security.py               # JWT token creation/validation, password hashing
+│   ├── dependencies.py           # FastAPI dependencies (get_current_user, db)
+│   │
+│   ├── routers/                  # API route handlers
+│   │   ├── __init__.py           # Router exports
+│   │   ├── auth.py               # /api/auth/* (login, register, logout, refresh)
+│   │   ├── content.py            # /api/generate (AI content generation)
+│   │   ├── resume.py             # /api/upload-resume, /api/refine-resume
+│   │   └── gmail.py              # /api/gmail/* (OAuth, drafts)
+│   │
+│   ├── llm_generator.py          # OpenAI GPT integration for content
+│   ├── universal_extractor.py    # Job posting & LinkedIn scraping
+│   ├── resume_parser.py          # PDF/DOCX resume parsing
+│   ├── resume_refiner.py         # AI-powered resume tailoring
+│   ├── advanced_resume_generator.py  # Enhanced resume generation
+│   ├── fast_pdf_generator.py     # PDF output generation
+│   ├── gmail_service.py          # Gmail API integration
+│   ├── redis_manager.py          # Redis caching layer
+│   ├── cached_llm.py             # LLM response caching
+│   └── background_tasks.py       # Async task processing
 │
-├── client/                   # React Frontend (NEW)
+├── client/                       # React Frontend
 │   ├── src/
-│   │   ├── components/      # UI components
-│   │   ├── pages/           # Route pages
-│   │   ├── services/        # API client
-│   │   ├── store/           # Zustand state
-│   │   └── utils/           # Helpers
-│   ├── dist/                # Production build ✅ COMMITTED
+│   │   ├── App.jsx               # Root component, routing
+│   │   ├── main.jsx              # Entry point
+│   │   ├── components/           # Reusable UI components
+│   │   │   ├── ContentGenerator.jsx  # Main content gen interface
+│   │   │   ├── ResumeUploader.jsx    # Resume upload/parsing
+│   │   │   ├── Sidebar.jsx           # Navigation
+│   │   │   ├── ProfileModal.jsx      # User profile editor
+│   │   │   ├── GmailSetup.jsx        # Gmail OAuth setup
+│   │   │   └── Toast.jsx             # Notifications
+│   │   ├── pages/
+│   │   │   ├── Dashboard.jsx     # Main app page
+│   │   │   ├── Login.jsx         # Login form
+│   │   │   └── Register.jsx      # Registration form
+│   │   ├── services/
+│   │   │   └── api.js            # Axios client with JWT interceptors
+│   │   ├── store/
+│   │   │   └── useStore.js       # Zustand state (auth, profile, theme)
+│   │   └── utils/
+│   │       └── helpers.js        # Utility functions
+│   ├── dist/                     # Production build (committed for Heroku)
 │   └── package.json
 │
-├── database/                 # Database management
-├── scraper/                  # Web scraping
-├── requirements.txt          # Python dependencies
-├── Procfile                  # Heroku dyno config
-└── .gitignore               # Production-grade ignores
-
+├── database/
+│   └── db_manager.py             # PostgreSQL connection pooling, CRUD
+│
+├── scraper/
+│   ├── retriever.py              # Web content extraction
+│   └── url_validator.py          # URL validation
+│
+├── config/
+│   └── gcp-oauth.keys.template.json  # Gmail OAuth template
+│
+├── Dockerfile                    # Container definition
+├── Procfile                      # Heroku process: uvicorn
+├── heroku.yml                    # Heroku container config
+├── requirements.txt              # Python dependencies
+└── .gitignore                    # Production-safe ignores
 ```
 
 ---
 
-## 🚀 Technology Stack
+## Technology Stack
 
-### **Frontend**
-- **React 19** - Modern UI library
-- **Vite 7** - Lightning-fast build tool
-- **Tailwind CSS 4** - Utility-first CSS
-- **Zustand** - Lightweight state management
-- **Axios** - HTTP client
-- **React Router** - Client-side routing
-- **Framer Motion** - Smooth animations
-- **Lucide Icons** - Modern icon library
+### Backend
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Framework | FastAPI 0.109+ | Async Python API |
+| Server | Uvicorn | ASGI server |
+| Auth | python-jose (JWT) | Token-based authentication |
+| Validation | Pydantic | Request/response schemas |
+| Database | PostgreSQL | User data, profiles |
+| Cache | Redis | Response caching, rate limiting |
+| AI | OpenAI GPT-4 | Content generation |
 
-### **Backend** (Preserved)
-- **Flask 2.3** - Python web framework
-- **PostgreSQL** - Primary database
-- **Redis** - Caching layer
-- **OpenAI GPT** - AI content generation
-- **Gunicorn** - WSGI server
-
----
-
-## 📦 Bundle Size
-
-**Production Build:**
-- `index.html`: 0.45 KB (0.29 KB gzipped)
-- `index.css`: 42.21 KB (7.21 KB gzipped)
-- `index.js`: 613.66 KB (197.05 KB gzipped)
-
-**Total:** ~656 KB (~205 KB gzipped)
+### Frontend
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Framework | React 19 | UI library |
+| Build | Vite 7 | Bundler |
+| Styling | Tailwind CSS 4 | Utility CSS |
+| State | Zustand | Global state |
+| HTTP | Axios | API client |
+| Routing | React Router | SPA navigation |
 
 ---
 
-## 🔧 Development
+## Authentication Flow
 
-### **Local Setup**
-
-1. **Backend (Flask)**
-```bash
-# Create virtual environment
-python3 -m venv venv
-source venv/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set environment variables
-cp .env.example .env
-# Edit .env with your keys
-
-# Run Flask
-python -m app.app
+```
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│   Client    │      │   FastAPI   │      │  PostgreSQL │
+└──────┬──────┘      └──────┬──────┘      └──────┬──────┘
+       │                    │                    │
+       │ POST /api/auth/login                    │
+       │ {email, password}  │                    │
+       │───────────────────>│                    │
+       │                    │ Verify credentials │
+       │                    │───────────────────>│
+       │                    │<───────────────────│
+       │                    │                    │
+       │ {access_token,     │                    │
+       │  token_type,       │                    │
+       │  expires_in}       │                    │
+       │<───────────────────│                    │
+       │                    │                    │
+       │ Set-Cookie:        │                    │
+       │ refresh_token      │                    │
+       │ (httpOnly)         │                    │
+       │                    │                    │
+       │ GET /api/* with    │                    │
+       │ Authorization:     │                    │
+       │ Bearer <token>     │                    │
+       │───────────────────>│                    │
+       │                    │ Validate JWT       │
+       │                    │ (dependencies.py)  │
+       │                    │                    │
 ```
 
-2. **Frontend (React)**
-```bash
-cd client
-npm install
-npm run dev
+**Token Storage:**
+- Access token: In-memory (Zustand store)
+- Refresh token: HTTP-only cookie
+- Expiry: Access 30min, Refresh 7 days
+
+---
+
+## API Endpoints
+
+### Authentication (`/api/auth`)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/register` | No | Create account |
+| POST | `/login` | No | Get tokens (OAuth2 form) |
+| POST | `/refresh` | Cookie | Refresh access token |
+| POST | `/logout` | Yes | Clear refresh cookie |
+| GET | `/check` | Yes | Validate current token |
+
+### Content Generation (`/api`)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/generate` | Yes | Generate job app content |
+| POST | `/validate-url` | Yes | Validate job/LinkedIn URL |
+
+**Generate Request Schema:**
+```python
+class GenerateContentRequest(BaseModel):
+    content_type: str  # 'linkedin_message', 'connection_email', 'cover_letter', 'hiring_manager_email'
+    input_type: str    # 'url' or 'manual'
+    url: Optional[str]
+    manual_text: Optional[str]
+    person_name: Optional[str]
+    recipient_email: Optional[EmailStr]
 ```
 
-### **Environment Variables**
+### Resume Management (`/api`)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/upload-resume` | Yes | Upload & parse resume |
+| GET | `/resume-progress/{task_id}` | Yes | Check parsing progress |
+| POST | `/refine-resume` | Yes | Tailor resume to job |
+| GET | `/resume-refine-progress/{task_id}` | Yes | Check refinement progress |
+| GET | `/download-resume/{task_id}` | Yes | Download refined resume |
 
+### Profile (`/api`)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/candidate-data` | Yes | Get user profile |
+| POST | `/update-candidate-data` | Yes | Update profile |
+
+### Gmail (`/api/gmail`)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/status` | Yes | Check Gmail connection |
+| GET | `/auth-url` | Yes | Get OAuth URL |
+| GET | `/oauth2callback` | No | OAuth callback |
+| POST | `/create-draft` | Yes | Create email draft |
+| POST | `/disconnect` | Yes | Revoke Gmail access |
+
+### Health
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/health` | No | DB & Redis status |
+
+---
+
+## Environment Variables
+
+### Required (Heroku Config Vars)
 ```bash
-# Flask Backend
-SECRET_KEY=<random-secret>
-DATABASE_URL=<postgres-url>
-REDIS_URL=<redis-url>
-OPENAI_API_KEY=<your-key>
+# Core
+OPENAI_API_KEY=sk-...              # OpenAI API key
+DATABASE_URL=postgres://...         # Auto-set by Heroku Postgres
+REDIS_URL=rediss://...              # Auto-set by Heroku Redis
 
-# React Frontend (optional for local dev)
-VITE_API_BASE_URL=http://localhost:5000
+# JWT Authentication
+JWT_SECRET_KEY=<base64-random>      # Token signing key
+ALGORITHM=HS256                     # JWT algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES=30      # Access token TTL
+REFRESH_TOKEN_EXPIRE_DAYS=7         # Refresh token TTL
+
+# URLs
+APP_BASE_URL=https://applify-xxx.herokuapp.com
+FRONTEND_ORIGIN=https://applify-xxx.herokuapp.com
+
+# Gmail OAuth (optional)
+GCP_OAUTH_KEYS={"web":{...}}        # Google OAuth credentials JSON
+GMAIL_REDIRECT_URI=https://applify-xxx.herokuapp.com/api/gmail/oauth2callback
+
+# LinkedIn Scraping (optional)
+GOOGLE_CSE_API_KEY=...              # Google Custom Search API
+GOOGLE_CSE_CX=...                   # Custom Search Engine ID
 ```
 
 ---
 
-## 🌐 Production Deployment
+## Key Files Reference
 
-### **Current Setup (Heroku)**
+### Entry Points
+| File | Purpose |
+|------|---------|
+| `app/main.py` | FastAPI app, middleware, router registration |
+| `client/src/main.jsx` | React app entry |
 
-**Dyno Configuration:**
-- Web dyno: `gunicorn app.app:app --workers 2 --threads 2 --timeout 120`
-- Add-ons: PostgreSQL (Essential 0), Redis (Mini)
+### Core Logic
+| File | Purpose |
+|------|---------|
+| `app/llm_generator.py` | OpenAI prompts for content types |
+| `app/universal_extractor.py` | Job/LinkedIn data extraction |
+| `app/resume_refiner.py` | Resume tailoring logic |
 
-**Build Process:**
-1. Heroku detects Python app
-2. Installs dependencies from `requirements.txt`
-3. Serves pre-built React from `client/dist/`
+### Authentication
+| File | Purpose |
+|------|---------|
+| `app/security.py` | `create_access_token()`, `decode_token()`, `hash_password()` |
+| `app/dependencies.py` | `get_current_user()` dependency |
+| `app/routers/auth.py` | Auth endpoints |
 
-### **Deploy Commands**
+### State Management
+| File | Purpose |
+|------|---------|
+| `client/src/store/useStore.js` | Zustand: user, tokens, profile, theme |
+| `client/src/services/api.js` | Axios with JWT interceptor |
+
+---
+
+## Deployment
+
+### Heroku (Current)
 ```bash
-git add .
-git commit -m "Your changes"
+# Deploy
 git push heroku main
+
+# View logs
+heroku logs --tail -a applify
+
+# Check config
+heroku config -a applify
+
+# Restart
+heroku restart -a applify
 ```
 
----
-
-## 📋 Code Quality Standards
-
-### **Python (Backend)**
-- ✅ Virtual environment for dependencies
-- ✅ Type hints where applicable
-- ✅ Comprehensive error handling
-- ✅ Logging for debugging
-- ✅ Database connection pooling
-- ✅ Redis caching for performance
-
-### **JavaScript (Frontend)**
-- ✅ Modern ES6+ syntax
-- ✅ Component-based architecture
-- ✅ Centralized state management
-- ✅ API client abstraction
-- ✅ Responsive design patterns
-- ✅ Accessibility (ARIA labels)
-
-### **Git Practices**
-- ✅ Comprehensive .gitignore
-- ✅ Meaningful commit messages
-- ✅ No sensitive data in repo
-- ✅ Build artifacts committed for Heroku
-
----
-
-## 🎨 UI/UX Features
-
-### **Modern Interface**
-- Chat-like content generation
-- Dark mode toggle
-- Responsive design (mobile/tablet/desktop)
-- Smooth animations and transitions
-- Toast notifications
-- Loading states
-- Error boundaries
-
-### **Inspired By**
-- **Perplexity** - Clean, minimal design
-- **ChatGPT** - Chat interaction flow
-- **Claude** - Professional color scheme
-
----
-
-## 🔐 Security
-
-- CORS configured for API protection
-- Session-based authentication
-- Password hashing (backend)
-- Rate limiting on API endpoints
-- Helmet.js security headers
-- Input validation
-- SQL injection protection
-
----
-
-## 📈 Performance
-
-- **First Contentful Paint:** < 1s
-- **Time to Interactive:** < 2s
-- **Bundle size:** 205 KB gzipped
-- **Redis caching:** Reduces API calls
-- **CDN:** Heroku edge network
-- **Compression:** Gzip enabled
-
----
-
-## 🧪 Testing
-
-### **Backend**
+### Local Development
 ```bash
-pytest tests/
-```
+# Backend
+cd job-application-llm
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 5000
 
-### **Frontend**
-```bash
+# Frontend
 cd client
-npm run test
+npm install && npm run dev
 ```
 
 ---
 
-## 📝 API Documentation
+## Content Generation Types
 
-### **Authentication**
-- `POST /api/login` - User login
-- `POST /api/register` - User registration
-- `POST /api/logout` - User logout
-- `GET /api/auth/check` - Check auth status
-
-### **Content Generation**
-- `POST /api/generate` - Generate job application content
-- `POST /api/refine-resume` - Refine resume for job
-
-### **Profile**
-- `GET /api/candidate-data` - Get user profile
-- `POST /api/update-candidate-data` - Update profile
-
-### **Resume**
-- `POST /api/upload-resume` - Upload resume file
-- `GET /api/resume-progress/<id>` - Check processing status
+| Type | Output | Max Length |
+|------|--------|------------|
+| `linkedin_message` | Connection request | 200 chars |
+| `connection_email` | Intro email | 200 words |
+| `hiring_manager_email` | Direct outreach | 200 words |
+| `cover_letter` | Formal letter | 350 words |
+| `tailored_resume` | PDF resume | Full document |
 
 ---
 
-## 🐛 Troubleshooting
+## Database Schema
 
-### **Common Issues**
-
-**Issue:** React app not loading
-**Solution:** Check if `client/dist/` has build files, run `npm run build` in client/
-
-**Issue:** API calls failing
-**Solution:** Verify Flask backend is running, check CORS configuration
-
-**Issue:** Dark mode not persisting
-**Solution:** Check browser localStorage, ensure Zustand persistence is enabled
-
----
-
-## 📦 Dependencies
-
-### **Production**
-```
-Flask==2.3.3
-Flask-CORS==4.0.0
-gunicorn==21.2.0
-psycopg2-binary==2.9.9
-redis==5.0.1
-openai==1.54.0
+### Users Table
+```sql
+CREATE TABLE users (
+    id TEXT PRIMARY KEY,           -- UUID
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
 ```
 
-### **Development**
-```
-pytest
-black
-flake8
+### User Data (JSON in candidate_data)
+```python
+{
+    "personal_info": {"name", "email", "phone", "linkedin", "github"},
+    "resume": {"summary", "experience[]", "education[]", "skills[]"},
+    "story_bank": [{"title", "story"}],
+    "templates": {"linkedin_messages", "connection_emails", ...},
+    "gmail_tokens": {...}  # Encrypted OAuth tokens
+}
 ```
 
 ---
 
-## 🎓 Best Practices Implemented
+## Error Handling
 
-1. **Separation of Concerns** - Backend logic separate from frontend
-2. **DRY Principle** - Reusable components and utilities
-3. **Error Handling** - Graceful degradation
-4. **Code Documentation** - Clear comments and docstrings
-5. **Version Control** - Semantic commits
-6. **Environment Variables** - No hardcoded secrets
-7. **Production Build** - Optimized and minified
-8. **Accessibility** - WCAG compliant
-9. **Performance** - Lazy loading, code splitting
-10. **Security** - Input validation, authentication
+### HTTP Status Codes
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad request / validation error |
+| 401 | Unauthorized (invalid/expired token) |
+| 404 | Not found |
+| 500 | Server error |
+
+### Frontend Error Flow
+```javascript
+// api.js interceptor
+if (error.response?.status === 401) {
+    // Try token refresh
+    // If refresh fails → logout → redirect /login
+}
+```
 
 ---
 
-## 📞 Support
+## Security Measures
 
-For issues or questions:
-- Check logs: `heroku logs --tail`
-- Review documentation in this file
-- Check `client/IMPLEMENTATION_SUMMARY.md`
+- ✅ JWT tokens with expiry
+- ✅ HTTP-only refresh token cookie
+- ✅ Password hashing (SHA-256)
+- ✅ CORS whitelist
+- ✅ Input validation (Pydantic)
+- ✅ SQL parameterization
+- ✅ No secrets in git
 
 ---
 
-**Last Updated:** October 4, 2025
-**Version:** 2.0.0 (Production)
-**Status:** ✅ **LIVE & STABLE**
-
-🤖 Engineered with Senior-Level Standards
-Co-Authored-By: Claude <noreply@anthropic.com>
+**Last Updated:** January 22, 2026
+**Version:** 3.0.0 (FastAPI + JWT)
+**Status:** ✅ PRODUCTION
