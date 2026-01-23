@@ -61,3 +61,97 @@ No extra keys, no commentary."""
         logger.error(f"OpenAI web search failed: {e}")
 
     return []
+
+
+def find_contacts_via_web_search(
+    company_name: str,
+    job_title: str,
+    team: Optional[str] = None,
+) -> List[Dict]:
+    """
+    Use OpenAI web search to find and synthesize hiring contacts directly.
+    
+    This is a one-shot approach: web search + synthesis in a single call.
+    No page fetching needed - the model synthesizes from search results.
+    
+    Returns: [{"name": "...", "title": "...", "source_url": "...", "confidence": 0.8}]
+    """
+    team_hint = f" on the {team} team" if team else ""
+    
+    search_prompt = f"""Find people at {company_name} who might be involved in hiring for {job_title} roles{team_hint}.
+
+Search for:
+1. {company_name} recruiters or talent acquisition on LinkedIn
+2. {company_name} hiring managers or engineering managers on LinkedIn  
+3. {company_name} team leads for {job_title} related roles
+
+For each person you find, extract:
+- Their full name (from LinkedIn URL like linkedin.com/in/john-smith = John Smith)
+- Their job title
+- Their LinkedIn profile URL
+
+Return ONLY valid JSON:
+{{
+    "contacts": [
+        {{"name": "Full Name", "title": "Job Title", "source_url": "linkedin URL", "confidence": 0.9}}
+    ]
+}}
+
+If you cannot find specific people with names, return {{"contacts": []}}
+Only include people who clearly work at {company_name}."""
+
+    try:
+        logger.info(f"🔍 Searching for contacts at {company_name} for {job_title}")
+        
+        resp = client.responses.create(
+            model="gpt-5.2",
+            tools=[{"type": "web_search"}],
+            tool_choice={"type": "web_search"},
+            input=search_prompt,
+        )
+
+        text = (resp.output_text or "").strip()
+        logger.info(f"📝 Web search response length: {len(text)} chars")
+        
+        # Clean up markdown code blocks
+        if "```json" in text:
+            text = text.split("```json")[1].split("```")[0].strip()
+        elif "```" in text:
+            parts = text.split("```")
+            if len(parts) >= 2:
+                text = parts[1].strip()
+        
+        # Find JSON object in response
+        json_start = text.find('{')
+        json_end = text.rfind('}') + 1
+        if json_start >= 0 and json_end > json_start:
+            text = text[json_start:json_end]
+        
+        try:
+            data = json.loads(text)
+            contacts = data.get("contacts", [])
+            
+            # Validate and normalize
+            valid_contacts = []
+            for c in contacts:
+                name = c.get("name", "").strip()
+                if name and name.lower() not in ["unknown", "n/a", ""]:
+                    valid_contacts.append({
+                        "name": name,
+                        "title": c.get("title", "Unknown"),
+                        "source_url": c.get("source_url", ""),
+                        "confidence": float(c.get("confidence", 0.7)),
+                        "reason": f"Found via web search for {company_name} hiring contacts",
+                    })
+            
+            logger.info(f"✅ Found {len(valid_contacts)} contacts via web search")
+            return valid_contacts
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse contacts JSON: {e}")
+            logger.debug(f"Raw text: {text[:500]}")
+            
+    except Exception as e:
+        logger.error(f"Contact web search failed: {e}")
+
+    return []
