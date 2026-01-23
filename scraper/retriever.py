@@ -11,6 +11,7 @@ import sys
 # Add app directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from app.universal_extractor import extract_url, extract_linkedin_profile
+from app.utils.text import normalize_job_data, normalize_text
 
 # Load environment variables
 load_dotenv()
@@ -18,7 +19,7 @@ load_dotenv()
 class DataRetriever:
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        # Playwright/Vision removed; use text-first extractor
+        # Text-first extractor for LinkedIn profiles
         
     def scrape_job_posting(self, url, job_title=None, company_name=None):
         """Scrape job posting details from a given URL using Jina Reader API."""
@@ -28,26 +29,36 @@ class DataRetriever:
             
             # Get the page content in JSON format
             headers = {"Accept": "application/json"}
-            response = requests.get(jina_url, headers=headers)
-            
+            response = requests.get(jina_url, headers=headers, timeout=15)
+
+            text_content = ""
+
             # Check if the request was successful
             if response.status_code != 200:
                 print(f"Failed to fetch URL: {url}, Status code: {response.status_code}")
-                return {'error': f"Failed to fetch URL: Status code {response.status_code}"}
-            
-            # Parse the JSON response
-            content_data = response.json()
-            
-            # Check response structure
-            if content_data.get('code') != 200 or 'data' not in content_data:
-                print(f"Unexpected API response structure: {content_data}")
-                return {'error': "Unexpected API response structure"}
-            
-            # Extract content from the response
-            if 'content' in content_data['data']:
-                text_content = content_data['data']['content']
             else:
-                print(f"No content found in API response: {content_data}")
+                # Parse the JSON response
+                try:
+                    content_data = response.json()
+                except Exception as exc:
+                    print(f"Failed to parse Jina response JSON: {exc}")
+                    content_data = None
+
+                # Check response structure
+                if content_data and content_data.get('code') == 200 and 'data' in content_data:
+                    # Extract content from the response
+                    text_content = content_data['data'].get('content') or ""
+                else:
+                    print(f"Unexpected API response structure: {content_data}")
+
+            # Fallback to direct extraction if Jina content is empty/short
+            if not text_content or len(text_content.strip()) < 200:
+                fallback = extract_url(url)
+                fallback_text = normalize_text(fallback.get("text")).strip()
+                if fallback_text and len(fallback_text) > len(text_content.strip()):
+                    text_content = fallback_text
+
+            if not text_content:
                 return {'error': "No content found in API response"}
             
             # Use GPT to extract structured information from the content
@@ -210,17 +221,38 @@ class DataRetriever:
                 print(f"Raw response: {response.choices[0].message.content}")
                 raise
             
+            invalid_details = {
+                "",
+                "n/a",
+                "na",
+                "none",
+                "null",
+                "not available",
+                "not provided",
+                "unknown",
+                "no job description found",
+                "no specific requirements found",
+                "nah",
+            }
+
+            def _clean_detail(value):
+                text = normalize_text(value).strip()
+                if not text:
+                    return ""
+                if text.lower() in invalid_details:
+                    return ""
+                return text
+
             # Format the results to match existing structure
             job_data = {
-                'job_title': parsed_data.get('job_title', job_title or "Unknown Job Title"),
-                'company_name': parsed_data.get('company_name', company_name or "Unknown Company"),
-                'job_description': parsed_data.get('job_description', "No job description found"),
-                'requirements': parsed_data.get('requirements', "No specific requirements found"),
-                'location': parsed_data.get('location', "Unknown Location"),
+                'job_title': normalize_text(parsed_data.get('job_title') or job_title or "Unknown Job Title"),
+                'company_name': normalize_text(parsed_data.get('company_name') or company_name or "Unknown Company"),
+                'job_description': _clean_detail(parsed_data.get('job_description')),
+                'requirements': _clean_detail(parsed_data.get('requirements')),
+                'location': normalize_text(parsed_data.get('location') or "Unknown Location"),
                 'url': url
             }
-            
-            return job_data
+            return normalize_job_data(job_data)
             
         except Exception as e:
             print(f"Error extracting job data with GPT: {str(e)}")

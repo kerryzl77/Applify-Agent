@@ -10,6 +10,7 @@ from app.agent.research_agent import ResearchAgent
 from app.agent.evidence_agent import EvidenceAgent
 from app.agent.draft_agent import DraftAgent
 from app.agent.scheduler_agent import SchedulerAgent
+from app.utils.text import normalize_job_data
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +163,7 @@ class CampaignRunner:
         job = campaign.get('job', {})
         job_post = self.db.get_job_post_with_jd(campaign.get('job_post_id'))
         
-        return {
+        job_data = {
             'job_title': job.get('title', ''),
             'company_name': job.get('company_name', ''),
             'location': job.get('location', ''),
@@ -172,6 +173,7 @@ class CampaignRunner:
             'job_description': job_post.get('raw_json', {}).get('job_description', '') if job_post else '',
             'requirements': job_post.get('raw_json', {}).get('requirements', '') if job_post else '',
         }
+        return normalize_job_data(job_data)
     
     def _run_research_step(
         self,

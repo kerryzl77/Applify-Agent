@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 
+from app.utils.text import normalize_job_data
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,6 +38,8 @@ class EvidenceAgent:
         if emit_trace:
             emit_trace({'type': 'step_progress', 'step': 'evidence', 'message': 'Building resume snippet index...'})
         
+        job_data = normalize_job_data(job_data)
+
         # Build stable snippet IDs from resume
         snippets = self._build_snippet_index(candidate_data)
         

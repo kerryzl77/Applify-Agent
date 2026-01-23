@@ -24,6 +24,7 @@ from app.resume_parser import ResumeParser
 from app.enhanced_resume_processor import enhanced_resume_processor
 from app.resume_refiner import ResumeRefiner
 from app.output_formatter import OutputFormatter
+from app.utils.text import normalize_text
 from scraper.retriever import DataRetriever
 from scraper.url_validator import URLValidator
 
@@ -237,7 +238,7 @@ async def refine_resume(
 ):
     """Refine resume based on job description - starts background processing."""
     user_id = current_user.user_id
-    job_description = (request.job_description or "").strip()
+    job_description = normalize_text(request.job_description).strip()
     input_type = request.input_type
     url = request.url if input_type == "url" else None
     
@@ -266,11 +267,12 @@ async def refine_resume(
                 status_code=400,
                 detail=f"Failed to fetch job description: {job_data['error']}",
             )
-        job_description = (
-            (job_data.get("job_description") or "")
-            + "\n\n"
-            + (job_data.get("requirements") or "")
-        )
+        job_description_text = normalize_text(job_data.get("job_description"))
+        requirements_text = normalize_text(job_data.get("requirements"))
+        if job_description_text and requirements_text:
+            job_description = f"{job_description_text}\n\n{requirements_text}"
+        else:
+            job_description = job_description_text or requirements_text
     
     # Generate unique task ID
     task_id = str(uuid.uuid4())
@@ -324,7 +326,7 @@ async def analyze_resume(
     db: DatabaseManager = Depends(get_db),
 ):
     """Analyze current resume without refinement."""
-    job_description = (request.job_description or "").strip()
+    job_description = normalize_text(request.job_description).strip()
     
     if not job_description:
         raise HTTPException(status_code=400, detail="Job description is required")

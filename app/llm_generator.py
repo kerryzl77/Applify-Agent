@@ -2,6 +2,8 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 
+from app.utils.text import normalize_text
+
 # Load environment variables
 load_dotenv()
 
@@ -92,9 +94,9 @@ class LLMGenerator:
     def _build_linkedin_message_prompt(self, job_data, candidate_data, profile_data=None):
         """Build prompt for LinkedIn connection message."""
         # Extract relevant data
-        job_title = job_data.get('job_title', 'the position')
-        job_description = job_data.get('job_description', '')
-        company_name = job_data.get('company_name', 'the company')
+        job_title = normalize_text(job_data.get('job_title', 'the position')) or 'the position'
+        job_description = normalize_text(job_data.get('job_description', ''))
+        company_name = normalize_text(job_data.get('company_name', 'the company')) or 'the company'
         
         recipient_name = profile_data.get('name', 'there') if profile_data else 'there'
         recipient_title = profile_data.get('title', '') if profile_data else ''
@@ -157,10 +159,10 @@ class LLMGenerator:
     def _build_connection_email_prompt(self, job_data, candidate_data, profile_data=None):
         """Build prompt for connection email."""
         # Extract relevant data
-        job_title = job_data.get('job_title', 'the position')
-        job_description = job_data.get('job_description', '') or ''
-        job_requirements = job_data.get('requirements', '') or ''
-        company_name = job_data.get('company_name', 'the company')
+        job_title = normalize_text(job_data.get('job_title', 'the position')) or 'the position'
+        job_description = normalize_text(job_data.get('job_description', ''))
+        job_requirements = normalize_text(job_data.get('requirements', ''))
+        company_name = normalize_text(job_data.get('company_name', 'the company')) or 'the company'
         
         recipient_name = profile_data.get('name', '') if profile_data else ''
         recipient_title = profile_data.get('title', '') if profile_data else ''
@@ -246,11 +248,11 @@ class LLMGenerator:
     def _build_hiring_manager_email_prompt(self, job_data, candidate_data, profile_data=None):
         """Build prompt for hiring manager email."""
         # Extract job details
-        job_title = job_data.get('job_title', 'the position')
-        company_name = job_data.get('company_name', 'the company')
-        job_description = job_data.get('job_description', '') or ''
-        job_requirements = job_data.get('requirements', '') or ''
-        job_location = job_data.get('location', '') or ''
+        job_title = normalize_text(job_data.get('job_title', 'the position')) or 'the position'
+        company_name = normalize_text(job_data.get('company_name', 'the company')) or 'the company'
+        job_description = normalize_text(job_data.get('job_description', ''))
+        job_requirements = normalize_text(job_data.get('requirements', ''))
+        job_location = normalize_text(job_data.get('location', ''))
         
         # Extract hiring manager details from profile data
         manager_name = profile_data.get('name', 'Hiring Manager') if profile_data else 'Hiring Manager'
@@ -345,11 +347,11 @@ class LLMGenerator:
     def _build_cover_letter_prompt(self, job_data, candidate_data):
         """Build prompt for cover letter."""
         # Extract comprehensive job details
-        job_title = job_data.get('job_title', 'the position')
-        company_name = job_data.get('company_name', 'the company')
-        job_description = job_data.get('job_description', '') or ''
-        job_requirements = job_data.get('requirements', '') or ''
-        job_location = job_data.get('location', '') or ''
+        job_title = normalize_text(job_data.get('job_title', 'the position')) or 'the position'
+        company_name = normalize_text(job_data.get('company_name', 'the company')) or 'the company'
+        job_description = normalize_text(job_data.get('job_description', ''))
+        job_requirements = normalize_text(job_data.get('requirements', ''))
+        job_location = normalize_text(job_data.get('location', ''))
         
         # Extract comprehensive candidate details
         candidate_name = candidate_data['personal_info'].get('name', 'Candidate')

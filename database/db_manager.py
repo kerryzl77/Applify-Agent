@@ -731,6 +731,27 @@ class DatabaseManager:
             if conn:
                 self._return_connection(conn)
 
+    def update_job_raw_json(self, job_id, raw_json):
+        """Update raw_json for a job post."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE job_posts SET raw_json = %s, updated_at = NOW() WHERE id = %s",
+                    (Json(raw_json) if raw_json is not None else None, job_id),
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error updating job raw_json: {str(e)}")
+            return False
+        finally:
+            if conn:
+                self._return_connection(conn)
+
     def get_job_post_by_url(self, url):
         """Get a job post by URL."""
         conn = None

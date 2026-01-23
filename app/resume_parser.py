@@ -243,17 +243,17 @@ class ResumeParser:
 
     def save_uploaded_file(self, file_obj, filename: str = None):
         """Save uploaded file and return its path.
-        
-        Works with both Flask FileStorage objects and FastAPI SpooledTemporaryFile objects.
-        
+
+        Supports FastAPI UploadFile (.file) or any file-like object.
+
         Args:
-            file_obj: File-like object (Flask FileStorage or FastAPI file.file)
-            filename: Original filename (required for FastAPI, optional for Flask)
+            file_obj: File-like object (e.g., UploadFile.file)
+            filename: Original filename (required if file_obj lacks .filename)
         """
         if not file_obj:
             raise ValueError("No file uploaded")
         
-        # Handle Flask FileStorage (has .filename attribute)
+        # Use filename attribute if present on the file-like object
         if hasattr(file_obj, 'filename') and file_obj.filename and not filename:
             filename = file_obj.filename
         
@@ -265,13 +265,8 @@ class ResumeParser:
         unique_filename = f"{uuid.uuid4().hex[:8]}_{safe_filename}"
         file_path = os.path.join(self.upload_dir, unique_filename)
         
-        # Save the file - handle both Flask and FastAPI file objects
-        if hasattr(file_obj, 'save'):
-            # Flask FileStorage object
-            file_obj.save(file_path)
-        else:
-            # FastAPI SpooledTemporaryFile or other file-like object
-            with open(file_path, 'wb') as out_file:
-                shutil.copyfileobj(file_obj, out_file)
+        # Save the file from the file-like object
+        with open(file_path, 'wb') as out_file:
+            shutil.copyfileobj(file_obj, out_file)
         
         return file_path 

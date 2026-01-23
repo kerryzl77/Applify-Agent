@@ -27,6 +27,7 @@ from database.db_manager import DatabaseManager
 from app.redis_manager import RedisManager
 from scraper.retriever import DataRetriever
 from scraper.url_validator import URLValidator
+from app.utils.text import normalize_job_data, normalize_text
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,32 @@ url_validator = URLValidator()
 # In-memory ingestion state (per-user)
 # Format: {user_id: {"status": "running"|"completed"|"error", "progress": {...}, "started_at": timestamp}}
 _ingestion_state = {}
+
+_JD_PLACEHOLDERS = {
+    "",
+    "n/a",
+    "na",
+    "none",
+    "null",
+    "not available",
+    "not provided",
+    "unknown",
+    "no job description found",
+    "no specific requirements found",
+    "nah",
+}
+
+
+def _pick_first_text(*values: Optional[str]) -> str:
+    """Return the first meaningful text value from a list of candidates."""
+    for value in values:
+        text = normalize_text(value).strip()
+        if not text:
+            continue
+        if text.lower() in _JD_PLACEHOLDERS:
+            continue
+        return text
+    return ""
 
 
 @router.get("/feed", response_model=JobsFeedResponse)
@@ -97,41 +124,75 @@ async def get_job_detail(
     
     job_description = None
     requirements = None
-    
-    if include_jd and job.get("url"):
-        # Try to get cached JD first
-        job_hash = job.get("hash", "")
-        cache_key = f"job_jd:{job_id}:{job_hash}"
-        
-        cached = redis.get(cache_key)
-        if cached:
-            job_description = cached.get("job_description")
-            req = cached.get("requirements")
-            # Handle requirements being a list (from old cache entries)
-            if isinstance(req, list):
-                requirements = "\n".join(req)
-            else:
-                requirements = req
-        else:
-            # Extract JD using existing scraper
-            try:
-                job_data = data_retriever.scrape_job_posting(job.get("url"))
-                if job_data and "error" not in job_data:
-                    job_description = job_data.get("job_description", "")
-                    req = job_data.get("requirements", "")
-                    # Handle requirements being a list (from GPT extraction)
-                    if isinstance(req, list):
-                        requirements = "\n".join(req)
-                    else:
-                        requirements = req
-                    
-                    # Cache for 1 hour
-                    redis.set(cache_key, {
-                        "job_description": job_description,
-                        "requirements": requirements,
-                    }, ttl=3600)
-            except Exception as e:
-                logger.error(f"Error extracting JD for job {job_id}: {e}")
+
+    if include_jd:
+        raw_json = job.get("raw_json") or {}
+        if not isinstance(raw_json, dict):
+            raw_json = {}
+
+        job_description = _pick_first_text(
+            raw_json.get("job_description"),
+            raw_json.get("description"),
+            raw_json.get("content"),
+            raw_json.get("descriptionHtml"),
+            raw_json.get("description_html"),
+        )
+        requirements = _pick_first_text(
+            raw_json.get("requirements"),
+            raw_json.get("qualifications"),
+            raw_json.get("requirements_html"),
+        )
+
+        if job.get("url"):
+            # Try to get cached JD first
+            job_hash = job.get("hash", "")
+            cache_key = f"job_jd:{job_id}:{job_hash}"
+
+            cached = redis.get(cache_key)
+            if cached:
+                if not job_description:
+                    job_description = _pick_first_text(cached.get("job_description"))
+                if not requirements:
+                    requirements = _pick_first_text(cached.get("requirements"))
+
+            if not job_description or not requirements:
+                # Extract JD using existing scraper
+                try:
+                    job_data = data_retriever.scrape_job_posting(
+                        job.get("url"),
+                        job_title=job.get("title"),
+                        company_name=job.get("company_name"),
+                    )
+                    if job_data and "error" not in job_data:
+                        job_data = normalize_job_data(job_data)
+                        scraped_description = _pick_first_text(job_data.get("job_description"))
+                        scraped_requirements = _pick_first_text(job_data.get("requirements"))
+
+                        if scraped_description and not job_description:
+                            job_description = scraped_description
+                        if scraped_requirements and not requirements:
+                            requirements = scraped_requirements
+
+                        if scraped_description or scraped_requirements:
+                            # Cache for 1 hour
+                            redis.set(cache_key, {
+                                "job_description": scraped_description,
+                                "requirements": scraped_requirements,
+                            }, ttl=3600)
+
+                            # Persist to DB for faster future loads
+                            updated_raw = dict(raw_json)
+                            updated = False
+                            if scraped_description and not _pick_first_text(updated_raw.get("job_description")):
+                                updated_raw["job_description"] = scraped_description
+                                updated = True
+                            if scraped_requirements and not _pick_first_text(updated_raw.get("requirements")):
+                                updated_raw["requirements"] = scraped_requirements
+                                updated = True
+                            if updated:
+                                db.update_job_raw_json(job_id, updated_raw)
+                except Exception as e:
+                    logger.error(f"Error extracting JD for job {job_id}: {e}")
     
     return JobDetailResponse(
         id=job["id"],
@@ -206,6 +267,8 @@ async def extract_job(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=job_data.get("error", "Failed to extract job data"),
         )
+    
+    job_data = normalize_job_data(job_data)
     
     # Create hash from extracted data
     hash_input = f"{job_data.get('job_title', '')}:{job_data.get('company_name', '')}:{job_data.get('location', '')}"

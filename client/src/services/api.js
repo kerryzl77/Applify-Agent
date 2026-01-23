@@ -334,6 +334,84 @@ export const gmailAPI = {
   },
 };
 
+const createSseStream = ({ url, token, logLabel, isTerminalEvent }) => ({
+  subscribe: (onMessage, onError, onComplete) => {
+    let isClosed = false;
+    const controller = new AbortController();
+
+    const fetchStream = async () => {
+      try {
+        if (logLabel) {
+          console.log(logLabel, url, 'with token:', token ? 'present' : 'missing');
+        }
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'text/event-stream',
+          },
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('SSE response missing body');
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (!isClosed) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                const shouldComplete = isTerminalEvent?.(data);
+                onMessage?.(data);
+
+                if (shouldComplete) {
+                  onComplete?.(data);
+                  isClosed = true;
+                  controller.abort();
+                  return;
+                }
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+      } catch (error) {
+        if (isClosed || error?.name === 'AbortError') {
+          return;
+        }
+        onError?.(error);
+      }
+    };
+
+    fetchStream();
+
+    return {
+      close: () => {
+        if (!isClosed) {
+          isClosed = true;
+          controller.abort();
+        }
+      },
+    };
+  },
+});
+
 // Jobs discovery endpoints
 export const jobsAPI = {
   getFeed: async (params = {}) => {
@@ -389,71 +467,15 @@ export const jobsAPI = {
     // Use window.location.origin as base for SSE since we need full URL for fetch
     const baseUrl = window.location.origin;
     const url = `${baseUrl}/api/jobs/refresh/stream`;
-    
-    // Create EventSource with auth header via fetch
-    return {
-      subscribe: (onMessage, onError, onComplete) => {
-        let isClosed = false;
-        
-        const fetchStream = async () => {
-          try {
-            console.log('SSE connecting to:', url, 'with token:', token ? 'present' : 'missing');
-            const response = await fetch(url, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'text/event-stream',
-              },
-            });
-            
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}`);
-            }
-            
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            
-            while (!isClosed) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
-              
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  try {
-                    const data = JSON.parse(line.slice(6));
-                    onMessage(data);
-                    
-                    if (data.status === 'completed' || data.status === 'error' || data.status === 'timeout') {
-                      onComplete?.(data);
-                      isClosed = true;
-                      return;
-                    }
-                  } catch (e) {
-                    // Ignore parse errors
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            if (!isClosed) {
-              onError?.(error);
-            }
-          }
-        };
-        
-        fetchStream();
-        
-        return {
-          close: () => {
-            isClosed = true;
-          },
-        };
-      },
-    };
+
+    return createSseStream({
+      url,
+      token,
+      logLabel: 'SSE connecting to:',
+      isTerminalEvent: (data) => (
+        data.status === 'completed' || data.status === 'error' || data.status === 'timeout'
+      ),
+    });
   },
 };
 
@@ -497,69 +519,17 @@ export const campaignAPI = {
     const baseUrl = window.location.origin;
     const url = `${baseUrl}/api/agent/campaigns/${campaignId}/events`;
 
-    return {
-      subscribe: (onMessage, onError, onComplete) => {
-        let isClosed = false;
-
-        const fetchStream = async () => {
-          try {
-            console.log('Campaign SSE connecting to:', url);
-            const response = await fetch(url, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'text/event-stream',
-              },
-            });
-
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}`);
-            }
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-
-            while (!isClosed) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
-
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  try {
-                    const data = JSON.parse(line.slice(6));
-                    onMessage(data);
-
-                    if (data.type === 'workflow_complete' || data.type === 'error' || data.type === 'timeout') {
-                      onComplete?.(data);
-                      isClosed = true;
-                      return;
-                    }
-                  } catch (e) {
-                    // Ignore parse errors
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            if (!isClosed) {
-              onError?.(error);
-            }
-          }
-        };
-
-        fetchStream();
-
-        return {
-          close: () => {
-            isClosed = true;
-          },
-        };
-      },
-    };
+    return createSseStream({
+      url,
+      token,
+      logLabel: 'Campaign SSE connecting to:',
+      isTerminalEvent: (data) => (
+        data.type === 'workflow_complete' ||
+        data.type === 'error' ||
+        data.type === 'timeout' ||
+        data.type === 'waiting_user'
+      ),
+    });
   },
 };
 

@@ -289,6 +289,14 @@ const Campaign = () => {
       }
     };
   }, [fetchCampaign]);
+
+  // If backend pauses for user input, allow UI actions immediately.
+  useEffect(() => {
+    const currentPhase = campaign?.state?.phase;
+    if (currentPhase === 'waiting_user' || currentPhase === 'done' || currentPhase === 'error') {
+      setRunning(false);
+    }
+  }, [campaign?.state?.phase]);
   
   // Start workflow
   const handleRun = async (mode = 'full') => {
@@ -317,6 +325,13 @@ const Campaign = () => {
         // Refresh campaign data on artifacts or phase changes
         if (event.type === 'artifact' || event.type === 'step_done' || event.type === 'waiting_user') {
           fetchCampaign();
+        }
+
+        // Backend can pause at waiting_user without closing SSE; allow UI actions.
+        if (event.type === 'waiting_user') {
+          setRunning(false);
+          streamRef.current?.close?.();
+          streamRef.current = null;
         }
       },
       (error) => {

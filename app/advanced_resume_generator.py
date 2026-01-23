@@ -25,6 +25,8 @@ from openai import OpenAI
 import re
 from datetime import datetime
 
+from app.utils.text import normalize_text
+
 @dataclass
 class ResumeMetrics:
     """Advanced metrics for resume optimization."""
@@ -102,6 +104,7 @@ class AdvancedResumeGenerator:
             Tuple[optimized_resume_data, performance_metrics]
         """
         self.generation_start_time = time.time()
+        job_description = normalize_text(job_description)
         
         try:
             # Agent 1: Job Intelligence Analysis

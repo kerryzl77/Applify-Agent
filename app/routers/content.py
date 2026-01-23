@@ -20,6 +20,7 @@ from database.db_manager import DatabaseManager
 from app.redis_manager import RedisManager
 from app.cached_llm import CachedLLMGenerator
 from app.output_formatter import OutputFormatter
+from app.utils.text import normalize_job_data
 from scraper.retriever import DataRetriever
 from scraper.url_validator import URLValidator
 
@@ -221,6 +222,8 @@ async def generate_content(
                     detail=f"Failed to parse job posting: {job_data['error']}",
                 )
     
+    job_data = normalize_job_data(job_data)
+
     # Generate content based on type
     if content_type == "linkedin_message":
         content = llm_generator.generate_linkedin_message(job_data, candidate_data, profile_data)

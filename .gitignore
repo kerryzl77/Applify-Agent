@@ -74,10 +74,6 @@ temp/
 *.tmp
 *.temp
 
-# Playwright browser automation data
-playwright-data/
-.playwright/
-
 # Security - NEVER commit these
 *.pem
 *.key

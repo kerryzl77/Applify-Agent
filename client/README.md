@@ -34,7 +34,7 @@ A modern React application for generating tailored job application materials usi
 ### Prerequisites
 
 - Node.js 16+ and npm
-- Flask backend running (see backend setup)
+- FastAPI backend running (see backend setup)
 
 ### Installation
 
@@ -114,30 +114,51 @@ client/
 
 ## API Integration
 
-The application integrates with a Flask backend API. The following endpoints are used:
+The application integrates with a FastAPI backend API. The following endpoints are used:
 
 ### Authentication
-- `POST /auth/register` - User registration
-- `POST /auth/login` - User login
-- `POST /auth/logout` - User logout
-- `GET /auth/profile` - Get user profile
-- `PUT /auth/profile` - Update user profile
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `POST /api/auth/refresh` - Refresh access token
+- `GET /api/auth/check` - Validate session
 
 ### Resume Management
-- `POST /resume/upload` - Upload resume
-- `GET /resume` - Get uploaded resume
-- `DELETE /resume` - Delete resume
+- `POST /api/resume/upload` - Upload resume
+- `GET /api/resume/progress` - Resume processing status
+- `POST /api/resume/clear-progress` - Clear resume status
+- `POST /api/resume/refine` - Tailor resume
 
-### Content Generation
-- `POST /generate/cover-letter` - Generate cover letter
-- `POST /generate/email` - Generate email
-- `POST /generate/resume` - Tailor resume
-- `POST /generate/improve` - Improve content
+### Content Generation & Profile
+- `POST /api/content/generate` - Generate content
+- `GET /api/content/candidate-data` - Get candidate profile
+- `POST /api/content/candidate-data` - Update candidate profile
+- `DELETE /api/content/candidate-data` - Clear candidate profile
+- `POST /api/content/validate-url` - Validate input URLs
 
-### Profile Management
-- `GET /profile` - Get profile data
-- `PUT /profile` - Update profile data
-- `DELETE /profile` - Delete profile
+### Gmail
+- `GET /api/gmail/status` - Connection status
+- `GET /api/gmail/auth-url` - OAuth link
+- `POST /api/gmail/create-draft` - Create draft
+- `POST /api/gmail/disconnect` - Disconnect account
+
+### Jobs & Campaigns
+- `GET /api/jobs/feed` - Jobs feed
+- `GET /api/jobs/{job_id}` - Job detail
+- `POST /api/jobs/extract` - Extract job posting
+- `POST /api/jobs/{job_id}/save` - Save job
+- `POST /api/jobs/{job_id}/start-campaign` - Start campaign
+- `POST /api/jobs/refresh` - Refresh jobs
+- `GET /api/jobs/refresh/status` - Refresh status
+- `GET /api/jobs/refresh/stream` - Refresh SSE stream
+- `GET /api/agent/campaigns/{campaign_id}` - Campaign view model
+- `POST /api/agent/campaigns/{campaign_id}/run` - Start campaign workflow
+- `POST /api/agent/campaigns/{campaign_id}/feedback` - Add feedback
+- `POST /api/agent/campaigns/{campaign_id}/confirm` - Confirm selections
+- `GET /api/agent/campaigns/{campaign_id}/events` - Campaign SSE stream
+
+### Health Check
+- `GET /health` - Service health status
 
 ## Environment Variables
 

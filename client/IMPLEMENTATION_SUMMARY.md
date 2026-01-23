@@ -300,30 +300,59 @@ A complete, production-ready React application has been successfully created wit
 
 ## API Integration
 
-The application is fully integrated with the Flask backend through the following endpoints:
+The application is fully integrated with the FastAPI backend through the `/api` routes defined in `client/src/services/api.js`.
 
 ### Authentication Endpoints
-- `POST /auth/register` - Create new user account
-- `POST /auth/login` - User login with credentials
-- `POST /auth/logout` - User logout
-- `GET /auth/profile` - Get current user profile
-- `PUT /auth/profile` - Update user profile
+- `POST /api/auth/register` - Create new user account
+- `POST /api/auth/login` - User login with credentials
+- `POST /api/auth/logout` - User logout
+- `POST /api/auth/refresh` - Refresh access token
+- `GET /api/auth/check` - Validate current session
+- `GET /api/auth/me` - Get current user profile
 
 ### Resume Endpoints
-- `POST /resume/upload` - Upload resume file with progress
-- `GET /resume` - Retrieve uploaded resume
-- `DELETE /resume` - Delete resume
+- `POST /api/resume/upload` - Upload resume file with progress
+- `GET /api/resume/progress` - Check resume processing status
+- `POST /api/resume/clear-progress` - Clear resume processing status
+- `POST /api/resume/refine` - Refine resume for a job
+- `GET /api/resume/refinement-progress/{task_id}` - Refinement progress
+- `POST /api/resume/analysis` - Resume analysis
+- `GET /api/resume/download/{file_path}` - Download generated resume
 
 ### Content Generation Endpoints
-- `POST /generate/cover-letter` - Generate tailored cover letter
-- `POST /generate/email` - Generate professional email
-- `POST /generate/resume` - Tailor resume for job
-- `POST /generate/improve` - Improve existing content
+- `POST /api/content/generate` - Generate content (cover letter, email, etc.)
+- `GET /api/content/candidate-data` - Fetch candidate profile data
+- `POST /api/content/candidate-data` - Update candidate profile data
+- `DELETE /api/content/candidate-data` - Clear candidate profile data
+- `POST /api/content/validate-url` - Validate and normalize input URLs
+- `GET /api/content/download/{file_path}` - Download generated documents
+- `GET /api/content/convert-to-pdf/{file_path}` - Convert documents to PDF
 
-### Profile Endpoints
-- `GET /profile` - Get user profile data
-- `PUT /profile` - Update profile data
-- `DELETE /profile` - Delete profile
+### Gmail Endpoints
+- `GET /api/gmail/status` - Gmail connection status
+- `GET /api/gmail/auth-url` - OAuth authorization URL
+- `POST /api/gmail/create-draft` - Create a Gmail draft
+- `POST /api/gmail/disconnect` - Disconnect Gmail account
+
+### Jobs Endpoints
+- `GET /api/jobs/feed` - Jobs feed
+- `GET /api/jobs/{job_id}` - Job detail
+- `POST /api/jobs/extract` - Extract job posting
+- `POST /api/jobs/{job_id}/save` - Save job
+- `POST /api/jobs/{job_id}/start-campaign` - Start campaign
+- `POST /api/jobs/refresh` - Refresh jobs
+- `GET /api/jobs/refresh/status` - Refresh status
+- `GET /api/jobs/refresh/stream` - Refresh SSE stream
+
+### Campaign Agent Endpoints
+- `GET /api/agent/campaigns/{campaign_id}` - Campaign view model
+- `POST /api/agent/campaigns/{campaign_id}/run` - Start campaign workflow
+- `POST /api/agent/campaigns/{campaign_id}/feedback` - Add feedback
+- `POST /api/agent/campaigns/{campaign_id}/confirm` - Confirm selections
+- `GET /api/agent/campaigns/{campaign_id}/events` - Campaign SSE stream
+
+### Health Check
+- `GET /health` - Service health status
 
 ## Environment Configuration
 
@@ -403,7 +432,7 @@ npm run build
 
 ## Testing the Application
 
-1. **Start the backend** (Flask server on port 5000)
+1. **Start the backend** (FastAPI server on port 5000)
 2. **Navigate to client directory**:
    ```bash
    cd /Users/liuzikai/Documents/GitHub/Applify-Agent/job-application-llm/client
@@ -469,7 +498,7 @@ client/
 
 ## Next Steps
 
-1. **Backend Integration**: Ensure Flask backend is running and CORS is configured
+1. **Backend Integration**: Ensure FastAPI backend is running and CORS is configured
 2. **Testing**: Test all features with actual backend
 3. **Customization**: Adjust colors, fonts, or layouts as needed
 4. **Production**: Configure production environment variables

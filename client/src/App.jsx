@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster, ToastBar } from 'react-hot-toast';
+import { X } from 'lucide-react';
 import useStore from './store/useStore';
 import { authAPI } from './services/api';
 
@@ -159,7 +160,26 @@ function App() {
             },
           },
         }}
-      />
+      >
+        {(t) => (
+          <ToastBar toast={t}>
+            {({ icon, message }) => (
+              <div className="relative flex items-start gap-2 pl-7">
+                <button
+                  type="button"
+                  onClick={() => toast.dismiss(t.id)}
+                  aria-label="Dismiss notification"
+                  className="absolute left-1 top-1 rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+                <div className="mt-0.5">{icon}</div>
+                <div className="text-sm leading-snug">{message}</div>
+              </div>
+            )}
+          </ToastBar>
+        )}
+      </Toaster>
     </div>
   );
 }
