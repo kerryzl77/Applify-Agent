@@ -456,7 +456,7 @@ Rules:
 
             # Call GPT-4 Vision API
             response = self.openai_client.chat.completions.create(
-                model="gpt-4o",  # gpt-4o has vision capabilities
+                model="gpt-5.2",
                 messages=[
                     {
                         "role": "user",

@@ -105,7 +105,7 @@ class ResumeRefiner:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5.2",
                 messages=[
                     {"role": "system", "content": "You are an expert job market analyst. Extract precise information from job descriptions for resume optimization. Return only valid JSON."},
                     {"role": "user", "content": prompt}
@@ -164,7 +164,7 @@ class ResumeRefiner:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5.2",
                 messages=[
                     {"role": "system", "content": "You are an expert resume analyst. Analyze resume content for optimization opportunities. Return only valid JSON."},
                     {"role": "user", "content": prompt}
@@ -527,7 +527,7 @@ class ResumeRefiner:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5.2",
                 messages=[
                     {"role": "system", "content": "You are a senior career coach specializing in ATS-optimized resume writing. Create compelling professional summaries that get results."},
                     {"role": "user", "content": prompt}
@@ -569,7 +569,7 @@ class ResumeRefiner:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5.2",
                 messages=[
                     {"role": "system", "content": "You are an expert in ATS optimization and skills categorization. Create skills sections that perfectly match job requirements."},
                     {"role": "user", "content": prompt}
@@ -625,7 +625,7 @@ class ResumeRefiner:
             
             try:
                 response = self.client.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-5.2",
                     messages=[
                         {"role": "system", "content": "You are an expert resume writer specializing in achievement-focused job descriptions. Create compelling experience entries that highlight quantifiable results."},
                         {"role": "user", "content": prompt}

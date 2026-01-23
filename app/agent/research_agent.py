@@ -200,7 +200,7 @@ Return ONLY valid JSON array, no other text."""
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5.2",
                 messages=[
                     {"role": "system", "content": "You are an expert at identifying relevant professional contacts from web content. Return only valid JSON."},
                     {"role": "user", "content": prompt}

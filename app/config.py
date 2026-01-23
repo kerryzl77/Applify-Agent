@@ -29,10 +29,6 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: Optional[str] = None
     
-    # Google CSE (optional)
-    google_cse_api_key: Optional[str] = None
-    google_cse_cx: Optional[str] = None
-    
     # CORS
     allowed_origins: str = "*"
     

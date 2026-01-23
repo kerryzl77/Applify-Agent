@@ -239,9 +239,6 @@ FRONTEND_ORIGIN=https://applify-xxx.herokuapp.com
 GCP_OAUTH_KEYS={"web":{...}}        # Google OAuth credentials JSON
 GMAIL_REDIRECT_URI=https://applify-xxx.herokuapp.com/api/gmail/oauth2callback
 
-# LinkedIn Scraping (optional)
-GOOGLE_CSE_API_KEY=...              # Google Custom Search API
-GOOGLE_CSE_CX=...                   # Custom Search Engine ID
 ```
 
 ---

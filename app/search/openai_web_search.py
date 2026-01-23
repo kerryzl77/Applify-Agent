@@ -33,7 +33,7 @@ No extra keys, no commentary."""
 
     try:
         resp = client.responses.create(
-            model="gpt-4o",
+            model="gpt-5.2",
             tools=[{"type": "web_search"}],
             tool_choice={"type": "web_search"},
             input=prompt,

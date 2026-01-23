@@ -21,10 +21,6 @@ heroku config:set OPENAI_API_KEY=your_api_key_here -a your-app-name
 heroku config:set JWT_SECRET_KEY=$(openssl rand -base64 32) -a your-app-name
 heroku config:set ENVIRONMENT=production -a your-app-name
 
-# Optional: Google Custom Search for enhanced LinkedIn scraping
-heroku config:set GOOGLE_CSE_API_KEY=your_google_cse_api_key -a your-app-name
-heroku config:set GOOGLE_CSE_CX=your_google_cse_cx_id -a your-app-name
-
 # Optional: Gmail OAuth (for email drafts feature)
 heroku config:set GCP_OAUTH_KEYS='<base64-encoded-oauth-config>' -a your-app-name
 heroku config:set GMAIL_REDIRECT_URI=https://your-app-name.herokuapp.com/api/gmail/oauth2callback -a your-app-name
@@ -43,15 +39,9 @@ Set these in Heroku dashboard or via CLI:
 - `JWT_SECRET_KEY` - Secret for signing JWT tokens (generate with: `openssl rand -base64 32`)
 - `ENVIRONMENT=production`
 
-**Optional (for enhanced LinkedIn scraping):**
-- `GOOGLE_CSE_API_KEY` - Google Custom Search Engine API key
-- `GOOGLE_CSE_CX` - Google Custom Search Engine ID (CX)
-
 **Optional (for Gmail integration):**
 - `GCP_OAUTH_KEYS` - Base64-encoded Google OAuth client configuration
 - `GMAIL_REDIRECT_URI` - OAuth callback URL (e.g., `https://your-app.herokuapp.com/api/gmail/oauth2callback`)
-
-Without Google CSE, the system will fall back to DuckDuckGo search.
 
 ## Automatic Variables (Set by Heroku)
 

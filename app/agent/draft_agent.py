@@ -296,7 +296,7 @@ Return JSON: {{"body": "..."}}"""
         """Call LLM to generate a draft."""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5.2",
                 messages=[
                     {"role": "system", "content": "You are an expert at writing professional outreach emails. Return only valid JSON."},
                     {"role": "user", "content": prompt}
@@ -390,7 +390,7 @@ Return JSON:
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5.2",
                 messages=[
                     {"role": "system", "content": "You are an expert at writing professional follow-up emails. Return only valid JSON."},
                     {"role": "user", "content": prompt}

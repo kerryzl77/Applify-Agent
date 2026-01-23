@@ -13,10 +13,7 @@ except Exception:  # pragma: no cover
 from bs4 import BeautifulSoup
 from openai import OpenAI
 
-try:
-    from duckduckgo_search import DDGS
-except Exception:
-    DDGS = None
+from app.search.openai_web_search import openai_web_search
 
 logger = logging.getLogger(__name__)
 
@@ -122,96 +119,6 @@ def _extract_structured_data(html: str, url: str) -> Dict[str, Any]:
     return result
 
 
-def duckduckgo_signals(query: str, max_n: int = 5) -> List[Dict[str, Any]]:
-    signals: List[Dict[str, Any]] = []
-    if not DDGS:
-        logger.warning("DuckDuckGo search not available (DDGS not installed)")
-        return signals
-    
-    # Retry configuration for rate limit handling
-    max_retries = 3
-    retry_delay = 2.0  # seconds
-    
-    for attempt in range(max_retries):
-        try:
-            logger.info(f"🔍 Searching DuckDuckGo for: {query} (attempt {attempt + 1}/{max_retries})")
-            # Fix async event loop issue in gunicorn threads
-            import asyncio
-            import time
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            # Add delay between attempts to avoid rate limiting
-            if attempt > 0:
-                delay = retry_delay * (2 ** (attempt - 1))  # exponential backoff
-                logger.info(f"  ⏳ Waiting {delay}s before retry...")
-                time.sleep(delay)
-
-            with DDGS(timeout=20) as ddgs:
-                for r in ddgs.text(query, max_results=max_n):
-                    signals.append({
-                        "title": r.get("title"),
-                        "href": r.get("href"),
-                        "body": r.get("body"),
-                        "source": r.get("source")
-                    })
-            
-            logger.info(f"✅ DuckDuckGo returned {len(signals)} results")
-            return signals  # Success - exit retry loop
-            
-        except Exception as exc:
-            error_msg = str(exc)
-            if "Ratelimit" in error_msg or "202" in error_msg:
-                logger.warning(f"⚠️ Rate limit hit (attempt {attempt + 1}/{max_retries})")
-                if attempt < max_retries - 1:
-                    continue  # Try again
-                else:
-                    logger.warning("⚠️ Max retries reached, returning empty results")
-            else:
-                logger.warning(f"⚠️ DuckDuckGo search failed: {exc}")
-                break  # Non-rate-limit error, don't retry
-    
-    return signals
-
-
-def _google_cse_search(query: str, num: int = 5) -> List[Dict[str, Any]]:
-    """Search using Google Custom Search Engine if configured.
-
-    Returns a list of result dicts with keys: title, href, body, source.
-    """
-    api_key = os.getenv("GOOGLE_CSE_API_KEY")
-    cx = os.getenv("GOOGLE_CSE_CX")
-    if not api_key or not cx:
-        logger.info("⚠️ Google CSE not configured (missing API_KEY or CX)")
-        return []
-    try:
-        logger.info(f"🔍 Searching Google CSE for: {query}")
-        params = {"key": api_key, "cx": cx, "q": query, "num": min(num, 10)}
-        resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params, timeout=15)
-        if resp.status_code != 200:
-            logger.warning(f"⚠️ Google CSE returned {resp.status_code} for query '{query}'")
-            return []
-        data = resp.json()
-        results: List[Dict[str, Any]] = []
-        for item in data.get("items", [])[:num]:
-            results.append(
-                {
-                    "title": item.get("title", ""),
-                    "href": item.get("link", ""),
-                    "body": item.get("snippet", ""),
-                    "source": "google",
-                }
-            )
-        logger.info(f"✅ Google CSE returned {len(results)} results")
-        return results
-    except Exception as exc:
-        logger.warning(f"⚠️ Google CSE search failed: {exc}")
-        return []
-
-
 def _web_search_candidates(
     name_hint: str,
     position: Optional[str],
@@ -241,11 +148,16 @@ def _web_search_candidates(
     logger.info(f"🔎 Running {len(queries)} search queries for candidate discovery")
     for i, q in enumerate(queries, 1):
         logger.info(f"  Query {i}/{len(queries)}: {q}")
-        g = _google_cse_search(q, num=5)
-        results = g
-        if not results:
-            logger.info(f"  → Google CSE returned 0 results, trying DDG...")
-            results = duckduckgo_signals(q, max_n=5)
+        # Use OpenAI web search and normalize to internal schema
+        raw_results = openai_web_search(q, num_results=5)
+        results = []
+        for r in raw_results:
+            results.append({
+                "title": r.get("title", ""),
+                "href": r.get("url", ""),
+                "body": r.get("snippet", ""),
+                "source": "openai_web_search",
+            })
         logger.info(f"  → Got {len(results)} results from this query")
         for r in results:
             href = r.get("href") or ""
@@ -329,7 +241,7 @@ def _llm_choose_candidate(
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.2",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -439,7 +351,7 @@ def _llm_profile_from_docs(
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.2",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -598,9 +510,9 @@ def extract_linkedin_profile(
             "scraping_method": "text_llm",
         }
 
-    # Proceed to enrichment pipeline with Google CSE/DuckDuckGo search + LLM matching + doc fetch
+    # Proceed to enrichment pipeline with OpenAI web search + LLM matching + doc fetch
     # This provides better data quality and cross-source verification
-    logger.info(f"🔍 Step 1 data insufficient - activating Google CSE/DuckDuckGo enrichment pipeline")
+    logger.info(f"🔍 Step 1 data insufficient - activating OpenAI web search enrichment pipeline")
 
     # Step 2: Minimal web search for candidates
     buckets = _web_search_candidates(name_hint, position, company, url, max_total=6)
@@ -691,8 +603,17 @@ def extract_linkedin_profile(
             "search_context": search_context,  # NEW: Add web search context
         }
 
-    # Otherwise try DDG search as final fallback
-    signals = duckduckgo_signals(fallback_name or url, max_n=5)
+    # Otherwise try OpenAI web search as final fallback
+    raw_signals = openai_web_search(fallback_name or url, num_results=5)
+    # Normalize to internal schema
+    signals = []
+    for r in raw_signals:
+        signals.append({
+            "title": r.get("title", ""),
+            "href": r.get("url", ""),
+            "body": r.get("snippet", ""),
+            "source": "openai_web_search",
+        })
     enriched = build_profile_from_signals(signals, fallback_name)
     
     # Build search context from all available sources
@@ -747,7 +668,7 @@ def _llm_profile_from_context(context: str, title: str = "") -> Optional[Dict[st
             {"role": "user", "content": f"Title: {title}\n\nContext:\n{context}"}
         ]
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.2",
             messages=messages,
             temperature=0.2,
             max_tokens=700,
