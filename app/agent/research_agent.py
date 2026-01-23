@@ -8,7 +8,8 @@ from typing import Any, Dict, List, Optional
 from openai import OpenAI
 import os
 
-from app.universal_extractor import duckduckgo_signals, _google_cse_search, _http_get, _extract_main_text
+from app.universal_extractor import _http_get, _extract_main_text
+from app.search.openai_web_search import openai_web_search
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +42,17 @@ class ResearchAgent:
         if emit_trace:
             emit_trace({'type': 'step_progress', 'step': 'research', 'message': f'Searching with {len(queries)} queries...'})
         
-        # Collect search results
+        # Collect search results using OpenAI web search
         all_results = []
         for query in queries[:4]:  # Limit to 4 queries for speed
-            results = _google_cse_search(query, num=5)
-            if not results:
-                results = duckduckgo_signals(query, max_n=5)
-            all_results.extend(results)
+            results = openai_web_search(query, num_results=5)
+            # Normalize to existing schema (href, title, body)
+            for r in results:
+                all_results.append({
+                    "href": r.get("url", ""),
+                    "title": r.get("title", ""),
+                    "body": r.get("snippet", ""),
+                })
         
         if emit_trace:
             emit_trace({'type': 'step_progress', 'step': 'research', 'message': f'Found {len(all_results)} search results, extracting contacts...'})
