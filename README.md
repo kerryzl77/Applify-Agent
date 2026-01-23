@@ -1,4 +1,12 @@
-# Applify - Heroku Deployment Guide
+# Applify - AI Job Application Agent
+
+> **Your job search, orchestrated.** Multi-agent system for personalized job outreach — from resume to inbox.
+
+[![Watch Demo](https://img.youtube.com/vi/B_CCUNOrmEc/maxresdefault.jpg)](https://youtu.be/B_CCUNOrmEc)
+
+🎬 **[Watch Demo (50s)](https://youtu.be/B_CCUNOrmEc)** · 🚀 **[Try Live App](https://applify-f333088ea507.herokuapp.com/)**
+
+---
 
 ## 🚀 Quick Deploy
 
@@ -51,8 +59,6 @@ heroku restart -a applify
 # Scale dynos
 heroku ps:scale web=1 -a applify
 ```
-
-**Live App:** https://applify-f333088ea507.herokuapp.com/
 
 ---
 *For detailed setup, see [HEROKU_DEPLOY.md](HEROKU_DEPLOY.md)*
