@@ -106,14 +106,24 @@ async def get_job_detail(
         cached = redis.get(cache_key)
         if cached:
             job_description = cached.get("job_description")
-            requirements = cached.get("requirements")
+            req = cached.get("requirements")
+            # Handle requirements being a list (from old cache entries)
+            if isinstance(req, list):
+                requirements = "\n".join(req)
+            else:
+                requirements = req
         else:
             # Extract JD using existing scraper
             try:
                 job_data = data_retriever.scrape_job_posting(job.get("url"))
                 if job_data and "error" not in job_data:
                     job_description = job_data.get("job_description", "")
-                    requirements = job_data.get("requirements", "")
+                    req = job_data.get("requirements", "")
+                    # Handle requirements being a list (from GPT extraction)
+                    if isinstance(req, list):
+                        requirements = "\n".join(req)
+                    else:
+                        requirements = req
                     
                     # Cache for 1 hour
                     redis.set(cache_key, {
