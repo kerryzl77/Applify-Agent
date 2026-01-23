@@ -86,26 +86,21 @@ class GmailService:
 
     def exchange_code_for_tokens(self, code: str) -> None:
         flow = self._create_flow()
-        # Disable strict scope validation to handle incremental consent changes.
-        flow.oauth2session.scope = None
         try:
             flow.fetch_token(code=code)
         except Exception as exc:
-            raise GmailOAuthError("Failed to exchange Gmail authorization code") from exc
-
-        token_scope_str = (flow.oauth2session.token or {}).get("scope") if flow.oauth2session else None
-        if token_scope_str:
-            granted_scopes = token_scope_str.split()
-            required_scopes = set(SCOPES)
-            if not required_scopes.issubset(set(granted_scopes)):
-                raise GmailOAuthError("Gmail authorization missing required permissions")
-            # Ensure credentials reflect the granted scopes.
-            flow.oauth2session.scope = granted_scopes
-        else:
-            # Fallback to required scopes when token scope is not provided.
-            flow.oauth2session.scope = SCOPES
+            # Retry once without strict scope validation (handles incremental grants).
+            flow = self._create_flow()
+            flow.oauth2session.scope = None
+            try:
+                flow.fetch_token(code=code)
+            except Exception as retry_exc:
+                raise GmailOAuthError("Failed to exchange Gmail authorization code") from retry_exc
 
         credentials = flow.credentials
+        granted_scopes = set(credentials.scopes or [])
+        if not set(SCOPES).issubset(granted_scopes):
+            raise GmailOAuthError("Gmail authorization missing required permissions")
         profile = self._fetch_user_profile(credentials)
         self._store_credentials(credentials, profile.get("emailAddress"))
 

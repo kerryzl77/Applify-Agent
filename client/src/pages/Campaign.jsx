@@ -309,8 +309,11 @@ const Campaign = () => {
     try {
       const status = await gmailAPI.status();
       setGmailStatus(status);
+      return status;
     } catch (error) {
-      setGmailStatus({ availability: 'unavailable', authorized: false, error: error.message });
+      const fallback = { availability: 'unavailable', authorized: false, error: error.message };
+      setGmailStatus(fallback);
+      return fallback;
     }
   }, []);
 
@@ -511,16 +514,6 @@ const Campaign = () => {
   
   // Create Gmail drafts
   const handleCreateGmailDrafts = async () => {
-    if (!gmailStatus?.authorized) {
-      if (gmailStatus?.availability === 'unavailable') {
-        toast.error('Gmail API is not configured');
-      } else {
-        toast.error('Connect your Gmail account first');
-      }
-      setGmailSetupOpen(true);
-      return;
-    }
-
     try {
       const result = await campaignAPI.confirm(campaignId, {
         create_gmail_drafts: true,
@@ -556,6 +549,24 @@ const Campaign = () => {
     } catch (error) {
       toast.error(error.message || 'Failed to disconnect Gmail');
     }
+  };
+
+  const handleGmailAction = async () => {
+    const status = await refreshGmailStatus();
+
+    if (status?.availability === 'unavailable') {
+      toast.error('Gmail API is not configured');
+      setGmailSetupOpen(true);
+      return;
+    }
+
+    if (!status?.authorized) {
+      toast.error('Connect your Gmail account first');
+      setGmailSetupOpen(true);
+      return;
+    }
+
+    await handleCreateGmailDrafts();
   };
   
   if (loading) {
@@ -659,7 +670,7 @@ const Campaign = () => {
               
               {artifacts.drafts && phase !== 'done' && (
                 <button
-                  onClick={() => (gmailStatus?.authorized ? handleCreateGmailDrafts() : setGmailSetupOpen(true))}
+                  onClick={handleGmailAction}
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:opacity-90"
                 >
                   <Send className="w-4 h-4" />
