@@ -146,13 +146,13 @@ class DraftAgent:
         
         why_me = "\n".join([b.get('text', '') for b in evidence_pack.get('why_me_bullets', [])])
         
-        prompt = f"""Write a warm introduction request email.
+        prompt = f"""Write an email FROM the candidate TO a contact asking for a warm introduction.
 
 CONTEXT:
-- Candidate: {candidate_name}
+- Candidate (SENDER): {candidate_name}
 - Target Role: {job_title} at {company}
-- Contact: {contact.get('name', 'Contact')} - {contact.get('title', '')}
-- Contact is: {contact.get('reason', 'someone who might help with an intro')}
+- Contact (RECIPIENT): {contact.get('name', 'Contact')} - {contact.get('title', '')}
+- Why this contact: {contact.get('reason', 'someone who might help with an intro')}
 
 CANDIDATE STRENGTHS:
 {why_me}
@@ -161,11 +161,12 @@ CANDIDATE STRENGTHS:
 
 {draft_fb}
 
-Write a brief, warm email asking for advice or introduction regarding the {job_title} role.
+Write a brief email from {candidate_name} asking for advice or introduction regarding the {job_title} role.
 - Keep it under 150 words
-- Be specific about why you're reaching out to THIS person
+- Be specific about why {candidate_name} is reaching out to THIS person
 - Don't be pushy, focus on asking for advice/insights
 - Professional but personable tone
+- The candidate is reaching out, NOT the contact
 
 Return JSON: {{"subject": "...", "body": "..."}}"""
 
@@ -190,12 +191,12 @@ Return JSON: {{"subject": "...", "body": "..."}}"""
         
         why_me = "\n".join([b.get('text', '') for b in evidence_pack.get('why_me_bullets', [])])
         
-        prompt = f"""Write a recruiter outreach email.
+        prompt = f"""Write an email FROM the candidate TO a recruiter.
 
 CONTEXT:
-- Candidate: {candidate_name} ({candidate_email})
+- Candidate (SENDER): {candidate_name} ({candidate_email})
 - Target Role: {job_title} at {company}
-- Recruiter: {contact.get('name', 'Recruiting Team')} - {contact.get('title', '')}
+- Recruiter (RECIPIENT): {contact.get('name', 'Recruiting Team')} - {contact.get('title', '')}
 
 CANDIDATE STRENGTHS:
 {why_me}
@@ -204,11 +205,12 @@ CANDIDATE STRENGTHS:
 
 {draft_fb}
 
-Write a professional email expressing interest in the {job_title} role.
+Write a professional email from {candidate_name} expressing interest in the {job_title} role.
 - Keep it under 200 words
-- Highlight 2-3 key qualifications
+- Highlight 2-3 key qualifications from the candidate's background
 - Clear call to action (request to discuss)
 - Professional, enthusiastic tone
+- The candidate is reaching out, NOT the recruiter
 
 Return JSON: {{"subject": "...", "body": "..."}}"""
 
@@ -234,12 +236,12 @@ Return JSON: {{"subject": "...", "body": "..."}}"""
         why_me = "\n".join([b.get('text', '') for b in evidence_pack.get('why_me_bullets', [])])
         project_angles = "\n".join([a.get('text', '') for a in evidence_pack.get('project_angles', [])])
         
-        prompt = f"""Write a hiring manager outreach email.
+        prompt = f"""Write an email FROM the candidate TO the hiring manager.
 
 CONTEXT:
-- Candidate: {candidate_name} ({candidate_email})
+- Candidate (SENDER): {candidate_name} ({candidate_email})
 - Target Role: {job_title} at {company}
-- Hiring Manager: {contact.get('name', 'Hiring Manager')} - {contact.get('title', '')}
+- Hiring Manager (RECIPIENT): {contact.get('name', 'Hiring Manager')} - {contact.get('title', '')}
 
 CANDIDATE STRENGTHS:
 {why_me}
@@ -251,12 +253,13 @@ PROJECT ANGLES TO HIGHLIGHT:
 
 {draft_fb}
 
-Write a compelling email directly to the hiring manager.
+Write a compelling email from {candidate_name} to the hiring manager.
 - Keep it under 200 words
 - Show understanding of the role/team
-- Highlight specific relevant experience
+- Highlight specific relevant experience from the candidate's background
 - Confident but not arrogant tone
 - Clear ask for next steps
+- The candidate is reaching out, NOT the hiring manager
 
 Return JSON: {{"subject": "...", "body": "..."}}"""
 
@@ -274,18 +277,19 @@ Return JSON: {{"subject": "...", "body": "..."}}"""
         job_title = job_data.get('job_title', job_data.get('title', ''))
         company = job_data.get('company_name', '')
         
-        prompt = f"""Write a LinkedIn connection request note.
+        prompt = f"""Write a LinkedIn connection request note FROM the candidate.
 
 CONTEXT:
-- Candidate: {candidate_name}
-- Target: Someone at {company} regarding {job_title} role
+- Candidate (SENDER): {candidate_name}
+- Target (RECIPIENT): Someone at {company} regarding {job_title} role
 
 {global_feedback}
 
-Write a brief LinkedIn connection note (under 200 characters for LinkedIn limit).
+Write a brief LinkedIn connection note from {candidate_name} (under 200 characters for LinkedIn limit).
 - Personal, specific
-- Mention the role
+- Mention the role the candidate is interested in
 - No hard sell
+- The candidate is sending the connection request
 
 Return JSON: {{"body": "..."}}"""
 
