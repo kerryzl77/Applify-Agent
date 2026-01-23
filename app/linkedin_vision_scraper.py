@@ -476,7 +476,7 @@ Rules:
                         ]
                     }
                 ],
-                max_tokens=1500,
+                max_completion_tokens=1500,
                 temperature=0.2,  # Low temperature for accuracy
                 response_format={"type": "json_object"}
             )

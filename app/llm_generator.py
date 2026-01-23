@@ -13,24 +13,24 @@ class LLMGenerator:
     def generate_linkedin_message(self, job_data, candidate_data, profile_data=None):
         """Generate a LinkedIn connection message (200 characters max)."""
         prompt = self._build_linkedin_message_prompt(job_data, candidate_data, profile_data)
-        return self._generate_text(prompt, max_tokens=100)  # ~200 characters
+        return self._generate_text(prompt, max_completion_tokens=100)  # ~200 characters
     
     def generate_connection_email(self, job_data, candidate_data, profile_data=None):
         """Generate a connection email (200 words max)."""
         prompt = self._build_connection_email_prompt(job_data, candidate_data, profile_data)
-        return self._generate_text(prompt, max_tokens=300)  # ~200 words
+        return self._generate_text(prompt, max_completion_tokens=300)  # ~200 words
     
     def generate_hiring_manager_email(self, job_data, candidate_data, profile_data=None):
         """Generate an email to a hiring manager (200 words max)."""
         prompt = self._build_hiring_manager_email_prompt(job_data, candidate_data, profile_data)
-        return self._generate_text(prompt, max_tokens=300)  # ~200 words
+        return self._generate_text(prompt, max_completion_tokens=300)  # ~200 words
     
     def generate_cover_letter(self, job_data, candidate_data):
         """Generate a cover letter (350 words max)."""
         prompt = self._build_cover_letter_prompt(job_data, candidate_data)
-        return self._generate_text(prompt, max_tokens=500)  # ~350 words
+        return self._generate_text(prompt, max_completion_tokens=500)  # ~350 words
     
-    def _generate_text(self, prompt, max_tokens=300):
+    def _generate_text(self, prompt, max_completion_tokens=300):
         """Call the OpenAI API to generate text."""
         try:
             response = self.client.chat.completions.create(
@@ -39,7 +39,7 @@ class LLMGenerator:
                     {"role": "system", "content": "You are an expert professional writer and career advisor with deep understanding of modern job markets, hiring practices, and effective communication strategies. You create highly personalized, impactful application materials that resonate with hiring managers and decision makers."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=max_tokens,
+                max_completion_tokens=max_completion_tokens,
                 temperature=0.6  # Slightly lower for more consistency while maintaining creativity
             )
             return response.choices[0].message.content.strip()
@@ -67,7 +67,7 @@ class LLMGenerator:
         - Do not add quotes or additional commentary.
         """
 
-        subject = self._generate_text(prompt, max_tokens=32)
+        subject = self._generate_text(prompt, max_completion_tokens=32)
         return subject.replace("Subject:", "").strip()
 
     def _convert_to_html(self, body: str) -> str:

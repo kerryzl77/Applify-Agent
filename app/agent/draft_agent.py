@@ -306,7 +306,7 @@ Return JSON: {{"body": "..."}}"""
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.6,
-                max_tokens=800,
+                max_completion_tokens=800,
                 response_format={"type": "json_object"}
             )
             
@@ -400,7 +400,7 @@ Return JSON:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.5,
-                max_tokens=1500,
+                max_completion_tokens=1500,
                 response_format={"type": "json_object"}
             )
             

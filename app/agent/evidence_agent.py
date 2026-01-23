@@ -163,7 +163,7 @@ Return ONLY valid JSON."""
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
-                max_tokens=1000,
+                max_completion_tokens=1000,
                 response_format={"type": "json_object"}
             )
             

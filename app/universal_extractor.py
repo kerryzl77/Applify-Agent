@@ -247,7 +247,7 @@ def _llm_choose_candidate(
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.1,
-            max_tokens=300,
+            max_completion_tokens=300,
             response_format={"type": "json_object"},
         )
         text = (resp.choices[0].message.content or "").strip()
@@ -357,7 +357,7 @@ def _llm_profile_from_docs(
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.2,
-            max_tokens=900,
+            max_completion_tokens=900,
             response_format={"type": "json_object"},
         )
         text = (resp.choices[0].message.content or "").strip()
@@ -671,7 +671,7 @@ def _llm_profile_from_context(context: str, title: str = "") -> Optional[Dict[st
             model="gpt-5.2",
             messages=messages,
             temperature=0.2,
-            max_tokens=700,
+            max_completion_tokens=700,
             response_format={"type": "json_object"}
         )
         text = (resp.choices[0].message.content or "").strip()
