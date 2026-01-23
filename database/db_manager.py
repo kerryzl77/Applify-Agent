@@ -1120,16 +1120,16 @@ class DatabaseManager:
                 )
                 row = cur.fetchone()
                 if not row:
-                    return None, None
+                    return None, None, None
                 
                 state = row[0] or {}
                 trace = state.get('trace', [])
                 phase = state.get('phase', 'idle')
                 
-                return trace[from_index:], phase
+                return trace[from_index:], phase, len(trace)
         except Exception as e:
             logger.error(f"Error getting campaign trace: {str(e)}")
-            return None, None
+            return None, None, None
         finally:
             if conn:
                 self._return_connection(conn)

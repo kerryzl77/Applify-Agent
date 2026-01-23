@@ -125,6 +125,7 @@ async def run_campaign(
 @router.get("/campaigns/{campaign_id}/events")
 async def stream_campaign_events(
     campaign_id: int,
+    from_index: int = 0,
     current_user: TokenData = Depends(get_current_user),
     db: DatabaseManager = Depends(get_db),
 ):
@@ -137,8 +138,11 @@ async def stream_campaign_events(
             detail="Campaign not found"
         )
     
+    if from_index < 0:
+        from_index = 0
+    
     return StreamingResponse(
-        generate_campaign_events(campaign_id, current_user.user_id, db),
+        generate_campaign_events(campaign_id, current_user.user_id, db, start_index=from_index),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

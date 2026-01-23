@@ -14,6 +14,7 @@ async def generate_campaign_events(
     campaign_id: int,
     user_id: str,
     db: DatabaseManager,
+    start_index: int = 0,
     poll_interval: float = 0.5,
     max_idle_seconds: int = 300,
 ) -> AsyncGenerator[str, None]:
@@ -22,23 +23,31 @@ async def generate_campaign_events(
     
     This approach is multi-worker safe since all state is in Postgres.
     """
-    last_index = 0
+    last_index = max(0, int(start_index or 0))
     idle_count = 0
     max_idle = int(max_idle_seconds / poll_interval)
     
     while idle_count < max_idle:
         try:
-            new_events, phase = db.get_campaign_trace_from_index(campaign_id, user_id, last_index)
+            new_events, phase, total_length = db.get_campaign_trace_from_index(
+                campaign_id,
+                user_id,
+                last_index,
+            )
             
             if new_events is None:
                 # Campaign not found
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Campaign not found'})}\n\n"
                 break
+
+            if total_length is not None and last_index > total_length:
+                last_index = total_length
+                new_events = []
             
             if new_events:
                 for event in new_events:
                     yield f"data: {json.dumps(event)}\n\n"
-                    last_index += 1
+                last_index += len(new_events)
                 idle_count = 0
                 
                 # Check if workflow completed

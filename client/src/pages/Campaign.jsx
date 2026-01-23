@@ -254,6 +254,7 @@ const Campaign = () => {
   const { campaignId } = useParams();
   const navigate = useNavigate();
   const streamRef = useRef(null);
+  const traceIndexRef = useRef(0);
   
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -266,8 +267,10 @@ const Campaign = () => {
   const fetchCampaign = useCallback(async () => {
     try {
       const data = await campaignAPI.get(campaignId);
+      const serverTrace = data.state?.trace || [];
       setCampaign(data);
-      setTrace(data.state?.trace || []);
+      setTrace(serverTrace);
+      traceIndexRef.current = serverTrace.length;
       
       // Initialize selected contacts from state
       if (data.state?.selected_contacts) {
@@ -316,11 +319,16 @@ const Campaign = () => {
     if (streamRef.current) {
       streamRef.current.close();
     }
-    
-    const stream = campaignAPI.streamEvents(campaignId);
+
+    const fromIndex = traceIndexRef.current;
+    const stream = campaignAPI.streamEvents(campaignId, { fromIndex });
     streamRef.current = stream.subscribe(
       (event) => {
-        setTrace((prev) => [...prev, event]);
+        const isTraceEvent = !!event?.timestamp;
+        if (isTraceEvent) {
+          traceIndexRef.current += 1;
+          setTrace((prev) => [...prev, event]);
+        }
         
         // Refresh campaign data on artifacts or phase changes
         if (event.type === 'artifact' || event.type === 'step_done' || event.type === 'waiting_user') {

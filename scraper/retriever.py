@@ -1,4 +1,7 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+import trafilatura
 from openai import OpenAI
 import json
 import re
@@ -12,9 +15,104 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from app.universal_extractor import extract_url, extract_linkedin_profile
 from app.utils.text import normalize_job_data, normalize_text
+from app.search.openai_web_search import openai_web_search
 
 # Load environment variables
 load_dotenv()
+
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
+DEFAULT_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+HTTP_SESSION = requests.Session()
+HTTP_RETRY = Retry(
+    total=3,
+    backoff_factor=0.6,
+    status_forcelist=(429, 500, 502, 503, 504),
+    allowed_methods=("GET",),
+    raise_on_status=False,
+)
+HTTP_ADAPTER = HTTPAdapter(max_retries=HTTP_RETRY)
+HTTP_SESSION.mount("https://", HTTP_ADAPTER)
+HTTP_SESSION.mount("http://", HTTP_ADAPTER)
+
+
+def fetch_clean_text(url: str, timeout: int = 20) -> str:
+    """Fetch HTML and extract main text using trafilatura."""
+    try:
+        resp = HTTP_SESSION.get(
+            url,
+            headers=DEFAULT_HEADERS,
+            timeout=timeout,
+            allow_redirects=True,
+        )
+        resp.raise_for_status()
+        html = resp.text or ""
+        if not html:
+            return ""
+        text = trafilatura.extract(
+            html,
+            include_comments=False,
+            include_tables=True,
+        )
+        return (text or "").strip()
+    except Exception as exc:
+        print(f"Error fetching HTML for {url}: {exc}")
+        return ""
+
+
+def _build_job_search_query(url: str, job_title: str | None, company_name: str | None) -> str:
+    parts = []
+    if company_name:
+        parts.append(company_name)
+    if job_title:
+        parts.append(job_title)
+    parsed = urlparse(url)
+    if parsed.netloc:
+        parts.append(parsed.netloc)
+    params = parse_qs(parsed.query or "")
+    if params.get("gh_jid"):
+        parts.append(params["gh_jid"][0])
+    if not parts:
+        return url
+    return " ".join(parts) + " job description"
+
+
+def search_job_posting_text(
+    url: str,
+    job_title: str | None,
+    company_name: str | None,
+    min_chars: int = 200,
+) -> str:
+    """Try to find an alternate job posting source via web search."""
+    if not os.getenv("OPENAI_API_KEY"):
+        return ""
+
+    parsed = urlparse(url)
+    query = _build_job_search_query(url, job_title, company_name)
+    allowed = [parsed.netloc] if parsed.netloc else None
+
+    results = openai_web_search(query, num_results=4, allowed_domains=allowed)
+    if not results and parsed.netloc:
+        results = openai_web_search(f"{query} {parsed.netloc}", num_results=4)
+
+    for r in results:
+        candidate_url = (r.get("url") or "").strip()
+        if not candidate_url:
+            continue
+        candidate_text = fetch_clean_text(candidate_url)
+        if candidate_text and len(candidate_text) >= min_chars:
+            return candidate_text
+
+    snippets = [r.get("snippet", "").strip() for r in results if r.get("snippet")]
+    return "\n".join(s for s in snippets if s).strip()
 
 class DataRetriever:
     def __init__(self):
@@ -22,44 +120,27 @@ class DataRetriever:
         # Text-first extractor for LinkedIn profiles
         
     def scrape_job_posting(self, url, job_title=None, company_name=None):
-        """Scrape job posting details from a given URL using Jina Reader API."""
+        """Scrape job posting details from a given URL using direct HTTP + local extraction."""
         try:
-            # Prepare Jina Reader URL
-            jina_url = f"https://r.jina.ai/{url}"
-            
-            # Get the page content in JSON format
-            headers = {"Accept": "application/json"}
-            response = requests.get(jina_url, headers=headers, timeout=15)
+            text_content = fetch_clean_text(url)
 
-            text_content = ""
-
-            # Check if the request was successful
-            if response.status_code != 200:
-                print(f"Failed to fetch URL: {url}, Status code: {response.status_code}")
-            else:
-                # Parse the JSON response
-                try:
-                    content_data = response.json()
-                except Exception as exc:
-                    print(f"Failed to parse Jina response JSON: {exc}")
-                    content_data = None
-
-                # Check response structure
-                if content_data and content_data.get('code') == 200 and 'data' in content_data:
-                    # Extract content from the response
-                    text_content = content_data['data'].get('content') or ""
-                else:
-                    print(f"Unexpected API response structure: {content_data}")
-
-            # Fallback to direct extraction if Jina content is empty/short
+            # Fallback to alternate extraction if content is empty/short
             if not text_content or len(text_content.strip()) < 200:
                 fallback = extract_url(url)
                 fallback_text = normalize_text(fallback.get("text")).strip()
                 if fallback_text and len(fallback_text) > len(text_content.strip()):
                     text_content = fallback_text
 
+            # Secondary fallback: use OpenAI web search to find an alternate source
+            if not text_content or len(text_content.strip()) < 200:
+                search_text = search_job_posting_text(url, job_title, company_name, min_chars=200)
+                if search_text and len(search_text) > len(text_content.strip()):
+                    text_content = search_text
+
+            text_content = normalize_text(text_content).strip()
+
             if not text_content:
-                return {'error': "No content found in API response"}
+                return {'error': "No content found from page extraction"}
             
             # Use GPT to extract structured information from the content
             extracted_data = self._extract_job_data_with_gpt(text_content, url, job_title, company_name)

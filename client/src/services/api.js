@@ -514,10 +514,11 @@ export const campaignAPI = {
   },
 
   // SSE stream for campaign events (similar pattern to jobs refresh)
-  streamEvents: (campaignId) => {
+  streamEvents: (campaignId, { fromIndex } = {}) => {
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
     const baseUrl = window.location.origin;
-    const url = `${baseUrl}/api/agent/campaigns/${campaignId}/events`;
+    const query = Number.isFinite(fromIndex) ? `?from_index=${fromIndex}` : '';
+    const url = `${baseUrl}/api/agent/campaigns/${campaignId}/events${query}`;
 
     return createSseStream({
       url,
