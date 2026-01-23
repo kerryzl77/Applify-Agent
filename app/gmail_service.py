@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.compose",
-    "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.modify",
 ]
 CONFIG_PATH = os.path.join(
@@ -87,7 +86,25 @@ class GmailService:
 
     def exchange_code_for_tokens(self, code: str) -> None:
         flow = self._create_flow()
-        flow.fetch_token(code=code)
+        # Disable strict scope validation to handle incremental consent changes.
+        flow.oauth2session.scope = None
+        try:
+            flow.fetch_token(code=code)
+        except Exception as exc:
+            raise GmailOAuthError("Failed to exchange Gmail authorization code") from exc
+
+        token_scope_str = (flow.oauth2session.token or {}).get("scope") if flow.oauth2session else None
+        if token_scope_str:
+            granted_scopes = token_scope_str.split()
+            required_scopes = set(SCOPES)
+            if not required_scopes.issubset(set(granted_scopes)):
+                raise GmailOAuthError("Gmail authorization missing required permissions")
+            # Ensure credentials reflect the granted scopes.
+            flow.oauth2session.scope = granted_scopes
+        else:
+            # Fallback to required scopes when token scope is not provided.
+            flow.oauth2session.scope = SCOPES
+
         credentials = flow.credentials
         profile = self._fetch_user_profile(credentials)
         self._store_credentials(credentials, profile.get("emailAddress"))
