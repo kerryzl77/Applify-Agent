@@ -37,17 +37,17 @@ class ResearchAgent:
         if emit_trace:
             emit_trace({'type': 'step_progress', 'step': 'research', 'message': 'Searching for hiring contacts...'})
         
-        # Use the one-shot web search approach
-        raw_contacts = find_contacts_via_web_search(company_name, job_title, team)
+        # Use multi-query web search approach with location
+        raw_contacts = find_contacts_via_web_search(company_name, job_title, team, location)
         
         if emit_trace:
             emit_trace({'type': 'step_progress', 'step': 'research', 'message': f'Found {len(raw_contacts)} contacts from web search'})
         
         if not raw_contacts:
-            # Fallback: try a broader search
+            # Fallback: try a broader search without location constraint
             if emit_trace:
                 emit_trace({'type': 'step_progress', 'step': 'research', 'message': 'Trying broader search...'})
-            raw_contacts = self._fallback_search(company_name, job_title)
+            raw_contacts = self._fallback_search(company_name, job_title, team)
         
         # Enrich contacts with tags
         contacts = []
@@ -71,49 +71,13 @@ class ResearchAgent:
         
         return contacts[:15]  # Limit to 15 contacts
     
-    def _fallback_search(self, company_name: str, job_title: str) -> List[Dict]:
-        """Fallback: broader search if first attempt finds nothing."""
+    def _fallback_search(self, company_name: str, job_title: str, team: Optional[str] = None) -> List[Dict]:
+        """Fallback: broader search without location constraint if first attempt finds nothing."""
         try:
-            # Try a more generic search for the company's hiring team
-            prompt = f"""Search for the hiring team and recruiters at {company_name}.
-
-Find anyone who works in recruiting, talent acquisition, HR, or hiring at {company_name}.
-Also look for engineering managers or team leads at {company_name}.
-
-Return ONLY valid JSON:
-{{
-    "contacts": [
-        {{"name": "Person Name", "title": "Their Job Title", "source_url": "URL", "confidence": 0.7}}
-    ]
-}}
-
-If no specific people found, return {{"contacts": []}}"""
-
-            resp = self.client.responses.create(
-                model="gpt-5.2",
-                tools=[{"type": "web_search"}],
-                tool_choice={"type": "web_search"},
-                input=prompt,
-            )
-            
-            text = (resp.output_text or "").strip()
-            
-            # Clean up response
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                parts = text.split("```")
-                if len(parts) >= 2:
-                    text = parts[1].strip()
-            
-            # Extract JSON
-            json_start = text.find('{')
-            json_end = text.rfind('}') + 1
-            if json_start >= 0 and json_end > json_start:
-                text = text[json_start:json_end]
-            
-            data = json.loads(text)
-            return data.get("contacts", [])
+            # Try the same multi-query approach but without location
+            # This gives a broader search scope
+            logger.info(f"Running fallback search for {company_name} (no location filter)")
+            return find_contacts_via_web_search(company_name, job_title, team, location=None)
             
         except Exception as e:
             logger.warning(f"Fallback search failed: {e}")

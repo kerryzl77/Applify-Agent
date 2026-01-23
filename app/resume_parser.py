@@ -1,5 +1,6 @@
 import os
 import re
+import uuid
 import PyPDF2
 from docx import Document
 import magic
@@ -240,15 +241,37 @@ class ResumeParser:
         
         return cleaned_data
 
-    def save_uploaded_file(self, file):
-        """Save uploaded file and return its path."""
-        if not file:
+    def save_uploaded_file(self, file_obj, filename: str = None):
+        """Save uploaded file and return its path.
+        
+        Works with both Flask FileStorage objects and FastAPI SpooledTemporaryFile objects.
+        
+        Args:
+            file_obj: File-like object (Flask FileStorage or FastAPI file.file)
+            filename: Original filename (required for FastAPI, optional for Flask)
+        """
+        if not file_obj:
             raise ValueError("No file uploaded")
         
-        # Generate a unique filename
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(self.upload_dir, filename)
+        # Handle Flask FileStorage (has .filename attribute)
+        if hasattr(file_obj, 'filename') and file_obj.filename and not filename:
+            filename = file_obj.filename
         
-        # Save the file
-        file.save(file_path)
+        if not filename:
+            raise ValueError("Filename is required")
+        
+        # Generate a unique filename with UUID prefix to avoid collisions
+        safe_filename = secure_filename(filename)
+        unique_filename = f"{uuid.uuid4().hex[:8]}_{safe_filename}"
+        file_path = os.path.join(self.upload_dir, unique_filename)
+        
+        # Save the file - handle both Flask and FastAPI file objects
+        if hasattr(file_obj, 'save'):
+            # Flask FileStorage object
+            file_obj.save(file_path)
+        else:
+            # FastAPI SpooledTemporaryFile or other file-like object
+            with open(file_path, 'wb') as out_file:
+                shutil.copyfileobj(file_obj, out_file)
+        
         return file_path 
