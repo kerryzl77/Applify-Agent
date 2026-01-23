@@ -24,7 +24,8 @@ import {
   Clock,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
-import { campaignAPI } from '../services/api';
+import GmailSetup from '../components/GmailSetup';
+import { campaignAPI, gmailAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 // Step status icons
@@ -263,6 +264,8 @@ const Campaign = () => {
   const [selectedContacts, setSelectedContacts] = useState({});
   const [activePanel, setActivePanel] = useState('contacts');
   const [trace, setTrace] = useState([]);
+  const [gmailStatus, setGmailStatus] = useState({ availability: 'unknown', authorized: false });
+  const [isGmailSetupOpen, setGmailSetupOpen] = useState(false);
   
   // Fetch campaign data
   const fetchCampaign = useCallback(async () => {
@@ -301,6 +304,19 @@ const Campaign = () => {
       }
     };
   }, [fetchCampaign]);
+
+  const refreshGmailStatus = useCallback(async () => {
+    try {
+      const status = await gmailAPI.status();
+      setGmailStatus(status);
+    } catch (error) {
+      setGmailStatus({ availability: 'unavailable', authorized: false, error: error.message });
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshGmailStatus();
+  }, [refreshGmailStatus]);
 
   // If backend pauses for user input, allow UI actions immediately.
   useEffect(() => {
@@ -495,6 +511,16 @@ const Campaign = () => {
   
   // Create Gmail drafts
   const handleCreateGmailDrafts = async () => {
+    if (!gmailStatus?.authorized) {
+      if (gmailStatus?.availability === 'unavailable') {
+        toast.error('Gmail API is not configured');
+      } else {
+        toast.error('Connect your Gmail account first');
+      }
+      setGmailSetupOpen(true);
+      return;
+    }
+
     try {
       const result = await campaignAPI.confirm(campaignId, {
         create_gmail_drafts: true,
@@ -510,6 +536,25 @@ const Campaign = () => {
       fetchCampaign();
     } catch (error) {
       toast.error(error.message || 'Failed to create Gmail drafts');
+    }
+  };
+
+  const handleConnectGmail = async () => {
+    try {
+      const { auth_url } = await gmailAPI.getAuthUrl();
+      window.location.href = auth_url;
+    } catch (error) {
+      toast.error(error.message || 'Failed to initiate Gmail authorization');
+    }
+  };
+
+  const handleDisconnectGmail = async () => {
+    try {
+      await gmailAPI.disconnect();
+      toast.success('Gmail disconnected');
+      refreshGmailStatus();
+    } catch (error) {
+      toast.error(error.message || 'Failed to disconnect Gmail');
     }
   };
   
@@ -546,6 +591,11 @@ const Campaign = () => {
   const steps = state.steps || {};
   const artifacts = state.artifacts || {};
   const phase = state.phase || 'idle';
+  const gmailActionLabel = gmailStatus?.authorized
+    ? 'Create Gmail Drafts'
+    : gmailStatus?.availability === 'unavailable'
+    ? 'Configure Gmail'
+    : 'Connect Gmail';
   
   const stepConfig = [
     { step: 'research', name: 'Research Contacts', icon: Search },
@@ -556,202 +606,203 @@ const Campaign = () => {
   ];
   
   return (
-    <div className="h-screen grid lg:grid-cols-[280px_1fr] overflow-hidden bg-gray-50 dark:bg-gray-950">
-      <Sidebar />
-      
-      <div className="flex flex-col min-h-0 overflow-hidden">
-        {/* Header */}
-        <div className="h-16 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/discover')}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Campaign: {campaign.job?.title}
-              </h2>
-              <p className="text-sm text-gray-500">
-                {campaign.job?.company_name} - {campaign.job?.location}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {phase === 'idle' && (
-              <button
-                onClick={() => handleRun('full')}
-                disabled={running}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50"
-              >
-                {running ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Play className="w-4 h-4" />
-                )}
-                Start Campaign
-              </button>
-            )}
-            
-            {phase === 'waiting_user' && !artifacts.drafts && (
-              <button
-                onClick={handleConfirmContacts}
-                disabled={running || Object.keys(selectedContacts).length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
-              >
-                <Check className="w-4 h-4" />
-                Confirm & Generate Drafts
-              </button>
-            )}
-            
-            {artifacts.drafts && phase !== 'done' && (
-              <button
-                onClick={handleCreateGmailDrafts}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:opacity-90"
-              >
-                <Send className="w-4 h-4" />
-                Create Gmail Drafts
-              </button>
-            )}
-            
-            {phase === 'done' && (
-              <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium">
-                <CheckCircle className="w-4 h-4" />
-                Campaign Complete
-              </span>
-            )}
-          </div>
-        </div>
+    <>
+      <div className="h-screen grid lg:grid-cols-[280px_1fr] overflow-hidden bg-gray-50 dark:bg-gray-950">
+        <Sidebar />
         
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-6xl mx-auto space-y-6">
-            {/* Step Map */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Workflow Progress</h3>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                {stepConfig.map(({ step, name, icon }) => (
-                  <StepCard
-                    key={step}
-                    step={step}
-                    name={name}
-                    icon={icon}
-                    status={steps[step]?.status}
-                    isActive={steps[step]?.status === 'running'}
-                    trace={trace}
-                  />
-                ))}
+        <div className="flex flex-col min-h-0 overflow-hidden">
+          {/* Header */}
+          <div className="h-16 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center justify-between px-6">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate('/discover')}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Campaign: {campaign.job?.title}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {campaign.job?.company_name} - {campaign.job?.location}
+                </p>
               </div>
             </div>
             
-            {/* Panel tabs */}
-            <div className="flex gap-2 overflow-x-auto">
-              {[
-                { key: 'contacts', label: 'Contacts', icon: Users, count: artifacts.contacts?.length },
-                { key: 'evidence', label: 'Evidence', icon: Lightbulb, count: artifacts.evidence_pack?.why_me_bullets?.length },
-                { key: 'drafts', label: 'Drafts', icon: FileText, count: artifacts.drafts ? Object.keys(artifacts.drafts).length : 0 },
-                { key: 'followups', label: 'Follow-ups', icon: Calendar, count: artifacts.followups?.length },
-              ].map(({ key, label, icon: Icon, count }) => (
+            <div className="flex items-center gap-3">
+              {phase === 'idle' && (
                 <button
-                  key={key}
-                  onClick={() => setActivePanel(key)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
-                    activePanel === key
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-300'
-                  }`}
+                  onClick={() => handleRun('full')}
+                  disabled={running}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50"
                 >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                  {count > 0 && (
-                    <span className={`px-1.5 py-0.5 text-xs rounded-full ${
-                      activePanel === key
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600'
-                    }`}>
-                      {count}
-                    </span>
+                  {running ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Play className="w-4 h-4" />
                   )}
+                  Start Campaign
                 </button>
-              ))}
+              )}
+              
+              {phase === 'waiting_user' && !artifacts.drafts && (
+                <button
+                  onClick={handleConfirmContacts}
+                  disabled={running || Object.keys(selectedContacts).length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" />
+                  Confirm & Generate Drafts
+                </button>
+              )}
+              
+              {artifacts.drafts && phase !== 'done' && (
+                <button
+                  onClick={() => (gmailStatus?.authorized ? handleCreateGmailDrafts() : setGmailSetupOpen(true))}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:opacity-90"
+                >
+                  <Send className="w-4 h-4" />
+                  {gmailActionLabel}
+                </button>
+              )}
+              
+              {phase === 'done' && (
+                <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium">
+                  <CheckCircle className="w-4 h-4" />
+                  Campaign Complete
+                </span>
+              )}
             </div>
-            
-            {/* Active Panel Content */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-              {activePanel === 'contacts' && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Discovered Contacts</h3>
-                    {artifacts.contacts?.length > 0 && (
-                      <p className="text-sm text-gray-500">
-                        Select contacts for outreach (recruiter, hiring manager, warm intro)
-                      </p>
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-6xl mx-auto space-y-6">
+              {/* Step Map */}
+              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Workflow Progress</h3>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  {stepConfig.map(({ step, name, icon }) => (
+                    <StepCard
+                      key={step}
+                      step={step}
+                      name={name}
+                      icon={icon}
+                      status={steps[step]?.status}
+                      isActive={steps[step]?.status === 'running'}
+                      trace={trace}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              {/* Panel tabs */}
+              <div className="flex gap-2 overflow-x-auto">
+                {[
+                  { key: 'contacts', label: 'Contacts', icon: Users, count: artifacts.contacts?.length },
+                  { key: 'evidence', label: 'Evidence', icon: Lightbulb, count: artifacts.evidence_pack?.why_me_bullets?.length },
+                  { key: 'drafts', label: 'Drafts', icon: FileText, count: artifacts.drafts ? Object.keys(artifacts.drafts).length : 0 },
+                  { key: 'followups', label: 'Follow-ups', icon: Calendar, count: artifacts.followups?.length },
+                ].map(({ key, label, icon: Icon, count }) => (
+                  <button
+                    key={key}
+                    onClick={() => setActivePanel(key)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
+                      activePanel === key
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-300'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                    {count > 0 && (
+                      <span className={`px-1.5 py-0.5 text-xs rounded-full ${
+                        activePanel === key
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600'
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Active Panel Content */}
+              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+                {activePanel === 'contacts' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">Discovered Contacts</h3>
+                      {artifacts.contacts?.length > 0 && (
+                        <p className="text-sm text-gray-500">
+                          Select contacts for outreach (recruiter, hiring manager, warm intro)
+                        </p>
+                      )}
+                    </div>
+                    
+                    {artifacts.contacts?.length > 0 ? (
+                      <div className="space-y-4">
+                        {/* Role selection hints */}
+                        <div className="flex gap-4 flex-wrap">
+                          {['recruiter', 'hiring_manager', 'warm_intro'].map((role) => (
+                            <div key={role} className="flex items-center gap-2">
+                              <span className={`w-3 h-3 rounded-full ${
+                                selectedContacts[role] ? 'bg-blue-500' : 'bg-gray-300'
+                              }`} />
+                              <span className="text-sm capitalize text-gray-600">
+                                {role.replace('_', ' ')}: {selectedContacts[role]?.name || 'Not selected'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {artifacts.contacts.map((contact, i) => {
+                            const isSelectedAs = Object.entries(selectedContacts).find(
+                              ([_, c]) => c?.name === contact.name
+                            );
+                            return (
+                              <div key={i} className="space-y-2">
+                                <ContactCard
+                                  contact={contact}
+                                  selected={!!isSelectedAs}
+                                  role={isSelectedAs?.[0]}
+                                  onSelect={(c) => {
+                                    // Cycle through roles or deselect
+                                    const roles = ['recruiter', 'hiring_manager', 'warm_intro'];
+                                    const currentRole = isSelectedAs?.[0];
+                                    const currentIndex = roles.indexOf(currentRole);
+                                    const nextRole = currentIndex === -1 ? roles[0] : 
+                                      currentIndex === roles.length - 1 ? null : roles[currentIndex + 1];
+                                    
+                                    if (nextRole) {
+                                      handleSelectContact(c, nextRole);
+                                    } else if (currentRole) {
+                                      handleSelectContact(c, currentRole); // Deselect
+                                    }
+                                  }}
+                                />
+                                {isSelectedAs && (
+                                  <p className="text-xs text-center text-blue-600 font-medium capitalize">
+                                    Selected as: {isSelectedAs[0].replace('_', ' ')}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Users className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
+                        <p className="text-gray-500">No contacts discovered yet</p>
+                        <p className="text-sm text-gray-400 mt-1">Start the campaign to research contacts</p>
+                      </div>
                     )}
                   </div>
-                  
-                  {artifacts.contacts?.length > 0 ? (
-                    <div className="space-y-4">
-                      {/* Role selection hints */}
-                      <div className="flex gap-4 flex-wrap">
-                        {['recruiter', 'hiring_manager', 'warm_intro'].map((role) => (
-                          <div key={role} className="flex items-center gap-2">
-                            <span className={`w-3 h-3 rounded-full ${
-                              selectedContacts[role] ? 'bg-blue-500' : 'bg-gray-300'
-                            }`} />
-                            <span className="text-sm capitalize text-gray-600">
-                              {role.replace('_', ' ')}: {selectedContacts[role]?.name || 'Not selected'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {artifacts.contacts.map((contact, i) => {
-                          const isSelectedAs = Object.entries(selectedContacts).find(
-                            ([_, c]) => c?.name === contact.name
-                          );
-                          return (
-                            <div key={i} className="space-y-2">
-                              <ContactCard
-                                contact={contact}
-                                selected={!!isSelectedAs}
-                                role={isSelectedAs?.[0]}
-                                onSelect={(c) => {
-                                  // Cycle through roles or deselect
-                                  const roles = ['recruiter', 'hiring_manager', 'warm_intro'];
-                                  const currentRole = isSelectedAs?.[0];
-                                  const currentIndex = roles.indexOf(currentRole);
-                                  const nextRole = currentIndex === -1 ? roles[0] : 
-                                    currentIndex === roles.length - 1 ? null : roles[currentIndex + 1];
-                                  
-                                  if (nextRole) {
-                                    handleSelectContact(c, nextRole);
-                                  } else if (currentRole) {
-                                    handleSelectContact(c, currentRole); // Deselect
-                                  }
-                                }}
-                              />
-                              {isSelectedAs && (
-                                <p className="text-xs text-center text-blue-600 font-medium capitalize">
-                                  Selected as: {isSelectedAs[0].replace('_', ' ')}
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <Users className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-700 mb-4" />
-                      <p className="text-gray-500">No contacts discovered yet</p>
-                      <p className="text-sm text-gray-400 mt-1">Start the campaign to research contacts</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
               
               {activePanel === 'evidence' && (
                 <div className="space-y-6">
@@ -879,6 +930,16 @@ const Campaign = () => {
         </div>
       </div>
     </div>
+
+    <GmailSetup
+      open={isGmailSetupOpen}
+      onClose={() => setGmailSetupOpen(false)}
+      onConnected={refreshGmailStatus}
+      gmailStatus={gmailStatus}
+      onConnect={handleConnectGmail}
+      onDisconnect={handleDisconnectGmail}
+    />
+  </>
   );
 };
 
