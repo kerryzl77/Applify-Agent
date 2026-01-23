@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import DiscoverJobs from './pages/DiscoverJobs';
+import Campaign from './pages/Campaign';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -116,6 +117,14 @@ function App() {
           element={
             <ProtectedRoute>
               <DiscoverJobs />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/campaigns/:campaignId"
+          element={
+            <ProtectedRoute>
+              <Campaign />
             </ProtectedRoute>
           }
         />

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -17,6 +18,7 @@ import { jobsAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const JobDetailDrawer = ({ jobId, isOpen, onClose, onJobUpdate }) => {
+  const navigate = useNavigate();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -65,6 +67,12 @@ const JobDetailDrawer = ({ jobId, isOpen, onClose, onJobUpdate }) => {
       const updatedJob = { ...job, saved_status: 'campaign_started' };
       setJob(updatedJob);
       onJobUpdate?.(updatedJob);
+      
+      // Navigate to campaign page
+      if (response.campaign_id) {
+        onClose();
+        navigate(`/campaigns/${response.campaign_id}`);
+      }
     } catch (error) {
       toast.error(error.message || 'Failed to start campaign');
     } finally {

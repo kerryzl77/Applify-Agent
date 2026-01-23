@@ -457,6 +457,112 @@ export const jobsAPI = {
   },
 };
 
+// Campaign Agent API
+export const campaignAPI = {
+  // Get campaign view model
+  get: async (campaignId) => {
+    const response = await api.get(`/api/agent/campaigns/${campaignId}`);
+    return response.data;
+  },
+
+  // Start campaign workflow
+  run: async (campaignId, { mode = 'full' } = {}) => {
+    const response = await api.post(`/api/agent/campaigns/${campaignId}/run`, { mode });
+    return response.data;
+  },
+
+  // Add feedback
+  feedback: async (campaignId, { scope = 'global', text, must = false }) => {
+    const response = await api.post(`/api/agent/campaigns/${campaignId}/feedback`, {
+      scope,
+      text,
+      must,
+    });
+    return response.data;
+  },
+
+  // Confirm selections and optionally create Gmail drafts
+  confirm: async (campaignId, { selected_contacts, create_gmail_drafts = false, schedule_followups = true }) => {
+    const response = await api.post(`/api/agent/campaigns/${campaignId}/confirm`, {
+      selected_contacts,
+      create_gmail_drafts,
+      schedule_followups,
+    });
+    return response.data;
+  },
+
+  // SSE stream for campaign events (similar pattern to jobs refresh)
+  streamEvents: (campaignId) => {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const baseUrl = window.location.origin;
+    const url = `${baseUrl}/api/agent/campaigns/${campaignId}/events`;
+
+    return {
+      subscribe: (onMessage, onError, onComplete) => {
+        let isClosed = false;
+
+        const fetchStream = async () => {
+          try {
+            console.log('Campaign SSE connecting to:', url);
+            const response = await fetch(url, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'text/event-stream',
+              },
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (!isClosed) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const data = JSON.parse(line.slice(6));
+                    onMessage(data);
+
+                    if (data.type === 'workflow_complete' || data.type === 'error' || data.type === 'timeout') {
+                      onComplete?.(data);
+                      isClosed = true;
+                      return;
+                    }
+                  } catch (e) {
+                    // Ignore parse errors
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            if (!isClosed) {
+              onError?.(error);
+            }
+          }
+        };
+
+        fetchStream();
+
+        return {
+          close: () => {
+            isClosed = true;
+          },
+        };
+      },
+    };
+  },
+};
+
 // Health check endpoint
 export const healthCheck = async () => {
   const response = await api.get('/health');

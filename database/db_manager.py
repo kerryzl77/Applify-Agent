@@ -866,3 +866,249 @@ class DatabaseManager:
         finally:
             if conn:
                 self._return_connection(conn)
+
+    def get_job_campaign_with_job(self, campaign_id, user_id=None):
+        """Get a job campaign with associated job post data."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                query = """
+                    SELECT jc.id, jc.user_id, jc.job_post_id, jc.state, jc.created_at, jc.updated_at,
+                           jp.title, jp.company_name, jp.location, jp.team, jp.employment_type, jp.url, jp.ats_type
+                    FROM job_campaigns jc
+                    JOIN job_posts jp ON jc.job_post_id = jp.id
+                    WHERE jc.id = %s
+                """
+                params = [campaign_id]
+                if user_id:
+                    query += " AND jc.user_id = %s"
+                    params.append(user_id)
+                cur.execute(query, params)
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {
+                    'id': row[0],
+                    'user_id': row[1],
+                    'job_post_id': row[2],
+                    'state': row[3] or {},
+                    'created_at': row[4].isoformat() if row[4] else None,
+                    'updated_at': row[5].isoformat() if row[5] else None,
+                    'job': {
+                        'title': row[6],
+                        'company_name': row[7],
+                        'location': row[8],
+                        'team': row[9],
+                        'employment_type': row[10],
+                        'url': row[11],
+                        'ats_type': row[12],
+                    }
+                }
+        except Exception as e:
+            logger.error(f"Error getting job campaign with job: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def update_job_campaign_state(self, campaign_id, user_id, patch, merge=True):
+        """Update campaign state with optional merge. Uses row-level locking for safety."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                # Lock the row for update
+                cur.execute(
+                    "SELECT state FROM job_campaigns WHERE id = %s AND user_id = %s FOR UPDATE",
+                    (campaign_id, user_id)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return False
+                
+                current_state = row[0] or {}
+                
+                if merge:
+                    # Deep merge patch into current state
+                    new_state = self._deep_merge(current_state, patch)
+                else:
+                    new_state = patch
+                
+                cur.execute(
+                    "UPDATE job_campaigns SET state = %s, updated_at = NOW() WHERE id = %s AND user_id = %s",
+                    (Json(new_state), campaign_id, user_id)
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error updating job campaign state: {str(e)}")
+            return False
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def _deep_merge(self, base, patch):
+        """Deep merge patch dict into base dict."""
+        result = base.copy()
+        for key, value in patch.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._deep_merge(result[key], value)
+            else:
+                result[key] = value
+        return result
+
+    def append_job_campaign_trace(self, campaign_id, user_id, event):
+        """Append an event to the campaign trace array. Thread-safe via row lock."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                # Lock and get current state
+                cur.execute(
+                    "SELECT state FROM job_campaigns WHERE id = %s AND user_id = %s FOR UPDATE",
+                    (campaign_id, user_id)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return False
+                
+                current_state = row[0] or {}
+                trace = current_state.get('trace', [])
+                trace.append(event)
+                current_state['trace'] = trace
+                
+                cur.execute(
+                    "UPDATE job_campaigns SET state = %s, updated_at = NOW() WHERE id = %s AND user_id = %s",
+                    (Json(current_state), campaign_id, user_id)
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error appending campaign trace: {str(e)}")
+            return False
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def set_job_campaign_selected_contacts(self, campaign_id, user_id, selected_contacts):
+        """Set selected contacts for a campaign."""
+        return self.update_job_campaign_state(
+            campaign_id, user_id,
+            {'selected_contacts': selected_contacts}
+        )
+
+    def add_job_campaign_feedback(self, campaign_id, user_id, scope, text, must=False):
+        """Add feedback to a campaign. Feedback is stored with timestamp for ordering."""
+        import datetime
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT state FROM job_campaigns WHERE id = %s AND user_id = %s FOR UPDATE",
+                    (campaign_id, user_id)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return False
+                
+                current_state = row[0] or {}
+                feedback = current_state.get('feedback', {'global': [], 'draft_specific': {}})
+                
+                feedback_entry = {
+                    'text': text,
+                    'must': must,
+                    'timestamp': datetime.datetime.utcnow().isoformat()
+                }
+                
+                if scope == 'global':
+                    if 'global' not in feedback:
+                        feedback['global'] = []
+                    feedback['global'].append(feedback_entry)
+                else:
+                    if 'draft_specific' not in feedback:
+                        feedback['draft_specific'] = {}
+                    if scope not in feedback['draft_specific']:
+                        feedback['draft_specific'][scope] = []
+                    feedback['draft_specific'][scope].append(feedback_entry)
+                
+                current_state['feedback'] = feedback
+                
+                cur.execute(
+                    "UPDATE job_campaigns SET state = %s, updated_at = NOW() WHERE id = %s AND user_id = %s",
+                    (Json(current_state), campaign_id, user_id)
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error adding campaign feedback: {str(e)}")
+            return False
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_job_post_with_jd(self, job_post_id):
+        """Get job post with raw JD data if available."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, source_type, company_name, ats_type, title, location, team,
+                           employment_type, url, raw_json
+                    FROM job_posts WHERE id = %s
+                """, (job_post_id,))
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {
+                    'id': row[0],
+                    'source_type': row[1],
+                    'company_name': row[2],
+                    'ats_type': row[3],
+                    'title': row[4],
+                    'location': row[5],
+                    'team': row[6],
+                    'employment_type': row[7],
+                    'url': row[8],
+                    'raw_json': row[9] or {}
+                }
+        except Exception as e:
+            logger.error(f"Error getting job post with JD: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_campaign_trace_from_index(self, campaign_id, user_id, from_index=0):
+        """Get trace events starting from a specific index (for SSE streaming)."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT state FROM job_campaigns WHERE id = %s AND user_id = %s",
+                    (campaign_id, user_id)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None, None
+                
+                state = row[0] or {}
+                trace = state.get('trace', [])
+                phase = state.get('phase', 'idle')
+                
+                return trace[from_index:], phase
+        except Exception as e:
+            logger.error(f"Error getting campaign trace: {str(e)}")
+            return None, None
+        finally:
+            if conn:
+                self._return_connection(conn)
