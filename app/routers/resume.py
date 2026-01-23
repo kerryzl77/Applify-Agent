@@ -273,6 +273,12 @@ async def refine_resume(
             job_description = f"{job_description_text}\n\n{requirements_text}"
         else:
             job_description = job_description_text or requirements_text
+        
+        if not job_description:
+            raise HTTPException(
+                status_code=400,
+                detail="Unable to extract job description from URL. Please paste it manually.",
+            )
     
     # Generate unique task ID
     task_id = str(uuid.uuid4())

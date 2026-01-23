@@ -17,7 +17,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import useStore from "../store/useStore";
 import api, { gmailAPI } from "../services/api";
-import { copyToClipboard, downloadFile } from "../utils/helpers";
+import { copyToClipboard, downloadBlob, downloadFile } from "../utils/helpers";
 import toast from "react-hot-toast";
 import GmailSetup from "./GmailSetup";
 
@@ -57,6 +57,7 @@ const ContentGenerator = () => {
     (c) => c.id === currentConversationId,
   );
   const conversationType = currentConversation?.type;
+  const isResumeConversation = conversationType === "resume";
   const isEmailWorkflow = ["connection_email", "hiring_manager_email"].includes(
     conversationType,
   );
@@ -152,10 +153,23 @@ const ContentGenerator = () => {
     }
   };
 
-  const handleDownload = (type, format = "docx") => {
-    if (fileInfo) {
-      window.open(`/api/content/download/${fileInfo.filename}`, "_blank");
+  const downloadWithAuth = async (endpoint, filename) => {
+    try {
+      const response = await api.get(endpoint, { responseType: "blob" });
+      downloadBlob(response.data, filename);
       toast.success("Download started!");
+    } catch (error) {
+      toast.error(error?.message || "Download failed");
+    }
+  };
+
+  const handleDownload = async (type, format = "docx") => {
+    if (fileInfo?.filename) {
+      const encodedFilename = encodeURIComponent(fileInfo.filename);
+      const endpoint = isResumeConversation
+        ? `/api/resume/download/${encodedFilename}`
+        : `/api/content/download/${encodedFilename}`;
+      await downloadWithAuth(endpoint, fileInfo.filename);
     } else if (generatedContent) {
       const filename = `${type}_${Date.now()}.${format}`;
       const mimeType = format === "pdf" ? "application/pdf" : "text/plain";
@@ -165,22 +179,31 @@ const ContentGenerator = () => {
   };
 
   const handleDownloadPDF = async () => {
-    if (fileInfo && fileInfo.filename.endsWith(".docx")) {
-      // Try to convert to PDF via backend
-      try {
-        const pdfFilename = fileInfo.filename.replace(".docx", ".pdf");
-        window.open(`/api/content/convert-to-pdf/${fileInfo.filename}`, "_blank");
-        toast.success("Converting to PDF...");
-      } catch (error) {
-        toast.error("PDF conversion failed. Download DOCX instead.");
-      }
-    } else if (fileInfo && fileInfo.filename.endsWith(".pdf")) {
-      // Already a PDF
-      window.open(`/api/content/download/${fileInfo.filename}`, "_blank");
-      toast.success("Download started!");
-    } else {
+    if (!fileInfo?.filename) {
       toast.error("No file available for PDF download");
+      return;
     }
+
+    const encodedFilename = encodeURIComponent(fileInfo.filename);
+
+    if (fileInfo.filename.endsWith(".docx")) {
+      const pdfFilename = fileInfo.filename.replace(".docx", ".pdf");
+      await downloadWithAuth(
+        `/api/content/convert-to-pdf/${encodedFilename}`,
+        pdfFilename,
+      );
+      return;
+    }
+
+    if (fileInfo.filename.endsWith(".pdf")) {
+      const endpoint = isResumeConversation
+        ? `/api/resume/download/${encodedFilename}`
+        : `/api/content/download/${encodedFilename}`;
+      await downloadWithAuth(endpoint, fileInfo.filename);
+      return;
+    }
+
+    toast.error("No file available for PDF download");
   };
 
   const validateForm = () => {

@@ -32,16 +32,26 @@ class ResumeParser:
     def extract_text(self, file_path, timeout=120):
         """Extract text from PDF or DOCX files with timeout handling."""
         start_time = time.time()
-        
-        mime = magic.Magic(mime=True)
-        file_type = mime.from_file(file_path)
+        file_type = ""
+        try:
+            mime = magic.Magic(mime=True)
+            file_type = mime.from_file(file_path) or ""
+        except Exception:
+            file_type = ""
+        file_ext = os.path.splitext(file_path)[1].lower()
 
         if time.time() - start_time > timeout:
             raise TimeoutError("Text extraction timed out")
 
-        if file_type == 'application/pdf':
+        is_pdf = "pdf" in file_type.lower() or file_ext == ".pdf"
+        is_docx = (
+            "officedocument.wordprocessingml.document" in file_type.lower()
+            or file_ext == ".docx"
+        )
+
+        if is_pdf:
             return self._extract_text_from_pdf(file_path)
-        elif file_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        elif is_docx:
             return self._extract_text_from_docx(file_path)
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
@@ -51,8 +61,14 @@ class ResumeParser:
         text = ""
         with open(file_path, 'rb') as file:
             pdf_reader = PyPDF2.PdfReader(file)
+            if pdf_reader.is_encrypted:
+                try:
+                    pdf_reader.decrypt("")
+                except Exception as exc:
+                    raise ValueError("Password-protected PDFs are not supported") from exc
             for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
+                page_text = page.extract_text() or ""
+                text += page_text + "\n"
         return text
 
     def _extract_text_from_docx(self, file_path):

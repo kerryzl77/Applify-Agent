@@ -174,6 +174,18 @@ export const downloadFile = (content, filename, mimeType = 'text/plain') => {
   window.URL.revokeObjectURL(url);
 };
 
+export const downloadBlob = (blob, filename) => {
+  if (!blob) return;
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
 // Debounce function
 export const debounce = (func, wait) => {
   let timeout;

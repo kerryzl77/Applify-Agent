@@ -327,6 +327,122 @@ def _fetch_ashby_job_text(url: str, job_title: str | None, company_name: str | N
     }
 
 
+def _is_workday_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return "myworkdayjobs.com" in parsed.netloc.lower()
+
+
+def _extract_workday_parts(url: str) -> tuple[str | None, str | None, str | None]:
+    parsed = urlparse(url)
+    host = parsed.netloc
+    if not host:
+        return None, None, None
+
+    tenant = host.split(".")[0] if "myworkdayjobs.com" in host else None
+    parts = [p for p in parsed.path.split("/") if p]
+    if parts and re.match(r"^[a-z]{2}-[a-z]{2}$", parts[0], re.IGNORECASE):
+        parts = parts[1:]
+
+    if not parts:
+        return tenant, None, None
+
+    site = parts[0] if len(parts) >= 1 else None
+    job_slug = None
+    for marker in ("details", "job", "jobs"):
+        if marker in parts:
+            idx = parts.index(marker)
+            if len(parts) > idx + 1:
+                job_slug = parts[idx + 1]
+                break
+    if not job_slug and len(parts) >= 2:
+        job_slug = parts[-1]
+
+    return tenant, site, job_slug
+
+
+def _normalize_workday_location(value) -> str:
+    if isinstance(value, dict):
+        for key in ("displayName", "descriptor", "name", "location"):
+            candidate = value.get(key)
+            if candidate:
+                return str(candidate).strip()
+        return ""
+    if isinstance(value, list):
+        parts = [p for p in (_normalize_workday_location(v) for v in value) if p]
+        return ", ".join(parts)
+    if isinstance(value, str):
+        return value.strip()
+    return ""
+
+
+def _fetch_workday_job_text(url: str, company_name: str | None) -> dict | None:
+    if not _is_workday_url(url):
+        return None
+
+    parsed = urlparse(url)
+    tenant, site, job_slug = _extract_workday_parts(url)
+    if not tenant or not site or not job_slug:
+        return None
+
+    api_url = f"{parsed.scheme or 'https'}://{parsed.netloc}/wday/cxs/{tenant}/{site}/{job_slug}"
+    try:
+        resp = HTTP_SESSION.get(
+            api_url,
+            headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+            timeout=20,
+        )
+        if resp.status_code != 200:
+            print(f"Workday API error {resp.status_code} for {api_url}")
+            return None
+        data = resp.json()
+    except Exception as exc:
+        print(f"Workday API fetch failed: {exc}")
+        return None
+
+    posting = data.get("jobPostingInfo") or data.get("jobPosting") or data.get("job_posting") or {}
+    if isinstance(posting, list):
+        posting = posting[0] if posting else {}
+
+    title = (posting.get("jobTitle") or posting.get("title") or data.get("jobTitle") or data.get("title") or "").strip()
+    location = _normalize_workday_location(
+        posting.get("location")
+        or posting.get("jobLocation")
+        or posting.get("primaryLocation")
+        or data.get("location")
+    )
+
+    desc_html = (
+        posting.get("jobDescription")
+        or posting.get("jobDescriptionHtml")
+        or posting.get("description")
+        or data.get("jobDescription")
+        or data.get("description")
+    )
+    req_html = (
+        posting.get("jobQualifications")
+        or posting.get("jobRequirements")
+        or posting.get("requirements")
+        or data.get("requirements")
+    )
+
+    description_text = _extract_text_from_html_fragment(desc_html) if desc_html else ""
+    requirements_text = _extract_text_from_html_fragment(req_html) if req_html else ""
+    text_content = "\n\n".join(
+        [p for p in [title, location, description_text, requirements_text] if p]
+    ).strip()
+
+    if not text_content:
+        return None
+
+    return {
+        "text": text_content,
+        "job_title": title or None,
+        "location": location or None,
+        "company_name": company_name or tenant or None,
+        "source": "workday_api",
+    }
+
+
 def _build_job_search_query(url: str, job_title: str | None, company_name: str | None) -> str:
     parts = []
     if company_name:
@@ -383,8 +499,10 @@ class DataRetriever:
         try:
             text_content = ""
 
-            ats_result = _fetch_greenhouse_job_text(url, company_name) or _fetch_ashby_job_text(
-                url, job_title, company_name
+            ats_result = (
+                _fetch_greenhouse_job_text(url, company_name)
+                or _fetch_ashby_job_text(url, job_title, company_name)
+                or _fetch_workday_job_text(url, company_name)
             )
             if ats_result:
                 text_content = ats_result.get("text", "")

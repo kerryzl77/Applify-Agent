@@ -18,6 +18,7 @@ class URLValidator:
             'greenhouse.io': {'type': 'ats', 'pattern': r'/jobs/'},
             'lever.co': {'type': 'ats', 'pattern': r'/jobs/'},
             'workday.com': {'type': 'ats', 'pattern': r'/job/'},
+            'myworkdayjobs.com': {'type': 'ats', 'pattern': r'/details/|/job/'},
             'jobvite.com': {'type': 'ats', 'pattern': r'/job/'},
             'smartrecruiters.com': {'type': 'ats', 'pattern': r'/jobs/'},
             'bamboohr.com': {'type': 'ats', 'pattern': r'/jobs/view/'},

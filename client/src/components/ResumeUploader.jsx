@@ -16,10 +16,8 @@ const ResumeUploader = ({ onUploadComplete }) => {
 
   const allowedTypes = [
     'application/pdf',
-    'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     '.pdf',
-    '.doc',
     '.docx',
   ];
 
@@ -44,7 +42,7 @@ const ResumeUploader = ({ onUploadComplete }) => {
     });
 
     if (!isValidType) {
-      toast.error('Please upload a PDF or Word document');
+      toast.error('Please upload a PDF or DOCX document');
       return false;
     }
 
@@ -269,7 +267,7 @@ const ResumeUploader = ({ onUploadComplete }) => {
                 Drag and drop or click to browse
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500">
-                Supports PDF, DOC, DOCX (Max 10MB)
+                Supports PDF, DOCX (Max 10MB)
               </p>
             </label>
           </motion.div>
