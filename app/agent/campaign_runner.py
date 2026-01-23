@@ -64,6 +64,9 @@ class CampaignRunner:
         try:
             # Initialize state if needed
             self._ensure_state_initialized(campaign_id, user_id)
+
+            # Clear trace for a fresh run to avoid stale SSE history
+            self.db.update_job_campaign_state(campaign_id, user_id, {'trace': []})
             
             # Get campaign and job data
             campaign = self.db.get_job_campaign_with_job(campaign_id, user_id)

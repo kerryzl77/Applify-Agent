@@ -381,6 +381,8 @@ const Campaign = () => {
   // Start workflow
   const handleRun = async (mode = 'full') => {
     setRunning(true);
+    setTrace([]);
+    traceIndexRef.current = 0;
     
     try {
       await campaignAPI.run(campaignId, { mode });

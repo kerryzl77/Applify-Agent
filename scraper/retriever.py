@@ -46,15 +46,8 @@ HTTP_SESSION.mount("http://", HTTP_ADAPTER)
 
 def _fetch_html(url: str, timeout: int = 20) -> str:
     try:
-        resp = HTTP_SESSION.get(
-            url,
-            headers=DEFAULT_HEADERS,
-            timeout=timeout,
-            allow_redirects=True,
-        )
-        html = resp.text or ""
-        if html:
-            return html
+        resp = HTTP_SESSION.get(url, headers=DEFAULT_HEADERS, timeout=timeout, allow_redirects=True)
+        return resp.text or ""
     except Exception as exc:
         print(f"Error fetching HTML for {url}: {exc}")
     return ""
@@ -89,13 +82,16 @@ def fetch_clean_text(url: str, timeout: int = 20) -> str:
         return ""
 
 
-def _parse_greenhouse_from_url(url: str) -> tuple[str | None, str | None]:
+def _is_greenhouse_url(url: str) -> bool:
     parsed = urlparse(url)
     params = parse_qs(parsed.query or "")
-    job_id = params.get("gh_jid", [None])[0]
-    if params.get("token"):
-        job_id = job_id or params.get("token", [None])[0]
+    return "greenhouse.io" in parsed.netloc.lower() or "gh_jid" in params
 
+
+def _extract_greenhouse_ids_from_url(url: str) -> tuple[str | None, str | None]:
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query or "")
+    job_id = params.get("gh_jid", [None])[0] or params.get("token", [None])[0]
     board_token = params.get("for", [None])[0]
 
     host = parsed.netloc.lower()
@@ -109,70 +105,64 @@ def _parse_greenhouse_from_url(url: str) -> tuple[str | None, str | None]:
     return board_token, job_id
 
 
-def _parse_greenhouse_from_html(html: str) -> tuple[str | None, str | None]:
+def _extract_greenhouse_ids_from_html(html: str) -> tuple[str | None, str | None]:
     patterns = [
         r"https?://boards\.greenhouse\.io/([^/\"'?#]+)/jobs/(\d+)",
         r"https?://job-boards\.greenhouse\.io/([^/\"'?#]+)/jobs/(\d+)",
+        r"https?://boards\.greenhouse\.io/embed/job_app\?for=([^&\"']+)&token=(\d+)",
         r"https?://job-boards\.greenhouse\.io/embed/job_app\?for=([^&\"']+)&token=(\d+)",
     ]
     for pat in patterns:
         match = re.search(pat, html, re.IGNORECASE)
         if match:
             return match.group(1), match.group(2)
-
-    # If we only find the board token (no job id), still return token.
-    board_match = re.search(
-        r"https?://(?:boards|job-boards)\.greenhouse\.io/([^/\"'?#]+)",
-        html,
-        re.IGNORECASE,
-    )
-    if board_match:
-        return board_match.group(1), None
-
     return None, None
 
 
-def _find_greenhouse_token_via_search(job_id: str) -> str | None:
+def _find_greenhouse_board_token(url: str, job_id: str | None, company_name: str | None) -> str | None:
     if not os.getenv("OPENAI_API_KEY"):
         return None
 
-    results = openai_web_search(
-        f"{job_id} site:boards.greenhouse.io OR site:job-boards.greenhouse.io",
-        num_results=5,
-    )
+    host_hint = urlparse(url).netloc.replace("www.", "").strip()
+    company_hint = (company_name or "").strip()
+    if not company_hint and host_hint:
+        company_hint = host_hint.split(".")[0].replace("-", " ")
+
+    query_parts = [p for p in [company_hint, job_id] if p]
+    if not query_parts:
+        return None
+    query = " ".join(query_parts) + " site:boards.greenhouse.io OR site:job-boards.greenhouse.io"
+
+    results = openai_web_search(query, num_results=5)
     for r in results:
-        url = r.get("url", "")
-        token, found_id = _parse_greenhouse_from_url(url)
-        if token and (not found_id or found_id == job_id):
+        token, found_id = _extract_greenhouse_ids_from_url(r.get("url", ""))
+        if token and (not job_id or not found_id or found_id == job_id):
             return token
     return None
 
 
-def _fetch_greenhouse_job_text(url: str) -> dict | None:
-    parsed = urlparse(url)
-    params = parse_qs(parsed.query or "")
-    host = parsed.netloc.lower()
-    if "greenhouse.io" not in host and "gh_jid" not in params:
+def _fetch_greenhouse_job_text(url: str, company_name: str | None) -> dict | None:
+    if not _is_greenhouse_url(url):
         return None
 
-    board_token, job_id = _parse_greenhouse_from_url(url)
+    board_token, job_id = _extract_greenhouse_ids_from_url(url)
 
     if not board_token or not job_id:
         html = _fetch_html(url)
         if html:
-            html_token, html_job_id = _parse_greenhouse_from_html(html)
+            html_token, html_job_id = _extract_greenhouse_ids_from_html(html)
             board_token = board_token or html_token
             job_id = job_id or html_job_id
 
     if job_id and not board_token:
-        board_token = _find_greenhouse_token_via_search(job_id)
+        board_token = _find_greenhouse_board_token(url, job_id, company_name)
 
     if not board_token or not job_id:
         return None
 
     api_url = f"https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs/{job_id}"
     try:
-        resp = HTTP_SESSION.get(api_url, headers=DEFAULT_HEADERS, timeout=20)
+        resp = HTTP_SESSION.get(api_url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"}, timeout=20)
         if resp.status_code != 200:
             print(f"Greenhouse API error {resp.status_code} for {api_url}")
             return None
@@ -182,8 +172,8 @@ def _fetch_greenhouse_job_text(url: str) -> dict | None:
         return None
 
     title = (data.get("title") or "").strip()
-    location = ""
     loc = data.get("location")
+    location = ""
     if isinstance(loc, dict):
         location = (loc.get("name") or "").strip()
     elif isinstance(loc, str):
@@ -191,9 +181,7 @@ def _fetch_greenhouse_job_text(url: str) -> dict | None:
 
     content_html = data.get("content") or ""
     content_text = _extract_text_from_html_fragment(content_html)
-
-    parts = [p for p in [title, location, content_text] if p]
-    text_content = "\n\n".join(parts).strip()
+    text_content = "\n\n".join([p for p in [title, location, content_text] if p]).strip()
 
     if not text_content:
         return None
@@ -202,28 +190,57 @@ def _fetch_greenhouse_job_text(url: str) -> dict | None:
         "text": text_content,
         "job_title": title or None,
         "location": location or None,
-        "company_name": None,
+        "company_name": company_name or None,
         "source": "greenhouse_api",
     }
 
 
-def _parse_ashby_from_url(url: str) -> tuple[str | None, str | None]:
+def _is_ashby_url(url: str) -> bool:
     parsed = urlparse(url)
-    host = parsed.netloc.lower()
-    if "ashbyhq.com" not in host:
-        return None, None
+    params = parse_qs(parsed.query or "")
+    return "ashbyhq.com" in parsed.netloc.lower() or "ashby_jid" in params or "ashby_job_id" in params
 
-    parts = [p for p in parsed.path.split("/") if p]
-    if not parts:
-        return None, None
-    board = parts[0]
-    job_slug = parts[1] if len(parts) > 1 else None
+
+def _extract_ashby_ids_from_url(url: str) -> tuple[str | None, str | None]:
+    parsed = urlparse(url)
+    board = None
+    job_slug = None
+
+    if "ashbyhq.com" in parsed.netloc.lower():
+        parts = [p for p in parsed.path.split("/") if p]
+        board = parts[0] if parts else None
+        job_slug = parts[1] if len(parts) > 1 else None
 
     params = parse_qs(parsed.query or "")
     job_slug = params.get("ashby_job_id", [job_slug])[0]
     job_slug = params.get("ashby_jid", [job_slug])[0]
 
     return board, job_slug
+
+
+def _find_ashby_board(url: str, company_name: str | None) -> str | None:
+    if not os.getenv("OPENAI_API_KEY"):
+        return None
+
+    host_hint = urlparse(url).netloc.replace("www.", "").strip()
+    company_hint = (company_name or "").strip()
+    if not company_hint and host_hint:
+        company_hint = host_hint.split(".")[0].replace("-", " ")
+
+    if not company_hint:
+        return None
+
+    results = openai_web_search(
+        f"{company_hint} site:jobs.ashbyhq.com",
+        num_results=5,
+    )
+    for r in results:
+        parsed = urlparse(r.get("url", ""))
+        if "ashbyhq.com" in parsed.netloc.lower():
+            parts = [p for p in parsed.path.split("/") if p]
+            if parts:
+                return parts[0]
+    return None
 
 
 def _match_ashby_job(jobs: list, job_slug: str | None, url: str, job_title: str | None) -> dict | None:
@@ -252,14 +269,20 @@ def _match_ashby_job(jobs: list, job_slug: str | None, url: str, job_title: str 
     return None
 
 
-def _fetch_ashby_job_text(url: str, job_title: str | None) -> dict | None:
-    board, job_slug = _parse_ashby_from_url(url)
+def _fetch_ashby_job_text(url: str, job_title: str | None, company_name: str | None) -> dict | None:
+    if not _is_ashby_url(url):
+        return None
+
+    board, job_slug = _extract_ashby_ids_from_url(url)
+    if not board:
+        board = _find_ashby_board(url, company_name)
+
     if not board:
         return None
 
     api_url = f"https://api.ashbyhq.com/posting-api/job-board/{board}"
     try:
-        resp = HTTP_SESSION.get(api_url, headers=DEFAULT_HEADERS, timeout=20)
+        resp = HTTP_SESSION.get(api_url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"}, timeout=20)
         if resp.status_code != 200:
             print(f"Ashby API error {resp.status_code} for {api_url}")
             return None
@@ -277,8 +300,8 @@ def _fetch_ashby_job_text(url: str, job_title: str | None) -> dict | None:
         return None
 
     title = (job.get("title") or "").strip()
-    location = ""
     loc = job.get("location")
+    location = ""
     if isinstance(loc, dict):
         location = (loc.get("name") or "").strip()
     elif isinstance(loc, list):
@@ -286,25 +309,20 @@ def _fetch_ashby_job_text(url: str, job_title: str | None) -> dict | None:
     elif isinstance(loc, str):
         location = loc.strip()
 
-    content_text = ""
-    plain = (job.get("descriptionPlainText") or "").strip()
-    if plain:
-        content_text = plain
-    else:
+    content_text = (job.get("descriptionPlainText") or "").strip()
+    if not content_text:
         html = job.get("descriptionHtml") or job.get("content") or ""
         content_text = _extract_text_from_html_fragment(html)
 
-    parts = [p for p in [title, location, content_text] if p]
-    text_content = "\n\n".join(parts).strip()
+    text_content = "\n\n".join([p for p in [title, location, content_text] if p]).strip()
     if not text_content:
         return None
 
-    company_name = (data.get("companyName") or data.get("jobBoardName") or "").strip()
     return {
         "text": text_content,
         "job_title": title or None,
         "location": location or None,
-        "company_name": company_name or None,
+        "company_name": (data.get("companyName") or data.get("jobBoardName") or company_name or None),
         "source": "ashby_api",
     }
 
@@ -365,7 +383,9 @@ class DataRetriever:
         try:
             text_content = ""
 
-            ats_result = _fetch_greenhouse_job_text(url) or _fetch_ashby_job_text(url, job_title)
+            ats_result = _fetch_greenhouse_job_text(url, company_name) or _fetch_ashby_job_text(
+                url, job_title, company_name
+            )
             if ats_result:
                 text_content = ats_result.get("text", "")
                 if not job_title and ats_result.get("job_title"):
@@ -375,6 +395,9 @@ class DataRetriever:
 
             if not text_content:
                 text_content = fetch_clean_text(url)
+
+            if text_content and "job description is loading or not available" in text_content.lower():
+                text_content = ""
 
             # Fallback to alternate extraction if content is empty/short
             if not text_content or len(text_content.strip()) < 200:

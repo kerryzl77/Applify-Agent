@@ -125,7 +125,7 @@ async def run_campaign(
 @router.get("/campaigns/{campaign_id}/events")
 async def stream_campaign_events(
     campaign_id: int,
-    from_index: int = 0,
+    from_index: Optional[int] = None,
     current_user: TokenData = Depends(get_current_user),
     db: DatabaseManager = Depends(get_db),
 ):
@@ -137,8 +137,11 @@ async def stream_campaign_events(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Campaign not found"
         )
-    
-    if from_index < 0:
+
+    if from_index is None:
+        trace = (campaign.get('state') or {}).get('trace', [])
+        from_index = len(trace)
+    elif from_index < 0:
         from_index = 0
     
     return StreamingResponse(
