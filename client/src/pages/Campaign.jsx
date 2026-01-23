@@ -255,6 +255,7 @@ const Campaign = () => {
   const navigate = useNavigate();
   const streamRef = useRef(null);
   const traceIndexRef = useRef(0);
+  const fetchIdRef = useRef(0);
   
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -265,8 +266,12 @@ const Campaign = () => {
   
   // Fetch campaign data
   const fetchCampaign = useCallback(async () => {
+    const requestId = ++fetchIdRef.current;
     try {
       const data = await campaignAPI.get(campaignId);
+      if (requestId !== fetchIdRef.current) {
+        return;
+      }
       const serverTrace = data.state?.trace || [];
       setCampaign(data);
       setTrace(serverTrace);
@@ -277,9 +282,13 @@ const Campaign = () => {
         setSelectedContacts(data.state.selected_contacts);
       }
     } catch (error) {
-      toast.error(error.message || 'Failed to load campaign');
+      if (requestId === fetchIdRef.current) {
+        toast.error(error.message || 'Failed to load campaign');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === fetchIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [campaignId]);
   
@@ -300,6 +309,74 @@ const Campaign = () => {
       setRunning(false);
     }
   }, [campaign?.state?.phase]);
+
+  const applyEventToCampaign = useCallback((event) => {
+    if (!event?.type) {
+      return;
+    }
+
+    setCampaign((prev) => {
+      if (!prev) {
+        return prev;
+      }
+
+      const prevState = prev.state || {};
+      const nextState = { ...prevState };
+      const steps = { ...(prevState.steps || {}) };
+      const artifacts = { ...(prevState.artifacts || {}) };
+      let phase = prevState.phase;
+
+      switch (event.type) {
+        case 'workflow_start':
+          phase = 'running';
+          break;
+        case 'step_start':
+          if (event.step) {
+            steps[event.step] = { ...(steps[event.step] || {}), status: 'running' };
+          }
+          phase = phase === 'idle' ? 'running' : phase;
+          break;
+        case 'step_done':
+          if (event.step) {
+            steps[event.step] = { ...(steps[event.step] || {}), status: 'done' };
+            if (event.step === 'drafts') {
+              steps.schedule = { ...(steps.schedule || {}), status: 'done' };
+            }
+          }
+          break;
+        case 'step_error':
+          if (event.step) {
+            steps[event.step] = { ...(steps[event.step] || {}), status: 'error' };
+          }
+          phase = 'error';
+          break;
+        case 'artifact':
+          if (event.artifact_type && event.data !== undefined) {
+            artifacts[event.artifact_type] = event.data;
+          }
+          break;
+        case 'waiting_user':
+          phase = 'waiting_user';
+          break;
+        case 'workflow_complete':
+          phase = phase === 'running' ? 'waiting_user' : phase;
+          break;
+        case 'error':
+          phase = 'error';
+          break;
+        default:
+          break;
+      }
+
+      nextState.steps = steps;
+      nextState.artifacts = artifacts;
+      if (phase) {
+        nextState.phase = phase;
+      }
+
+      return { ...prev, state: nextState };
+    });
+  }, []);
   
   // Start workflow
   const handleRun = async (mode = 'full') => {
@@ -315,7 +392,7 @@ const Campaign = () => {
   };
   
   // Start SSE streaming
-  const startStreaming = () => {
+  const startStreaming = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.close();
     }
@@ -329,26 +406,33 @@ const Campaign = () => {
           traceIndexRef.current += 1;
           setTrace((prev) => [...prev, event]);
         }
-        
-        // Refresh campaign data on artifacts or phase changes
-        if (event.type === 'artifact' || event.type === 'step_done' || event.type === 'waiting_user') {
-          fetchCampaign();
-        }
 
+        applyEventToCampaign(event);
+        if (event.type === 'workflow_start' || event.type === 'step_start') {
+          setRunning(true);
+        }
+        
         // Backend can pause at waiting_user without closing SSE; allow UI actions.
         if (event.type === 'waiting_user') {
+          fetchCampaign();
           setRunning(false);
           streamRef.current?.close?.();
           streamRef.current = null;
+        }
+
+        if (event.type === 'error' || event.type === 'step_error') {
+          fetchCampaign();
         }
       },
       (error) => {
         console.error('Stream error:', error);
         setRunning(false);
+        streamRef.current = null;
       },
       (data) => {
         setRunning(false);
         fetchCampaign();
+        streamRef.current = null;
         
         if (data.type === 'workflow_complete') {
           toast.success('Workflow completed!');
@@ -357,7 +441,15 @@ const Campaign = () => {
         }
       }
     );
-  };
+  }, [applyEventToCampaign, campaignId, fetchCampaign]);
+
+  useEffect(() => {
+    const steps = campaign?.state?.steps || {};
+    const hasRunningStep = Object.values(steps).some((step) => step?.status === 'running');
+    if (hasRunningStep && !streamRef.current) {
+      startStreaming();
+    }
+  }, [campaign?.state?.steps, startStreaming]);
   
   // Handle contact selection
   const handleSelectContact = (contact, role) => {
