@@ -64,15 +64,20 @@ dmypy.json
 *.sqlite
 *.sqlite3
 database/users.db
+database/candidate_data.json
 
 # Generated/Temp files
 output/*
 !output/.gitkeep
 uploads/*
 !uploads/.gitkeep
+*.pdf
 temp/
 *.tmp
 *.temp
+
+# Test files with personal data
+test_*.py
 
 # Security - NEVER commit these
 *.pem
