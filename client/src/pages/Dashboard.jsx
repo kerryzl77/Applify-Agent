@@ -6,7 +6,7 @@ import Sidebar from '../components/Sidebar';
 import ContentGenerator from '../components/ContentGenerator';
 import ProfileModal from '../components/ProfileModal';
 import ResumeUploader from '../components/ResumeUploader';
-import axios from 'axios';
+import { profileAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
@@ -19,9 +19,8 @@ const Dashboard = () => {
   useEffect(() => {
     const loadProfileData = async () => {
       try {
-        const response = await axios.get('/api/content/candidate-data');
-
-        const profileData = response.data;
+        // Use authenticated profileAPI instead of raw axios
+        const profileData = await profileAPI.get();
         
         // Store profile data in Zustand
         setProfile(profileData);

@@ -12,15 +12,14 @@ import {
   Briefcase,
   Mail,
   Settings,
+  Upload,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import useStore from "../store/useStore";
-import { gmailAPI } from "../services/api";
+import api, { gmailAPI } from "../services/api";
 import { copyToClipboard, downloadFile } from "../utils/helpers";
 import toast from "react-hot-toast";
-import axios from "axios";
 import GmailSetup from "./GmailSetup";
-import { Upload } from "lucide-react";
 
 const ContentGenerator = () => {
   const {
@@ -73,7 +72,8 @@ const ContentGenerator = () => {
 
     const pollProgress = setInterval(async () => {
       try {
-        const response = await axios.get(
+        // Use authenticated api instance instead of raw axios
+        const response = await api.get(
           `/api/resume/refinement-progress/${resumeTaskId}`,
         );
 
@@ -313,7 +313,8 @@ const ContentGenerator = () => {
           url: inputType === "url" ? formData.url : undefined,
         };
 
-        response = await axios.post("/api/resume/refine", payload);
+        // Use authenticated api instance instead of raw axios
+        response = await api.post("/api/resume/refine", payload);
 
         if (response.data.task_id) {
           setResumeTaskId(response.data.task_id);
@@ -349,7 +350,8 @@ const ContentGenerator = () => {
           }
         }
 
-        response = await axios.post("/api/content/generate", payload);
+        // Use authenticated api instance instead of raw axios
+        response = await api.post("/api/content/generate", payload);
 
         setGeneratedContent(response.data.content);
         if (response.data.file_info) {

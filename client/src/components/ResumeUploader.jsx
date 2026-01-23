@@ -2,10 +2,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, File, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import useStore from '../store/useStore';
-import { resumeAPI } from '../services/api';
+import { resumeAPI, profileAPI } from '../services/api';
 import { formatFileSize } from '../utils/helpers';
 import toast from 'react-hot-toast';
-import axios from 'axios';
 
 const ResumeUploader = ({ onUploadComplete }) => {
   const { setResume, setResumeUploading, setProfile } = useStore();
@@ -84,9 +83,8 @@ const ResumeUploader = ({ onUploadComplete }) => {
 
   const pollResumeProgress = async () => {
     try {
-      const response = await axios.get('/api/resume/progress');
-
-      const status = response.data;
+      // Use the authenticated resumeAPI instead of raw axios
+      const status = await resumeAPI.getProgress();
       
       if (status.step === 'queued' || status.step === 'initializing' || status.step === 'analyzing' || 
           status.step === 'extracting' || status.step === 'text_extracted' || status.step === 'ai_parsing' || 
@@ -104,9 +102,8 @@ const ResumeUploader = ({ onUploadComplete }) => {
         
         // CRITICAL: Fetch the complete updated profile data from backend
         try {
-          const profileResponse = await axios.get('/api/content/candidate-data');
-          
-          const profileData = profileResponse.data;
+          // Use the authenticated profileAPI instead of raw axios
+          const profileData = await profileAPI.get();
           
           // Store complete profile data in Zustand
           setProfile(profileData);
@@ -150,11 +147,10 @@ const ResumeUploader = ({ onUploadComplete }) => {
       }
     } catch (error) {
       // If no status found, try to fetch profile anyway (might be already complete)
-      if (error.response?.status === 404) {
+      if (error.status === 404 || error.response?.status === 404) {
         try {
-          const profileResponse = await axios.get('/api/content/candidate-data');
-          
-          const profileData = profileResponse.data;
+          // Use the authenticated profileAPI instead of raw axios
+          const profileData = await profileAPI.get();
           
           if (profileData && profileData.resume) {
             setProfile(profileData);
