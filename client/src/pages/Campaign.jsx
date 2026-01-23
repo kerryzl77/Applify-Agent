@@ -314,8 +314,8 @@ const Campaign = () => {
       (event) => {
         setTrace((prev) => [...prev, event]);
         
-        // Refresh campaign data on artifacts
-        if (event.type === 'artifact' || event.type === 'step_done') {
+        // Refresh campaign data on artifacts or phase changes
+        if (event.type === 'artifact' || event.type === 'step_done' || event.type === 'waiting_user') {
           fetchCampaign();
         }
       },
