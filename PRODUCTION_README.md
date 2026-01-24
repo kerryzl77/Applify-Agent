@@ -63,7 +63,7 @@ job-application-llm/
 │   ├── cached_llm.py             # LLM response caching
 │   ├── universal_extractor.py    # Job posting & LinkedIn scraping
 │   │
-│   ├── # === 2-Tier Resume Pipeline (NEW) ===
+│   ├── # === 2-Tier Resume Pipeline ===
 │   ├── resume_extractor_pymupdf.py   # Tier 1: PyMuPDF layout extraction
 │   ├── resume_rewriter_vlm.py        # Tier 2: GPT-5.2 VLM structured parsing
 │   ├── one_page_fitter.py            # Deterministic one-page fitting
@@ -71,14 +71,8 @@ job-application-llm/
 │   ├── fast_pdf_generator.py         # PDF output generation
 │   ├── output_formatter.py           # Content formatting and DOCX/PDF
 │   │
-│   ├── # === Legacy (Deprecated) ===
-│   ├── resume_parser.py          # DEPRECATED: Use resume_extractor_pymupdf.py
-│   ├── resume_refiner.py         # DEPRECATED: Use resume_rewriter_vlm.py
-│   ├── advanced_resume_generator.py  # DEPRECATED: Use 2-tier pipeline
-│   │
 │   ├── gmail_service.py          # Gmail API integration
-│   ├── redis_manager.py          # Redis caching layer
-│   └── background_tasks.py       # Async task processing
+│   └── redis_manager.py          # Redis caching layer
 │
 ├── client/                       # React Frontend
 │   ├── src/
@@ -334,13 +328,6 @@ ENVIRONMENT=production              # 'production' or 'development'
 | `app/one_page_fitter.py` | Deterministic one-page constraint enforcement |
 | `app/enhanced_resume_processor.py` | Background upload processing (orchestrates Tier 1+2) |
 | `app/fast_pdf_generator.py` | High-performance PDF generation |
-
-### Legacy (Deprecated)
-| File | Purpose |
-|------|---------|
-| `app/resume_parser.py` | DEPRECATED: Replaced by resume_extractor_pymupdf.py |
-| `app/resume_refiner.py` | DEPRECATED: Replaced by resume_rewriter_vlm.py |
-| `app/advanced_resume_generator.py` | DEPRECATED: Replaced by 2-tier pipeline |
 
 ### Authentication
 | File | Purpose |
