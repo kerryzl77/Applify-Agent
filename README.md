@@ -2,7 +2,7 @@
 
 > **Your job search, orchestrated.** Multi-agent system for personalized job outreach — from resume to inbox.
 
-[![Watch Demo](https://img.youtube.com/vi/Z5MpDQYWKaY/maxresdefault.jpg)](https://youtu.be/Z5MpDQYWKaY)
+[![Watch Demo](https://img.youtube.com/vi/Z5MpDQYWKaY/hqdefault.jpg)](https://youtu.be/Z5MpDQYWKaY)
 
 🎬 **[Watch Demo (90s)](https://youtu.be/Z5MpDQYWKaY)** · 🚀 **[Try Live App](https://applify-f333088ea507.herokuapp.com/)**
 
