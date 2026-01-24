@@ -11,6 +11,59 @@ logger = logging.getLogger(__name__)
 client = OpenAI()
 
 
+def _get_value(obj, key, default=None):
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
+def _extract_tool_results(resp) -> Optional[List[Dict]]:
+    """Prefer structured tool output when available."""
+    raw = None
+    if hasattr(resp, "model_dump"):
+        try:
+            raw = resp.model_dump()
+        except Exception:
+            raw = None
+    if isinstance(raw, dict):
+        for item in raw.get("output", []) or []:
+            if isinstance(item, dict) and item.get("type") == "web_search_call":
+                results = item.get("results")
+                if isinstance(results, list):
+                    return results
+
+    output = getattr(resp, "output", None)
+    if output:
+        for item in output:
+            item_type = _get_value(item, "type")
+            if item_type == "web_search_call":
+                results = _get_value(item, "results")
+                if isinstance(results, list):
+                    return results
+    return None
+
+
+def _extract_json_payload(text: str) -> str:
+    if not text:
+        return ""
+    if "```json" in text:
+        text = text.split("```json", 1)[1].split("```", 1)[0].strip()
+    elif "```" in text:
+        text = text.split("```", 1)[1].split("```", 1)[0].strip()
+
+    start = text.find("[")
+    end = text.rfind("]")
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1].strip()
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1].strip()
+
+    return text.strip()
+
+
 def openai_web_search(
     query: str,
     num_results: int = 5,
@@ -39,14 +92,15 @@ No extra keys, no commentary."""
             input=prompt,
         )
 
+        tool_results = _extract_tool_results(resp)
+        if tool_results:
+            return tool_results[:num_results]
+
         text = (resp.output_text or "").strip()
         
         # Try to extract JSON from response
         # Sometimes the model wraps in markdown code blocks
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
+        text = _extract_json_payload(text)
         
         try:
             data = json.loads(text)

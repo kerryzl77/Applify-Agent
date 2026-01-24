@@ -537,38 +537,53 @@ def _normalize_workday_location(value) -> str:
     return ""
 
 
-def _fetch_workday_api_json(api_url: str) -> dict | None:
-    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
-    try:
-        resp = HTTP_SESSION.get(api_url, headers=headers, timeout=20)
-    except Exception as exc:
-        print(f"Workday API fetch failed: {exc}")
-        return None
+def _fetch_workday_api_json(api_url: str, referer_url: str | None = None) -> dict | None:
+    base_headers = dict(DEFAULT_HEADERS)
+    if referer_url:
+        base_headers["Referer"] = referer_url
+        parsed = urlparse(referer_url)
+        if parsed.scheme and parsed.netloc:
+            base_headers["Origin"] = f"{parsed.scheme}://{parsed.netloc}"
 
-    if resp.status_code == 406:
-        alt_headers = {"User-Agent": USER_AGENT, "Accept": "*/*"}
-        alt_urls = [api_url]
-        if "format=json" not in api_url:
-            joiner = "&" if "?" in api_url else "?"
-            alt_urls.append(f"{api_url}{joiner}format=json")
-        for alt_url in alt_urls:
+    header_variants = []
+    for accept in (
+        "application/json",
+        "application/json, text/plain, */*",
+        "*/*",
+    ):
+        headers = dict(base_headers)
+        headers["Accept"] = accept
+        header_variants.append(headers)
+
+    url_variants = [api_url]
+    if "format=json" not in api_url:
+        joiner = "&" if "?" in api_url else "?"
+        url_variants.append(f"{api_url}{joiner}format=json")
+
+    last_status = None
+    for headers in header_variants:
+        if headers["Accept"] != "application/json":
+            headers.setdefault("X-Requested-With", "XMLHttpRequest")
+        for target_url in url_variants:
             try:
-                alt_resp = HTTP_SESSION.get(alt_url, headers=alt_headers, timeout=20)
-            except Exception:
+                resp = HTTP_SESSION.get(target_url, headers=headers, timeout=20)
+            except Exception as exc:
+                print(f"Workday API fetch failed: {exc}")
                 continue
-            if alt_resp.status_code == 200:
-                resp = alt_resp
-                break
 
-    if resp.status_code != 200:
-        print(f"Workday API error {resp.status_code} for {api_url}")
-        return None
+            last_status = resp.status_code
+            if resp.status_code != 200:
+                continue
 
-    try:
-        return resp.json()
-    except Exception as exc:
-        print(f"Workday API JSON parse failed: {exc}")
-        return None
+            try:
+                return resp.json()
+            except Exception as exc:
+                print(f"Workday API JSON parse failed: {exc}")
+                return None
+
+    if last_status is not None:
+        print(f"Workday API error {last_status} for {api_url}")
+    return None
 
 
 def _fetch_workday_job_text(url: str, company_name: str | None) -> dict | None:
@@ -581,7 +596,7 @@ def _fetch_workday_job_text(url: str, company_name: str | None) -> dict | None:
         return None
 
     api_url = f"{parsed.scheme or 'https'}://{parsed.netloc}/wday/cxs/{tenant}/{site}/{job_slug}"
-    data = _fetch_workday_api_json(api_url)
+    data = _fetch_workday_api_json(api_url, referer_url=url)
     if not data:
         return None
 
