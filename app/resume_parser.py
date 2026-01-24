@@ -1,3 +1,17 @@
+"""
+DEPRECATED: Legacy Resume Parser
+================================
+
+This module is deprecated and replaced by the 2-tier pipeline:
+- Tier 1: resume_extractor_pymupdf.py (PyMuPDF layout extraction)
+- Tier 2: resume_rewriter_vlm.py (GPT-5.2 VLM structured parsing)
+
+This file is kept for backwards compatibility but should not be used
+for new development. It will be removed in a future release.
+
+Use enhanced_resume_processor.py which now uses the new 2-tier pipeline.
+"""
+
 import os
 import re
 import uuid
@@ -10,9 +24,19 @@ from dotenv import load_dotenv
 import tempfile
 import shutil
 import time
+import warnings
 from werkzeug.utils import secure_filename
 
 load_dotenv()
+
+
+def _deprecation_warning():
+    warnings.warn(
+        "ResumeParser is deprecated. Use enhanced_resume_processor with the 2-tier VLM pipeline instead.",
+        DeprecationWarning,
+        stacklevel=3
+    )
+
 
 class ResumeParser:
     def __init__(self):

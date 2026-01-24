@@ -1,6 +1,22 @@
+"""
+DEPRECATED: Legacy Resume Refiner
+=================================
+
+This module is deprecated and replaced by the 2-tier pipeline:
+- resume_rewriter_vlm.py (GPT-5.2 VLM structured tailoring)
+- one_page_fitter.py (deterministic one-page fitting)
+- fast_pdf_generator.py (PDF generation)
+
+This file is kept for backwards compatibility but should not be used
+for new development. It will be removed in a future release.
+
+Use the new VLM-based pipeline in routers/resume.py instead.
+"""
+
 import os
 import json
 import re
+import warnings
 from openai import OpenAI
 from docx import Document
 from docx.shared import Pt, Inches
@@ -9,6 +25,15 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.oxml.shared import OxmlElement, qn
 import datetime
 import tempfile
+
+
+def _deprecation_warning():
+    warnings.warn(
+        "ResumeRefiner is deprecated. Use resume_rewriter_vlm.py with one_page_fitter.py instead.",
+        DeprecationWarning,
+        stacklevel=3
+    )
+
 
 class ResumeRefiner:
     """Advanced resume refinement system that tailors resumes to job descriptions."""

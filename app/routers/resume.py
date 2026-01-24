@@ -5,9 +5,11 @@ import logging
 import datetime
 import uuid
 import threading
+import tempfile
+import shutil
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 
 from app.schemas import (
@@ -20,9 +22,9 @@ from app.schemas import (
 from app.dependencies import get_db, get_redis, get_current_user, TokenData
 from database.db_manager import DatabaseManager
 from app.redis_manager import RedisManager
-from app.resume_parser import ResumeParser
 from app.enhanced_resume_processor import enhanced_resume_processor
-from app.resume_refiner import ResumeRefiner
+from app.resume_rewriter_vlm import ResumeRewriterVLM, TailoredResume
+from app.one_page_fitter import OnePageFitter
 from app.output_formatter import OutputFormatter
 from app.utils.text import normalize_text
 from scraper.retriever import DataRetriever
@@ -33,8 +35,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Initialize shared components
-resume_parser = ResumeParser()
-resume_refiner = ResumeRefiner()
 output_formatter = OutputFormatter()
 data_retriever = DataRetriever()
 url_validator = URLValidator()
@@ -49,7 +49,15 @@ def process_resume_refinement_background(
     output_dir: str,
     redis_manager: RedisManager,
 ):
-    """Background task for resume refinement with progress tracking."""
+    """
+    Background task for resume refinement using 2-tier VLM pipeline.
+    
+    Flow:
+    1. Load cached extraction artifacts (page image) if available
+    2. Call VLM to tailor resume to job description
+    3. Apply one-page fitter constraints
+    4. Generate PDF with FastPDFGenerator
+    """
     progress_key = f"resume_refinement:{user_id}:{task_id}"
     
     def update_progress(step, progress, message, status="processing", data=None):
@@ -67,80 +75,131 @@ def process_resume_refinement_background(
         logger.info(f"Resume refinement progress [{user_id}]: {step} - {progress}% - {message}")
     
     try:
+        import time
+        start_time = time.time()
+        
         update_progress("initializing", 5, "Starting resume refinement...")
         
-        # Use advanced multi-agent resume generation system
-        from app.advanced_resume_generator import AdvancedResumeGenerator
+        # ================================================================
+        # Step 1: Load cached extraction artifacts
+        # ================================================================
+        update_progress("loading_context", 10, "Loading resume context...")
         
-        def progress_wrapper(step, progress, message):
-            update_progress(step, progress, message)
+        page_image_b64 = None
+        extraction_cache = enhanced_resume_processor.get_user_extraction(user_id)
+        if extraction_cache:
+            page_image_b64 = extraction_cache.get("page_image")
+            logger.info(f"Loaded cached extraction for user {user_id}")
         
-        generator = AdvancedResumeGenerator()
+        # ================================================================
+        # Step 2: VLM Tailoring
+        # ================================================================
+        update_progress("tailoring", 30, "AI is tailoring your resume to the job...")
         
-        update_progress("initializing_ai", 10, "Initializing 5-Agent AI System...")
-        optimized_resume, metrics = generator.generate_optimized_resume(
-            candidate_data, job_description, progress_wrapper
+        rewriter = ResumeRewriterVLM()
+        tailored_resume: TailoredResume = rewriter.tailor_resume(
+            candidate_data=candidate_data,
+            job_description=job_description,
+            page_image_b64=page_image_b64,
         )
         
-        update_progress("generating_pdf", 75, "Creating professional PDF (ultra-fast)...")
+        # Convert to dict for processing
+        tailored_dict = {
+            "summary": tailored_resume.summary,
+            "skills": tailored_resume.skills,
+            "experience": [
+                {
+                    "title": exp.title,
+                    "company": exp.company,
+                    "location": exp.location,
+                    "start_date": exp.start_date,
+                    "end_date": exp.end_date,
+                    "bullet_points": exp.bullet_points,
+                }
+                for exp in tailored_resume.experience
+            ],
+            "education": [
+                {
+                    "degree": edu.degree,
+                    "institution": edu.institution,
+                    "graduation_date": edu.graduation_date,
+                }
+                for edu in tailored_resume.education
+            ],
+            "edit_log": tailored_resume.edit_log,
+        }
         
-        # Extract job title from optimized resume metadata
-        job_title = optimized_resume.get("metadata", {}).get("target_job", "Position")
+        logger.info(f"VLM tailoring complete: {len(tailored_dict['skills'])} skills, "
+                   f"{len(tailored_dict['experience'])} experiences")
         
-        # Create PDF directly using fast generator
+        # ================================================================
+        # Step 3: One-Page Fitting
+        # ================================================================
+        update_progress("fitting", 60, "Optimizing for one-page format...")
+        
+        fitter = OnePageFitter()
+        fitted_resume, fit_result = fitter.fit(tailored_dict)
+        
+        logger.info(f"One-page fitter: {fit_result.iterations} iterations, "
+                   f"{len(fit_result.changes_made)} changes")
+        
+        # ================================================================
+        # Step 4: PDF Generation
+        # ================================================================
+        update_progress("generating_pdf", 80, "Creating professional PDF...")
+        
+        # Build resume data structure for PDF generator
+        resume_data = {
+            "sections": {
+                "professional_summary": fitted_resume.get("summary", ""),
+                "skills": fitted_resume.get("skills", []),
+                "experience": fitted_resume.get("experience", []),
+                "education": fitted_resume.get("education", []),
+            }
+        }
+        
+        # Extract job title from job description (first line or extract)
+        job_title = _extract_job_title(job_description)
+        
+        # Generate PDF
         pdf_result = output_formatter.create_resume_pdf_direct(
-            optimized_resume, candidate_data, job_title
+            resume_data, candidate_data, job_title
         )
         
         if not pdf_result:
-            # Fallback to DOCX if PDF fails
-            update_progress("formatting_docx", 80, "Creating DOCX as fallback...")
-            formatted_resume = resume_refiner.create_formatted_resume_docx(
-                optimized_resume, candidate_data, job_title, output_dir
-            )
-        else:
-            formatted_resume = pdf_result
-        
-        if not formatted_resume:
-            update_progress("error", 0, "Failed to create formatted resume", "error")
+            update_progress("error", 0, "Failed to create PDF resume", "error")
             return
         
+        generation_time = time.time() - start_time
+        
+        # ================================================================
+        # Complete
+        # ================================================================
         update_progress(
             "completed",
             100,
-            "Advanced AI Resume Optimization Complete!",
+            "Resume tailored successfully!",
             "completed",
             {
                 "file_info": {
-                    "filename": formatted_resume["filename"],
-                    "filepath": formatted_resume["filepath"],
+                    "filename": pdf_result["filename"],
+                    "filepath": pdf_result["filepath"],
                 },
-                "advanced_metrics": {
-                    "ats_score": metrics.ats_score,
-                    "keyword_match_score": metrics.keyword_match_score,
-                    "content_quality_score": metrics.content_quality_score,
-                    "job_relevance_score": metrics.job_relevance_score,
-                    "word_count": metrics.estimated_word_count,
-                    "one_page_compliant": metrics.one_page_compliance,
-                    "generation_time": optimized_resume["metadata"]["generation_time"],
-                    "ai_agents_used": 5,
+                "metrics": {
+                    "skills_count": len(fitted_resume.get("skills", [])),
+                    "experience_count": len(fitted_resume.get("experience", [])),
+                    "one_page_fitted": fit_result.fitted,
+                    "fit_iterations": fit_result.iterations,
+                    "generation_time": round(generation_time, 2),
+                    "pipeline": "2-tier-vlm",
                 },
-                "optimization_details": {
-                    "target_job": optimized_resume["metadata"]["target_job"],
-                    "optimization_level": "Google-level Advanced",
-                    "ats_version": "2025",
-                    "strengths": metrics.strengths,
-                    "improvement_areas": metrics.improvement_areas[:3],
-                },
+                "edit_log": fitted_resume.get("edit_log", []),
                 "recommendations": [
-                    f"Advanced AI Resume for: {optimized_resume['metadata']['target_job']}",
-                    f"ATS Score: {metrics.ats_score}/100 (Target: 75+)",
-                    f"Keyword Match: {metrics.keyword_match_score}/100",
-                    f"Content Quality: {metrics.content_quality_score}/100",
-                    f"Word Count: {metrics.estimated_word_count} "
-                    f"({'One-page compliant' if metrics.one_page_compliance else 'May exceed one page'})",
-                    f"Generated in {optimized_resume['metadata']['generation_time']:.1f}s using 5 AI agents",
-                    "Download your ATS-optimized resume below!",
+                    f"Resume tailored for: {job_title}",
+                    f"Skills prioritized: {len(fitted_resume.get('skills', []))}",
+                    f"Experience entries: {len(fitted_resume.get('experience', []))}",
+                    f"Generated in {generation_time:.1f}s",
+                    "Download your tailored resume below!",
                 ],
             },
         )
@@ -152,12 +211,50 @@ def process_resume_refinement_background(
         update_progress("error", 0, f"Error: {str(e)}", "error")
 
 
+def _extract_job_title(job_description: str) -> str:
+    """Extract job title from job description (first line or default)."""
+    if not job_description:
+        return "Position"
+    
+    # Try to get first line as title
+    lines = job_description.strip().split("\n")
+    first_line = lines[0].strip() if lines else ""
+    
+    # Clean up and limit length
+    if first_line and len(first_line) < 100:
+        # Remove common prefixes
+        for prefix in ["Job Title:", "Position:", "Role:", "Title:"]:
+            if first_line.lower().startswith(prefix.lower()):
+                first_line = first_line[len(prefix):].strip()
+        return first_line[:50]
+    
+    return "Position"
+
+
+def _save_uploaded_file(file_obj, filename: str) -> str:
+    """Save uploaded file to temp directory and return path."""
+    from werkzeug.utils import secure_filename
+    
+    temp_dir = tempfile.mkdtemp()
+    upload_dir = os.path.join(temp_dir, 'uploads')
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    safe_filename = secure_filename(filename)
+    unique_filename = f"{uuid.uuid4().hex[:8]}_{safe_filename}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    with open(file_path, 'wb') as out_file:
+        shutil.copyfileobj(file_obj, out_file)
+    
+    return file_path
+
+
 @router.post("/upload", response_model=ResumeUploadResponse)
 async def upload_resume(
     resume: UploadFile = File(...),
     current_user: TokenData = Depends(get_current_user),
 ):
-    """Enhanced resume upload with progress tracking and caching."""
+    """Enhanced resume upload with 2-tier pipeline processing."""
     user_id = current_user.user_id
     
     if not resume or resume.filename == "":
@@ -186,13 +283,12 @@ async def upload_resume(
     
     # Save the uploaded file
     try:
-        # Reset file position and create a file-like object
         await resume.seek(0)
-        file_path = resume_parser.save_uploaded_file(resume.file, resume.filename)
+        file_path = _save_uploaded_file(resume.file, resume.filename)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
     
-    # Start enhanced background processing
+    # Start enhanced background processing (uses new 2-tier pipeline)
     enhanced_resume_processor.start_processing(file_path, user_id, resume.filename)
     
     return ResumeUploadResponse(
@@ -236,9 +332,9 @@ async def refine_resume(
     db: DatabaseManager = Depends(get_db),
     redis: RedisManager = Depends(get_redis),
 ):
-    """Refine resume based on job description - starts background processing."""
+    """Refine resume based on job description using VLM tailoring."""
     user_id = current_user.user_id
-    job_description = normalize_text(request.job_description).strip()
+    job_description = normalize_text(request.job_description).strip() if request.job_description else ""
     input_type = request.input_type
     url = request.url if input_type == "url" else None
     
@@ -283,7 +379,7 @@ async def refine_resume(
     # Generate unique task ID
     task_id = str(uuid.uuid4())
     
-    # Start background processing
+    # Start background processing with new VLM pipeline
     thread = threading.Thread(
         target=process_resume_refinement_background,
         args=(
@@ -331,8 +427,8 @@ async def analyze_resume(
     current_user: TokenData = Depends(get_current_user),
     db: DatabaseManager = Depends(get_db),
 ):
-    """Analyze current resume without refinement."""
-    job_description = normalize_text(request.job_description).strip()
+    """Analyze current resume against job description (lightweight, no refinement)."""
+    job_description = normalize_text(request.job_description).strip() if request.job_description else ""
     
     if not job_description:
         raise HTTPException(status_code=400, detail="Job description is required")
@@ -341,36 +437,35 @@ async def analyze_resume(
     if not candidate_data or not candidate_data.get("resume"):
         raise HTTPException(status_code=400, detail="Please upload your resume first")
     
-    # Analyze job requirements
-    job_analysis = resume_refiner.quick_job_analysis(job_description)
+    # Simple local analysis without LLM calls
+    resume_data = candidate_data.get("resume", {})
+    candidate_skills = set(skill.lower() for skill in resume_data.get("skills", []))
     
-    # Analyze current resume
-    resume_analysis = resume_refiner.quick_resume_analysis(candidate_data, job_analysis)
+    # Extract keywords from job description
+    job_words = set(job_description.lower().split())
+    common_skills = candidate_skills & job_words
     
-    # Calculate match score
-    match_score = resume_refiner._calculate_optimization_score(job_analysis, resume_analysis)
+    # Calculate simple match score
+    match_score = min(100, 50 + len(common_skills) * 5)
+    skills_match = "high" if len(common_skills) >= 5 else "medium" if len(common_skills) >= 2 else "low"
     
     return {
         "analysis": {
             "job_requirements": {
-                "job_title": job_analysis.get("job_title"),
-                "required_skills": job_analysis.get("required_skills", []),
-                "preferred_skills": job_analysis.get("preferred_skills", []),
-                "key_qualifications": job_analysis.get("key_qualifications", []),
-                "important_keywords": job_analysis.get("important_keywords", []),
+                "job_title": _extract_job_title(job_description),
+                "detected_keywords": list(job_words)[:20],
             },
             "resume_assessment": {
-                "current_strengths": resume_analysis.get("current_strengths", []),
-                "improvement_areas": resume_analysis.get("improvement_areas", []),
-                "keyword_gaps": resume_analysis.get("keyword_gaps", []),
-                "skills_match": resume_analysis.get("skills_match", "medium"),
-                "ats_score": resume_analysis.get("ats_optimization_score", 70),
+                "current_skills": resume_data.get("skills", [])[:10],
+                "matching_skills": list(common_skills)[:10],
+                "skills_match": skills_match,
+                "estimated_score": match_score,
             },
             "match_score": match_score,
             "recommendations": [
                 f"Overall match score: {match_score}/100",
-                f"Skills alignment: {resume_analysis.get('skills_match', 'medium')}",
-                "Consider using the resume refinement feature for optimization",
+                f"Skills alignment: {skills_match}",
+                "Use the resume refinement feature for AI-powered optimization",
             ],
         }
     }

@@ -1,23 +1,37 @@
 """
-Advanced Resume Generation System
-================================
+DEPRECATED: Advanced Resume Generation System
+==============================================
 
+This module is deprecated and replaced by the 2-tier VLM pipeline:
+- resume_extractor_pymupdf.py (Tier 1: layout extraction)
+- resume_rewriter_vlm.py (Tier 2: GPT-5.2 VLM structured outputs)
+- one_page_fitter.py (deterministic one-page fitting)
+- fast_pdf_generator.py (PDF generation)
+
+The new pipeline is simpler (1-2 LLM calls vs 5), more reliable
+(structured outputs instead of regex JSON parsing), and faster.
+
+This file is kept for backwards compatibility but should not be used
+for new development. It will be removed in a future release.
+
+Original description:
 Multi-Agent LLM-Powered Resume Optimization (2025)
 Implements Google-level engineering standards for ATS-optimized, 
 job-specific resume generation using 5 specialized AI agents.
-
-Features:
-- Multi-agent AI framework (5 LLM calls)
-- Advanced job-specific tailoring
-- Real-time ATS optimization scoring
-- Context-aware content generation
-- One-page format optimization
-- Keyword density analysis
 """
 
 import os
 import json
 import time
+import warnings
+
+
+def _deprecation_warning():
+    warnings.warn(
+        "AdvancedResumeGenerator is deprecated. Use resume_rewriter_vlm.py with one_page_fitter.py instead.",
+        DeprecationWarning,
+        stacklevel=3
+    )
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field

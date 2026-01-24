@@ -177,7 +177,7 @@ class FastPDFGenerator:
         Generate ATS-optimized resume PDF with one-page constraint.
         
         Args:
-            resume_data: Optimized resume content from ResumeRefiner
+            resume_data: Optimized resume content with sections dict
             candidate_data: Candidate profile data
             job_title: Target job title for filename
             
@@ -368,15 +368,21 @@ class FastPDFGenerator:
             institution = edu.get('institution', 'Institution')
             edu_line = f"<b>{degree}</b> - {institution}"
             
-            # Add graduation year if available
-            if edu.get('graduation_year'):
-                edu_line += f" ({edu['graduation_year']})"
+            # Add graduation date/year if available (support both field names)
+            grad_date = edu.get('graduation_date') or edu.get('graduation_year')
+            if grad_date:
+                edu_line += f" ({grad_date})"
             
             story.append(Paragraph(edu_line, self.styles['Skills']))
             
             # Add GPA if notable (>3.5)
-            if edu.get('gpa') and float(edu.get('gpa', 0)) >= 3.5:
-                story.append(Paragraph(f"GPA: {edu['gpa']}", self.styles['CompanyInfo']))
+            gpa = edu.get('gpa')
+            if gpa:
+                try:
+                    if float(gpa) >= 3.5:
+                        story.append(Paragraph(f"GPA: {gpa}", self.styles['CompanyInfo']))
+                except (ValueError, TypeError):
+                    pass
         
         return story
     
@@ -495,3 +501,77 @@ class FastPDFGenerator:
                 'modified': datetime.datetime.fromtimestamp(os.path.getmtime(filepath)).isoformat()
             }
         return None
+    
+    def count_pages(self, resume_data, candidate_data) -> int:
+        """
+        Count how many pages the resume would take without writing to disk.
+        
+        Used by OnePageFitter to verify the resume fits on one page.
+        
+        Args:
+            resume_data: Resume data with sections
+            candidate_data: Candidate profile data
+            
+        Returns:
+            Number of pages the resume would occupy
+        """
+        try:
+            # Build story without saving
+            story = self._build_resume_story(resume_data, candidate_data)
+            
+            # Create a temporary document to measure
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=letter,
+                rightMargin=self.margins['right'],
+                leftMargin=self.margins['left'],
+                topMargin=self.margins['top'],
+                bottomMargin=self.margins['bottom']
+            )
+            
+            # Build to count pages
+            doc.build(story)
+            
+            # Get page count from the buffer
+            buffer.seek(0)
+            from PyPDF2 import PdfReader
+            reader = PdfReader(buffer)
+            page_count = len(reader.pages)
+            
+            buffer.close()
+            return page_count
+            
+        except Exception as e:
+            print(f"Error counting pages: {str(e)}")
+            return 1  # Assume 1 page on error
+    
+    def generate_resume_pdf_from_tailored(self, tailored_dict: dict, candidate_data: dict, job_title: str = "Position"):
+        """
+        Generate resume PDF from tailored resume dict (new schema).
+        
+        This is a convenience method for the new 2-tier pipeline that expects:
+        - summary: str
+        - skills: list[str] (flat)
+        - experience: list[{title, company, location, start_date, end_date, bullet_points}]
+        - education: list[{degree, institution, graduation_date}]
+        
+        Args:
+            tailored_dict: Tailored resume dict from VLM rewriter
+            candidate_data: Candidate profile with personal_info
+            job_title: Target job title for filename
+            
+        Returns:
+            dict with filename, filepath, size_bytes
+        """
+        # Convert tailored format to sections format expected by generate_resume_pdf
+        resume_data = {
+            "sections": {
+                "professional_summary": tailored_dict.get("summary", ""),
+                "skills": tailored_dict.get("skills", []),
+                "experience": tailored_dict.get("experience", []),
+                "education": tailored_dict.get("education", []),
+            }
+        }
+        
+        return self.generate_resume_pdf(resume_data, candidate_data, job_title)
