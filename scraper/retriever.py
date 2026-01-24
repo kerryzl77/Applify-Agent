@@ -726,6 +726,12 @@ class DataRetriever:
                 'location': normalize_text(parsed_data.get('location') or "Unknown Location"),
                 'url': url
             }
+
+            fallback_text = normalize_text(content_text).strip()
+            if fallback_text and not job_data.get("job_description") and not job_data.get("requirements"):
+                # Fallback to raw text when extraction is empty.
+                job_data["job_description"] = fallback_text[:8000]
+
             return normalize_job_data(job_data)
             
         except Exception as e:
