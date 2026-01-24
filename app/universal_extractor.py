@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from openai import OpenAI
 
 from app.search.openai_web_search import openai_web_search
+from app.utils.url import normalize_url
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,15 @@ USER_AGENT = (
 
 
 def _http_get(url: str) -> Optional[str]:
+    safe_url = normalize_url(url)
+    if not safe_url:
+        logger.warning(f"Skipping invalid URL: {url}")
+        return None
+    if safe_url != url:
+        logger.debug(f"Normalized URL: {url} -> {safe_url}")
     try:
         resp = requests.get(
-            url,
+            safe_url,
             headers={"User-Agent": USER_AGENT, "Accept": "text/html"},
             timeout=15,
             allow_redirects=True,
@@ -132,14 +139,28 @@ def _web_search_candidates(
       - candidates: prioritized list of results (dict with title, href, body, source)
       - extra: additional results for context building
     """
+    def _context_terms(pos: Optional[str], comp: Optional[str]) -> str:
+        pos = (pos or "").strip()
+        comp = (comp or "").strip()
+        if pos and comp:
+            return f'("{pos}" OR "{comp}")'
+        if pos:
+            return f'"{pos}"'
+        if comp:
+            return f'"{comp}"'
+        return ""
+
     queries: List[str] = []
     safe_name = name_hint.strip()
     if safe_name:
-        queries.append(f'"{safe_name}" site:linkedin.com/in')
-        if position or company:
-            ctx = " ".join([x for x in [position, company] if x])
-            queries.append(f'"{safe_name}" {ctx}'.strip())
-        queries.append(f'"{safe_name}" (github OR "about" OR resume OR cv)')
+        ctx = _context_terms(position, company)
+        base = f'"{safe_name}"'
+        if ctx:
+            base = f"{base} {ctx}"
+        queries.append(f"{base} site:linkedin.com/in")
+        queries.append(
+            f'{base} (github OR portfolio OR "about me" OR resume OR cv OR bio) -site:linkedin.com'
+        )
     else:
         queries.append(target_url)
 
@@ -165,7 +186,7 @@ def _web_search_candidates(
                 continue
             seen.add(href)
             merged.append(r)
-        # Don't break early - we need Query 3 (github/resume/cv) for non-LinkedIn sources!
+        # Keep query count small for production cost/latency control.
 
     def _priority(u: str) -> int:
         u_low = u.lower()
@@ -270,10 +291,19 @@ def _llm_choose_candidate(
 
 def _fetch_docs(urls: List[str]) -> List[Dict[str, Any]]:
     """Fetch and extract a small set of documents (title + text)."""
-    logger.info(f"📄 Fetching up to 3 documents from {len(urls)} candidate URLs")
+    normalized_urls: List[str] = []
+    seen_urls: set[str] = set()
+    for u in urls:
+        safe_url = normalize_url(u)
+        if not safe_url or safe_url in seen_urls:
+            continue
+        seen_urls.add(safe_url)
+        normalized_urls.append(safe_url)
+
+    logger.info(f"📄 Fetching up to 3 documents from {len(normalized_urls)} candidate URLs")
     docs: List[Dict[str, Any]] = []
-    for i, u in enumerate(urls, 1):
-        logger.info(f"  Fetching doc {i}/{len(urls)}: {u}")
+    for i, u in enumerate(normalized_urls, 1):
+        logger.info(f"  Fetching doc {i}/{len(normalized_urls)}: {u}")
         html = _http_get(u)
         if not html:
             logger.info(f"   → Failed to fetch (no HTML)")
@@ -604,16 +634,25 @@ def extract_linkedin_profile(
         }
 
     # Otherwise try OpenAI web search as final fallback
-    raw_signals = openai_web_search(fallback_name or url, num_results=5)
-    # Normalize to internal schema
     signals = []
-    for r in raw_signals:
+    for r in (candidates + extra):
         signals.append({
             "title": r.get("title", ""),
-            "href": r.get("url", ""),
-            "body": r.get("snippet", ""),
-            "source": "openai_web_search",
+            "href": r.get("href", ""),
+            "body": r.get("body", ""),
+            "source": r.get("source", "openai_web_search"),
         })
+
+    if not signals:
+        raw_signals = openai_web_search(fallback_name or url, num_results=4)
+        # Normalize to internal schema
+        for r in raw_signals:
+            signals.append({
+                "title": r.get("title", ""),
+                "href": r.get("url", ""),
+                "body": r.get("snippet", ""),
+                "source": "openai_web_search",
+            })
     enriched = build_profile_from_signals(signals, fallback_name)
     
     # Build search context from all available sources

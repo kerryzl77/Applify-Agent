@@ -18,6 +18,7 @@ import ReactMarkdown from "react-markdown";
 import useStore from "../store/useStore";
 import api, { gmailAPI } from "../services/api";
 import { copyToClipboard, downloadBlob, downloadFile } from "../utils/helpers";
+import { consumeGmailRedirectFragment, getGmailReturnTo, isGmailAuthorized } from "../utils/gmail";
 import toast from "react-hot-toast";
 import GmailSetup from "./GmailSetup";
 
@@ -260,6 +261,25 @@ const ContentGenerator = () => {
   }, [refreshGmailStatus]);
 
   useEffect(() => {
+    const fragment = consumeGmailRedirectFragment();
+    if (!fragment) {
+      return;
+    }
+    if (fragment === "gmail_connected") {
+      toast.success("Gmail connected");
+      refreshGmailStatus();
+      return;
+    }
+    if (fragment === "gmail_invalid_state") {
+      toast.error("Gmail authorization expired. Try connecting again.");
+      return;
+    }
+    if (fragment === "gmail_error") {
+      toast.error("Gmail connection failed. Try again.");
+    }
+  }, [refreshGmailStatus]);
+
+  useEffect(() => {
     if (!isEmailWorkflow) {
       return;
     }
@@ -268,8 +288,11 @@ const ContentGenerator = () => {
 
   const handleConnectGmail = async () => {
     try {
-      const { auth_url } = await gmailAPI.getAuthUrl();
-      window.location.href = auth_url;
+      const { auth_url } = await gmailAPI.getAuthUrl({ return_to: getGmailReturnTo() });
+      if (!auth_url) {
+        throw new Error("Missing Gmail authorization URL");
+      }
+      window.location.assign(auth_url);
     } catch (error) {
       toast.error(error.message || "Failed to initiate Gmail authorization");
     }
@@ -285,7 +308,7 @@ const ContentGenerator = () => {
       return;
     }
 
-    if (gmailStatus.availability !== "authorized") {
+    if (!isGmailAuthorized(gmailStatus)) {
       toast.error("Connect your Gmail account first");
       setGmailSetupOpen(true);
       return;
@@ -422,7 +445,7 @@ const ContentGenerator = () => {
   };
 
   const gmailStatusVariant = useMemo(() => {
-    if (gmailStatus?.authorized) {
+    if (isGmailAuthorized(gmailStatus)) {
       return "authorized";
     }
     if (gmailStatus?.availability === "configured") {
@@ -709,7 +732,7 @@ const ContentGenerator = () => {
                 <div className="flex flex-col gap-2 w-full mt-4">
                   <button
                     onClick={handleCreateDraft}
-                    disabled={creatingDraft || gmailStatus.availability !== "authorized"}
+                    disabled={creatingDraft || !isGmailAuthorized(gmailStatus)}
                     className="btn btn-secondary flex items-center justify-center gap-2"
                   >
                     {creatingDraft ? (
@@ -724,7 +747,7 @@ const ContentGenerator = () => {
                       </>
                     )}
                   </button>
-                  {gmailStatus.availability === "authorized" ? (
+                  {isGmailAuthorized(gmailStatus) ? (
                     <button
                       onClick={handleDisconnectGmail}
                       className="btn btn-outline flex items-center justify-center gap-2"

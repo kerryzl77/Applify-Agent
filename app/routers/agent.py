@@ -239,8 +239,8 @@ async def confirm_campaign(
             
             if not gmail_status.get('authorized'):
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Gmail not authorized. Please connect Gmail first."
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Gmail authorization required. Please connect Gmail first."
                 )
             
             # Create drafts for each draft type

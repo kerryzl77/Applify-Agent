@@ -1,12 +1,13 @@
 import { useEffect, useMemo } from "react";
 import { MailCheck, MailWarning } from "lucide-react";
+import { isGmailAuthorized } from "../utils/gmail";
 
 const GmailSetup = ({ open, onClose, onConnected, gmailStatus, onConnect, onDisconnect }) => {
   useEffect(() => {
     if (!open) {
       return;
     }
-    if (gmailStatus.authorized && onConnected) {
+    if (isGmailAuthorized(gmailStatus) && onConnected) {
       onConnected();
     }
   }, [open, gmailStatus, onConnected]);
@@ -16,7 +17,7 @@ const GmailSetup = ({ open, onClose, onConnected, gmailStatus, onConnect, onDisc
   }
 
   const statusVariant = useMemo(() => {
-    if (gmailStatus?.authorized) {
+    if (isGmailAuthorized(gmailStatus)) {
       return "authorized";
     }
     if (gmailStatus?.availability === "configured") {

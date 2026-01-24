@@ -26,6 +26,7 @@ import {
 import Sidebar from '../components/Sidebar';
 import GmailSetup from '../components/GmailSetup';
 import { campaignAPI, gmailAPI } from '../services/api';
+import { consumeGmailRedirectFragment, getGmailReturnTo, isGmailAuthorized } from '../utils/gmail';
 import toast from 'react-hot-toast';
 
 // Step status icons
@@ -321,6 +322,25 @@ const Campaign = () => {
     refreshGmailStatus();
   }, [refreshGmailStatus]);
 
+  useEffect(() => {
+    const fragment = consumeGmailRedirectFragment();
+    if (!fragment) {
+      return;
+    }
+    if (fragment === 'gmail_connected') {
+      toast.success('Gmail connected');
+      refreshGmailStatus();
+      return;
+    }
+    if (fragment === 'gmail_invalid_state') {
+      toast.error('Gmail authorization expired. Try connecting again.');
+      return;
+    }
+    if (fragment === 'gmail_error') {
+      toast.error('Gmail connection failed. Try again.');
+    }
+  }, [refreshGmailStatus]);
+
   // If backend pauses for user input, allow UI actions immediately.
   useEffect(() => {
     const currentPhase = campaign?.state?.phase;
@@ -528,14 +548,22 @@ const Campaign = () => {
       
       fetchCampaign();
     } catch (error) {
+      if (error.status === 409) {
+        toast.error('Connect your Gmail account first');
+        setGmailSetupOpen(true);
+        return;
+      }
       toast.error(error.message || 'Failed to create Gmail drafts');
     }
   };
 
   const handleConnectGmail = async () => {
     try {
-      const { auth_url } = await gmailAPI.getAuthUrl();
-      window.location.href = auth_url;
+      const { auth_url } = await gmailAPI.getAuthUrl({ return_to: getGmailReturnTo() });
+      if (!auth_url) {
+        throw new Error('Missing Gmail authorization URL');
+      }
+      window.location.assign(auth_url);
     } catch (error) {
       toast.error(error.message || 'Failed to initiate Gmail authorization');
     }
@@ -560,7 +588,7 @@ const Campaign = () => {
       return;
     }
 
-    if (!status?.authorized) {
+    if (!isGmailAuthorized(status)) {
       toast.error('Connect your Gmail account first');
       setGmailSetupOpen(true);
       return;
@@ -602,7 +630,7 @@ const Campaign = () => {
   const steps = state.steps || {};
   const artifacts = state.artifacts || {};
   const phase = state.phase || 'idle';
-  const gmailActionLabel = gmailStatus?.authorized
+  const gmailActionLabel = isGmailAuthorized(gmailStatus)
     ? 'Create Gmail Drafts'
     : gmailStatus?.availability === 'unavailable'
     ? 'Configure Gmail'

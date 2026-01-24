@@ -318,8 +318,10 @@ export const gmailAPI = {
     return response.data;
   },
 
-  getAuthUrl: async () => {
-    const response = await api.get('/api/gmail/auth-url');
+  getAuthUrl: async ({ return_to } = {}) => {
+    const response = await api.get('/api/gmail/auth-url', {
+      params: return_to ? { return_to } : undefined,
+    });
     return response.data;
   },
 

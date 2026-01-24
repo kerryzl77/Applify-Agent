@@ -6,6 +6,7 @@ from typing import List, Dict, Optional
 
 from openai import OpenAI
 
+from app.utils.url import normalize_url
 logger = logging.getLogger(__name__)
 
 client = OpenAI()
@@ -29,9 +30,10 @@ def _normalize_result(item) -> Dict:
         or _get_value(item, "content", "")
         or _get_value(item, "description", "")
     )
+    url = normalize_url(str(url or "").strip())
     return {
         "title": str(title or "").strip(),
-        "url": str(url or "").strip(),
+        "url": url,
         "snippet": str(snippet or "").strip(),
     }
 
