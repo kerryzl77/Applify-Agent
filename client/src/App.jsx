@@ -11,6 +11,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import DiscoverJobs from './pages/DiscoverJobs';
 import Campaign from './pages/Campaign';
+import GmailCallback from './pages/GmailCallback';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -126,6 +127,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Campaign />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/gmail/callback"
+          element={
+            <ProtectedRoute>
+              <GmailCallback />
             </ProtectedRoute>
           }
         />

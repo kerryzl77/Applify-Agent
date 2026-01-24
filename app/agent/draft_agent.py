@@ -73,8 +73,13 @@ class DraftAgent:
         # Optional LinkedIn note
         if emit_trace:
             emit_trace({'type': 'step_progress', 'step': 'drafts', 'message': 'Generating LinkedIn note...'})
+        linkedin_contact = (
+            selected_contacts.get('recruiter')
+            or selected_contacts.get('hiring_manager')
+            or selected_contacts.get('warm_intro')
+        )
         drafts['linkedin_note'] = self._generate_linkedin_note(
-            job_data, candidate_data, evidence_pack, feedback_prompt
+            job_data, candidate_data, evidence_pack, feedback_prompt, linkedin_contact
         )
         
         return drafts
@@ -271,17 +276,26 @@ Return JSON: {{"subject": "...", "body": "..."}}"""
         candidate_data: Dict[str, Any],
         evidence_pack: Dict[str, Any],
         global_feedback: str,
+        contact: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, str]:
         """Generate LinkedIn connection note."""
         candidate_name = candidate_data.get('personal_info', {}).get('name', 'Candidate')
         job_title = job_data.get('job_title', job_data.get('title', ''))
         company = job_data.get('company_name', '')
+        recipient_name = (contact or {}).get('name', '').strip()
+        recipient_title = (contact or {}).get('title', '').strip()
+        recipient_label = (
+            f"{recipient_name}{f' - {recipient_title}' if recipient_title else ''}"
+            if recipient_name
+            else f"Someone at {company} regarding {job_title} role"
+        )
+        greeting_name = recipient_name.split()[0] if recipient_name else "there"
         
         prompt = f"""Write a LinkedIn connection request note FROM the candidate.
 
 CONTEXT:
 - Candidate (SENDER): {candidate_name}
-- Target (RECIPIENT): Someone at {company} regarding {job_title} role
+- Target (RECIPIENT): {recipient_label}
 
 {global_feedback}
 
@@ -290,6 +304,9 @@ Write a brief LinkedIn connection note from {candidate_name} (under 200 characte
 - Mention the role the candidate is interested in
 - No hard sell
 - The candidate is sending the connection request
+- If a recipient name is available, start with "Hi {greeting_name},"
+- If not, use "Hi there," or no greeting
+- Do NOT use placeholders like [Name] or {{Name}}
 
 Return JSON: {{"body": "..."}}"""
 

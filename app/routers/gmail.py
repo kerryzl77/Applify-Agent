@@ -2,7 +2,7 @@
 
 import logging
 import os
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
@@ -25,22 +25,23 @@ router = APIRouter()
 
 
 def get_frontend_redirect_url(
-    fragment: str = "",
+    status: str = "",
     origin: Optional[str] = None,
     return_to: Optional[str] = None,
 ) -> str:
     """Get the frontend redirect URL."""
     base = origin or os.environ.get("FRONTEND_ORIGIN") or os.environ.get("PUBLIC_URL") or ""
     base = base.rstrip("/")
-    target = base
+    callback_path = "/gmail/callback"
+    target = f"{base}{callback_path}" if base else callback_path
+
+    params = {}
+    if status:
+        params["status"] = status
     if return_to:
-        if not return_to.startswith("/"):
-            return_to = f"/{return_to}"
-        target = f"{target}{return_to}" if target else return_to
-    if not target:
-        target = "/"
-    if fragment:
-        target = f"{target}#{fragment}"
+        params["return_to"] = return_to
+    if params:
+        target = f"{target}?{urlencode(params)}"
     return target
 
 
@@ -170,7 +171,7 @@ async def gmail_oauth_callback(
     if error:
         return RedirectResponse(
             url=get_frontend_redirect_url(
-                "gmail_error",
+                "error",
                 origin=redirect_origin,
                 return_to=redirect_return_to,
             )
@@ -179,7 +180,7 @@ async def gmail_oauth_callback(
     if not code or not state or not user_id:
         return RedirectResponse(
             url=get_frontend_redirect_url(
-                "gmail_invalid_state",
+                "invalid_state",
                 origin=redirect_origin,
                 return_to=redirect_return_to,
             )
@@ -190,7 +191,7 @@ async def gmail_oauth_callback(
         service.exchange_code_for_tokens(code)
         return RedirectResponse(
             url=get_frontend_redirect_url(
-                "gmail_connected",
+                "connected",
                 origin=redirect_origin,
                 return_to=redirect_return_to,
             )
@@ -198,7 +199,7 @@ async def gmail_oauth_callback(
     except GmailOAuthError:
         return RedirectResponse(
             url=get_frontend_redirect_url(
-                "gmail_error",
+                "error",
                 origin=redirect_origin,
                 return_to=redirect_return_to,
             )

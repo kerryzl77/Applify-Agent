@@ -26,7 +26,7 @@ import {
 import Sidebar from '../components/Sidebar';
 import GmailSetup from '../components/GmailSetup';
 import { campaignAPI, gmailAPI } from '../services/api';
-import { consumeGmailRedirectFragment, getGmailReturnTo, isGmailAuthorized } from '../utils/gmail';
+import { getGmailReturnTo, isGmailAuthorized } from '../utils/gmail';
 import toast from 'react-hot-toast';
 
 // Step status icons
@@ -320,25 +320,6 @@ const Campaign = () => {
 
   useEffect(() => {
     refreshGmailStatus();
-  }, [refreshGmailStatus]);
-
-  useEffect(() => {
-    const fragment = consumeGmailRedirectFragment();
-    if (!fragment) {
-      return;
-    }
-    if (fragment === 'gmail_connected') {
-      toast.success('Gmail connected');
-      refreshGmailStatus();
-      return;
-    }
-    if (fragment === 'gmail_invalid_state') {
-      toast.error('Gmail authorization expired. Try connecting again.');
-      return;
-    }
-    if (fragment === 'gmail_error') {
-      toast.error('Gmail connection failed. Try again.');
-    }
   }, [refreshGmailStatus]);
 
   // If backend pauses for user input, allow UI actions immediately.

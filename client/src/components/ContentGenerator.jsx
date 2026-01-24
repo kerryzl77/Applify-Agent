@@ -18,7 +18,7 @@ import ReactMarkdown from "react-markdown";
 import useStore from "../store/useStore";
 import api, { gmailAPI } from "../services/api";
 import { copyToClipboard, downloadBlob, downloadFile } from "../utils/helpers";
-import { consumeGmailRedirectFragment, getGmailReturnTo, isGmailAuthorized } from "../utils/gmail";
+import { getGmailReturnTo, isGmailAuthorized } from "../utils/gmail";
 import toast from "react-hot-toast";
 import GmailSetup from "./GmailSetup";
 
@@ -258,25 +258,6 @@ const ContentGenerator = () => {
 
   useEffect(() => {
     refreshGmailStatus();
-  }, [refreshGmailStatus]);
-
-  useEffect(() => {
-    const fragment = consumeGmailRedirectFragment();
-    if (!fragment) {
-      return;
-    }
-    if (fragment === "gmail_connected") {
-      toast.success("Gmail connected");
-      refreshGmailStatus();
-      return;
-    }
-    if (fragment === "gmail_invalid_state") {
-      toast.error("Gmail authorization expired. Try connecting again.");
-      return;
-    }
-    if (fragment === "gmail_error") {
-      toast.error("Gmail connection failed. Try again.");
-    }
   }, [refreshGmailStatus]);
 
   useEffect(() => {

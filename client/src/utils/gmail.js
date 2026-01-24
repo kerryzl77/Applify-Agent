@@ -9,15 +9,16 @@ export const getGmailReturnTo = () => {
 export const isGmailAuthorized = (status) =>
   Boolean(status?.authorized) || status?.availability === "authorized";
 
-export const consumeGmailRedirectFragment = () => {
-  if (typeof window === "undefined") {
+export const getSafeReturnTo = (value) => {
+  if (!value || typeof value !== "string") {
     return null;
   }
-  const fragment = window.location.hash?.replace("#", "");
-  if (!fragment || !fragment.startsWith("gmail_")) {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith("//")) {
     return null;
   }
-  const nextUrl = `${window.location.pathname}${window.location.search || ""}`;
-  window.history.replaceState(null, "", nextUrl);
-  return fragment;
+  if (/^https?:\/\//i.test(trimmed)) {
+    return null;
+  }
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 };
