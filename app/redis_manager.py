@@ -1,4 +1,5 @@
 import redis
+import ssl
 import json
 import os
 import logging
@@ -34,7 +35,7 @@ class RedisManager:
                     socket_timeout=5,
                     retry_on_timeout=True,
                     health_check_interval=30,
-                    ssl_cert_reqs=None,  # Disable SSL certificate verification
+                    ssl_cert_reqs=ssl.CERT_NONE,  # Disable SSL cert verification for Heroku Redis
                     ssl_check_hostname=False
                 )
             else:
