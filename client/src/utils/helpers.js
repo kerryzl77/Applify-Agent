@@ -37,31 +37,6 @@ export const formatDate = (dateString) => {
   });
 };
 
-export const formatDateTime = (dateString) => {
-  if (!dateString) return '';
-
-  const date = new Date(dateString);
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-};
-
-export const formatTime = (dateString) => {
-  if (!dateString) return '';
-
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-};
-
 // File size formatting
 export const formatFileSize = (bytes) => {
   if (!bytes || bytes === 0) return '0 Bytes';
@@ -74,23 +49,16 @@ export const formatFileSize = (bytes) => {
 };
 
 // Text utilities
-export const truncateText = (text, maxLength = 100) => {
-  if (!text) return '';
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength).trim() + '...';
-};
-
-export const capitalizeFirst = (str) => {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-};
-
-export const camelToTitle = (str) => {
-  if (!str) return '';
-  return str
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, (s) => s.toUpperCase())
-    .trim();
+export const getInitials = (value) => {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const base = trimmed.includes('@') ? trimmed.split('@')[0] : trimmed;
+  const normalized = base.replace(/[_\-.]+/g, ' ');
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  const first = parts[0]?.[0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] : parts[0]?.[1] || '';
+  return (first + last).toUpperCase();
 };
 
 // Validation utilities
@@ -103,35 +71,6 @@ export const isValidPassword = (password) => {
   // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
   return passwordRegex.test(password);
-};
-
-export const isValidURL = (url) => {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-// File utilities
-export const getFileExtension = (filename) => {
-  if (!filename) return '';
-  return filename.slice((filename.lastIndexOf('.') - 1 >>> 0) + 2);
-};
-
-export const isValidFileType = (file, allowedTypes) => {
-  if (!file || !allowedTypes) return false;
-  const fileType = file.type;
-  const fileExtension = getFileExtension(file.name).toLowerCase();
-
-  return allowedTypes.some(type => {
-    if (type.includes('*')) {
-      const baseType = type.split('/')[0];
-      return fileType.startsWith(baseType);
-    }
-    return fileType === type || `.${fileExtension}` === type;
-  });
 };
 
 // Content utilities
@@ -186,36 +125,6 @@ export const downloadBlob = (blob, filename) => {
   window.URL.revokeObjectURL(url);
 };
 
-// Debounce function
-export const debounce = (func, wait) => {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-};
-
-// Throttle function
-export const throttle = (func, limit) => {
-  let inThrottle;
-  return function executedFunction(...args) {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  };
-};
-
-// Generate unique ID
-export const generateId = () => {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-};
-
 // Color utilities for avatars
 export const getColorFromString = (str) => {
   if (!str) return '#6B7280'; // default gray
@@ -237,54 +146,4 @@ export const getColorFromString = (str) => {
   }
 
   return colors[Math.abs(hash) % colors.length];
-};
-
-export const getInitials = (name) => {
-  if (!name) return '?';
-
-  const parts = name.trim().split(' ');
-  if (parts.length === 1) {
-    return parts[0].substring(0, 2).toUpperCase();
-  }
-
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-};
-
-// Local storage utilities
-export const storage = {
-  get: (key, defaultValue = null) => {
-    try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : defaultValue;
-    } catch {
-      return defaultValue;
-    }
-  },
-
-  set: (key, value) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch {
-      return false;
-    }
-  },
-
-  remove: (key) => {
-    try {
-      localStorage.removeItem(key);
-      return true;
-    } catch {
-      return false;
-    }
-  },
-
-  clear: () => {
-    try {
-      localStorage.clear();
-      return true;
-    } catch {
-      return false;
-    }
-  },
 };

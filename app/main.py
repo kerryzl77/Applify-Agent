@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from datetime import datetime
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -62,81 +62,6 @@ app.include_router(resume_router, prefix="/api/resume", tags=["Resume"])
 app.include_router(gmail_router, prefix="/api/gmail", tags=["Gmail"])
 app.include_router(jobs_router, prefix="/api/jobs", tags=["Jobs Discovery"])
 app.include_router(agent_router, prefix="/api/agent", tags=["Agent"])
-
-# Legacy endpoint aliases for backward compatibility
-# These redirect to the new endpoints
-from fastapi import Request
-from fastapi.responses import RedirectResponse
-
-@app.api_route("/api/login", methods=["POST"], include_in_schema=False)
-async def legacy_login(request: Request):
-    """Legacy login endpoint - redirects to /api/auth/login."""
-    return RedirectResponse(url="/api/auth/login", status_code=307)
-
-@app.api_route("/api/register", methods=["POST"], include_in_schema=False)
-async def legacy_register(request: Request):
-    """Legacy register endpoint - redirects to /api/auth/register."""
-    return RedirectResponse(url="/api/auth/register", status_code=307)
-
-@app.api_route("/api/logout", methods=["POST"], include_in_schema=False)
-async def legacy_logout(request: Request):
-    """Legacy logout endpoint - redirects to /api/auth/logout."""
-    return RedirectResponse(url="/api/auth/logout", status_code=307)
-
-@app.api_route("/api/auth/check", methods=["GET"], include_in_schema=False)
-async def legacy_auth_check(request: Request):
-    """Legacy auth check - handled by auth router."""
-    # This is already handled by the auth router, just ensuring route exists
-    pass
-
-@app.api_route("/api/candidate-data", methods=["GET", "POST"], include_in_schema=False)
-async def legacy_candidate_data(request: Request):
-    """Legacy candidate data endpoint."""
-    method = request.method
-    if method == "GET":
-        return RedirectResponse(url="/api/content/candidate-data", status_code=307)
-    return RedirectResponse(url="/api/content/candidate-data", status_code=307)
-
-@app.api_route("/api/update-candidate-data", methods=["POST"], include_in_schema=False)
-async def legacy_update_candidate_data(request: Request):
-    """Legacy update candidate data endpoint."""
-    return RedirectResponse(url="/api/content/candidate-data", status_code=307)
-
-@app.api_route("/api/generate", methods=["POST"], include_in_schema=False)
-async def legacy_generate(request: Request):
-    """Legacy generate endpoint."""
-    return RedirectResponse(url="/api/content/generate", status_code=307)
-
-@app.api_route("/api/upload-resume", methods=["POST"], include_in_schema=False)
-async def legacy_upload_resume(request: Request):
-    """Legacy resume upload endpoint."""
-    return RedirectResponse(url="/api/resume/upload", status_code=307)
-
-@app.api_route("/api/refine-resume", methods=["POST"], include_in_schema=False)
-async def legacy_refine_resume(request: Request):
-    """Legacy resume refine endpoint."""
-    return RedirectResponse(url="/api/resume/refine", status_code=307)
-
-@app.api_route("/api/resume-progress", methods=["GET"], include_in_schema=False)
-async def legacy_resume_progress(request: Request):
-    """Legacy resume progress endpoint."""
-    return RedirectResponse(url="/api/resume/progress", status_code=307)
-
-@app.api_route("/api/resume-refinement-progress/{task_id}", methods=["GET"], include_in_schema=False)
-async def legacy_refinement_progress(task_id: str):
-    """Legacy refinement progress endpoint."""
-    return RedirectResponse(url=f"/api/resume/refinement-progress/{task_id}", status_code=307)
-
-@app.api_route("/api/download/{file_path:path}", methods=["GET"], include_in_schema=False)
-async def legacy_download(file_path: str):
-    """Legacy download endpoint."""
-    return RedirectResponse(url=f"/api/content/download/{file_path}", status_code=307)
-
-@app.api_route("/api/convert-to-pdf/{file_path:path}", methods=["GET"], include_in_schema=False)
-async def legacy_convert_pdf(file_path: str):
-    """Legacy PDF conversion endpoint."""
-    return RedirectResponse(url=f"/api/content/convert-to-pdf/{file_path}", status_code=307)
-
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])
