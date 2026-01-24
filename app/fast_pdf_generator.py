@@ -507,6 +507,8 @@ class FastPDFGenerator:
         Count how many pages the resume would take without writing to disk.
         
         Used by OnePageFitter to verify the resume fits on one page.
+        Uses the same page decorations as generate_resume_pdf() to ensure
+        accurate page counting.
         
         Args:
             resume_data: Resume data with sections
@@ -530,8 +532,8 @@ class FastPDFGenerator:
                 bottomMargin=self.margins['bottom']
             )
             
-            # Build to count pages
-            doc.build(story)
+            # Build with same decorations as generate_resume_pdf to ensure accurate count
+            doc.build(story, onFirstPage=self._add_page_decorations)
             
             # Get page count from the buffer
             buffer.seek(0)

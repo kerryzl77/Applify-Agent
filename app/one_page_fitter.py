@@ -149,12 +149,17 @@ class OnePageFitter:
         return resume, changes
     
     def _compress_further(self, resume: dict, iteration: int) -> tuple[dict, list]:
-        """Apply more aggressive compression for subsequent iterations."""
+        """
+        Apply more aggressive compression for subsequent iterations.
+        
+        Order prioritizes reducing "width" (bullets, skills) before dropping
+        entire roles to preserve as much content as possible.
+        """
         changes = []
         
         # Progressive compression based on iteration
         if iteration == 1:
-            # Reduce bullets to 2 per role
+            # First: Reduce bullets to 2 per role (preserves all roles)
             for i, exp in enumerate(resume.get("experience", [])):
                 bullets = exp.get("bullet_points", [])
                 if len(bullets) > 2:
@@ -162,21 +167,21 @@ class OnePageFitter:
                     changes.append(f"Reduced role {i+1} to 2 bullets")
         
         elif iteration == 2:
-            # Reduce experience to 3 roles
-            experience = resume.get("experience", [])
-            if len(experience) > 3:
-                resume["experience"] = experience[:3]
-                changes.append("Limited to 3 experience roles")
-        
-        elif iteration == 3:
-            # Reduce skills to 10
+            # Second: Reduce skills to 10 (preserves all roles)
             skills = resume.get("skills", [])
             if len(skills) > 10:
                 resume["skills"] = skills[:10]
                 changes.append("Limited to 10 skills")
         
-        elif iteration >= 4:
-            # Reduce bullet word count further
+        elif iteration == 3:
+            # Third: Reduce experience to 3 roles (last resort for roles)
+            experience = resume.get("experience", [])
+            if len(experience) > 3:
+                resume["experience"] = experience[:3]
+                changes.append("Limited to 3 experience roles")
+        
+        elif iteration == 4:
+            # Fourth: Truncate bullets further to 18 words
             for i, exp in enumerate(resume.get("experience", [])):
                 new_bullets = []
                 for bullet in exp.get("bullet_points", []):
@@ -186,7 +191,20 @@ class OnePageFitter:
                     else:
                         new_bullets.append(bullet)
                 resume["experience"][i]["bullet_points"] = new_bullets
-            changes.append("Further truncated bullets to 18 words")
+            changes.append("Truncated bullets to 18 words")
+        
+        elif iteration >= 5:
+            # Fifth+: Reduce summary and skills further
+            summary = resume.get("summary", "")
+            words = summary.split()
+            if len(words) > 40:
+                resume["summary"] = " ".join(words[:40]) + "."
+                changes.append("Truncated summary to 40 words")
+            
+            skills = resume.get("skills", [])
+            if len(skills) > 8:
+                resume["skills"] = skills[:8]
+                changes.append("Limited to 8 skills")
         
         return resume, changes
     

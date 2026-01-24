@@ -133,15 +133,34 @@ def process_resume_refinement_background(
                    f"{len(tailored_dict['experience'])} experiences")
         
         # ================================================================
-        # Step 3: One-Page Fitting
+        # Step 3: One-Page Fitting with Real Page Counting
         # ================================================================
         update_progress("fitting", 60, "Optimizing for one-page format...")
         
+        # Helper to convert tailored dict to PDF generator format
+        def build_resume_data(resume_dict):
+            return {
+                "sections": {
+                    "professional_summary": resume_dict.get("summary", ""),
+                    "skills": resume_dict.get("skills", []),
+                    "experience": resume_dict.get("experience", []),
+                    "education": resume_dict.get("education", []),
+                }
+            }
+        
+        # Page counter that measures actual rendered PDF pages
+        def page_counter(resume_dict):
+            resume_data = build_resume_data(resume_dict)
+            return output_formatter.pdf_generator.count_pages(resume_data, candidate_data)
+        
         fitter = OnePageFitter()
-        fitted_resume, fit_result = fitter.fit(tailored_dict)
+        fitted_resume, fit_result = fitter.fit(tailored_dict, page_counter=page_counter)
+        
+        # Verify final page count
+        final_page_count = page_counter(fitted_resume)
         
         logger.info(f"One-page fitter: {fit_result.iterations} iterations, "
-                   f"{len(fit_result.changes_made)} changes")
+                   f"{len(fit_result.changes_made)} changes, final pages: {final_page_count}")
         
         # ================================================================
         # Step 4: PDF Generation
@@ -149,14 +168,7 @@ def process_resume_refinement_background(
         update_progress("generating_pdf", 80, "Creating professional PDF...")
         
         # Build resume data structure for PDF generator
-        resume_data = {
-            "sections": {
-                "professional_summary": fitted_resume.get("summary", ""),
-                "skills": fitted_resume.get("skills", []),
-                "experience": fitted_resume.get("experience", []),
-                "education": fitted_resume.get("education", []),
-            }
-        }
+        resume_data = build_resume_data(fitted_resume)
         
         # Extract job title from job description (first line or extract)
         job_title = _extract_job_title(job_description)
@@ -190,6 +202,8 @@ def process_resume_refinement_background(
                     "experience_count": len(fitted_resume.get("experience", [])),
                     "one_page_fitted": fit_result.fitted,
                     "fit_iterations": fit_result.iterations,
+                    "final_page_count": final_page_count,
+                    "fit_changes": fit_result.changes_made,
                     "generation_time": round(generation_time, 2),
                     "pipeline": "2-tier-vlm",
                 },
@@ -198,6 +212,7 @@ def process_resume_refinement_background(
                     f"Resume tailored for: {job_title}",
                     f"Skills prioritized: {len(fitted_resume.get('skills', []))}",
                     f"Experience entries: {len(fitted_resume.get('experience', []))}",
+                    f"Final PDF: {final_page_count} page(s)",
                     f"Generated in {generation_time:.1f}s",
                     "Download your tailored resume below!",
                 ],
