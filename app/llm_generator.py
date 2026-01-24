@@ -471,6 +471,7 @@ class LLMGenerator:
         - No generic statements - everything should be specific
         - Include specific metrics/achievements where possible
         - Show genuine enthusiasm for the role and company
+        - Plain text only: no Markdown, no bullets, no asterisks, no underscores
         
-        Write the complete cover letter content (no header with addresses):
+        Write the complete cover letter content as plain text (no header with addresses):
         """

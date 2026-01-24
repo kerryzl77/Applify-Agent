@@ -455,9 +455,15 @@ def _build_job_search_query(url: str, job_title: str | None, company_name: str |
     params = parse_qs(parsed.query or "")
     if params.get("gh_jid"):
         parts.append(params["gh_jid"][0])
+        parts.append("site:boards.greenhouse.io OR site:job-boards.greenhouse.io")
     if not parts:
         return url
     return " ".join(parts) + " job description"
+
+
+def _should_relax_search_domain(url: str) -> bool:
+    """Avoid restricting search domains for ATS pointers."""
+    return _is_greenhouse_url(url) or _is_ashby_url(url) or _is_workday_url(url)
 
 
 def search_job_posting_text(
@@ -473,6 +479,8 @@ def search_job_posting_text(
     parsed = urlparse(url)
     query = _build_job_search_query(url, job_title, company_name)
     allowed = [parsed.netloc] if parsed.netloc else None
+    if _should_relax_search_domain(url):
+        allowed = None
 
     results = openai_web_search(query, num_results=4, allowed_domains=allowed)
     if not results and parsed.netloc:
@@ -510,6 +518,7 @@ class DataRetriever:
                     job_title = ats_result["job_title"]
                 if not company_name and ats_result.get("company_name"):
                     company_name = ats_result["company_name"]
+            force_search = _should_relax_search_domain(url) and not ats_result
 
             if not text_content:
                 text_content = fetch_clean_text(url)
@@ -525,9 +534,9 @@ class DataRetriever:
                     text_content = fallback_text
 
             # Secondary fallback: use OpenAI web search to find an alternate source
-            if not text_content or len(text_content.strip()) < 200:
+            if force_search or not text_content or len(text_content.strip()) < 200:
                 search_text = search_job_posting_text(url, job_title, company_name, min_chars=200)
-                if search_text and len(search_text) > len(text_content.strip()):
+                if search_text and (force_search or len(search_text) > len(text_content.strip())):
                     text_content = search_text
 
             text_content = normalize_text(text_content).strip()
