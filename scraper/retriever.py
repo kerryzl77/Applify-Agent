@@ -65,6 +65,117 @@ def _extract_text_from_html_fragment(html_fragment: str) -> str:
     return (text or "").strip()
 
 
+def _normalize_json_ld_text(value) -> str:
+    if not value:
+        return ""
+    if isinstance(value, list):
+        parts = [_normalize_json_ld_text(v) for v in value]
+        return "\n".join(p for p in parts if p).strip()
+    if isinstance(value, dict):
+        return _normalize_json_ld_text(value.get("text") or value.get("description") or "")
+    if not isinstance(value, str):
+        return ""
+    text = value.strip()
+    if "<" in text and ">" in text:
+        text = _extract_text_from_html_fragment(text)
+    return text.strip()
+
+
+def _normalize_json_ld_location(value) -> str:
+    if not value:
+        return ""
+    if isinstance(value, list):
+        parts = [_normalize_json_ld_location(v) for v in value]
+        return ", ".join(p for p in parts if p).strip()
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict):
+        name = value.get("name")
+        if isinstance(name, str) and name.strip():
+            return name.strip()
+        address = value.get("address")
+        if isinstance(address, dict):
+            parts = []
+            for key in (
+                "streetAddress",
+                "addressLocality",
+                "addressRegion",
+                "postalCode",
+                "addressCountry",
+            ):
+                val = address.get(key)
+                if isinstance(val, str) and val.strip():
+                    parts.append(val.strip())
+            return ", ".join(parts).strip()
+        if isinstance(address, str):
+            return address.strip()
+    return ""
+
+
+def _extract_job_posting_from_json_ld(json_ld) -> dict | None:
+    if not json_ld:
+        return None
+
+    def _iter_nodes(obj):
+        if isinstance(obj, dict):
+            yield obj
+            graph = obj.get("@graph")
+            if isinstance(graph, list):
+                for item in graph:
+                    yield from _iter_nodes(item)
+        elif isinstance(obj, list):
+            for item in obj:
+                yield from _iter_nodes(item)
+
+    for node in _iter_nodes(json_ld):
+        if not isinstance(node, dict):
+            continue
+        node_type = node.get("@type")
+        types = []
+        if isinstance(node_type, list):
+            types = [str(t).lower() for t in node_type if t]
+        elif isinstance(node_type, str):
+            types = [node_type.lower()]
+        if "jobposting" not in types:
+            continue
+
+        title = (node.get("title") or node.get("jobTitle") or node.get("name") or "").strip()
+        description = _normalize_json_ld_text(node.get("description"))
+        requirements = _normalize_json_ld_text(
+            node.get("qualifications") or node.get("skills") or node.get("responsibilities")
+        )
+        company = ""
+        org = node.get("hiringOrganization") or node.get("publisher") or ""
+        if isinstance(org, dict):
+            company = (org.get("name") or "").strip()
+        elif isinstance(org, str):
+            company = org.strip()
+
+        location = _normalize_json_ld_location(
+            node.get("jobLocation") or node.get("applicantLocationRequirements")
+        )
+        if not location:
+            location = _normalize_json_ld_text(node.get("jobLocationType"))
+
+        text_content = "\n\n".join(
+            [p for p in [title, location, description, requirements] if p]
+        ).strip()
+        if not text_content:
+            continue
+
+        return {
+            "text": text_content,
+            "job_title": title or None,
+            "location": location or None,
+            "company_name": company or None,
+            "requirements": requirements or None,
+            "job_description": description or None,
+            "source": "json_ld",
+        }
+
+    return None
+
+
 def fetch_clean_text(url: str, timeout: int = 20) -> str:
     """Fetch HTML and extract main text using trafilatura."""
     try:
@@ -119,6 +230,85 @@ def _extract_greenhouse_ids_from_html(html: str) -> tuple[str | None, str | None
     return None, None
 
 
+def _normalize_greenhouse_token(value: str, keep_dashes: bool = True) -> str:
+    if not value:
+        return ""
+    value = value.strip().lower()
+    value = re.sub(r"[^a-z0-9]+", "-" if keep_dashes else "", value)
+    value = re.sub(r"-{2,}", "-", value).strip("-")
+    return value
+
+
+def _build_greenhouse_token_candidates(url: str, company_name: str | None) -> list[str]:
+    candidates: list[str] = []
+
+    def _add(value: str):
+        if not value:
+            return
+        dash = _normalize_greenhouse_token(value, keep_dashes=True)
+        compact = _normalize_greenhouse_token(value, keep_dashes=False)
+        for token in (dash, compact):
+            if token and token not in candidates:
+                candidates.append(token)
+
+    if company_name:
+        _add(company_name)
+
+    parsed = urlparse(url)
+    host = (parsed.netloc or "").replace("www.", "").split(":")[0]
+    parts = [p for p in host.split(".") if p]
+    if parts:
+        core = parts[0]
+        if core in ("careers", "jobs", "apply", "boards") and len(parts) > 1:
+            core = parts[1]
+        _add(core)
+        if len(parts) > 1:
+            tld = parts[-1]
+            if tld and len(tld) <= 4:
+                _add(f"{core}{tld}")
+                _add(f"{core}-{tld}")
+
+    return candidates[:8]
+
+
+def _fetch_greenhouse_job_api(board_token: str, job_id: str, company_name: str | None) -> dict | None:
+    api_url = f"https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs/{job_id}"
+    try:
+        resp = HTTP_SESSION.get(
+            api_url,
+            headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+            timeout=20,
+        )
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+    except Exception as exc:
+        print(f"Greenhouse API fetch failed: {exc}")
+        return None
+
+    title = (data.get("title") or "").strip()
+    loc = data.get("location")
+    location = ""
+    if isinstance(loc, dict):
+        location = (loc.get("name") or "").strip()
+    elif isinstance(loc, str):
+        location = loc.strip()
+
+    content_html = data.get("content") or ""
+    content_text = _extract_text_from_html_fragment(content_html)
+    text_content = "\n\n".join([p for p in [title, location, content_text] if p]).strip()
+    if not text_content:
+        return None
+
+    return {
+        "text": text_content,
+        "job_title": title or None,
+        "location": location or None,
+        "company_name": company_name or None,
+        "source": "greenhouse_api",
+    }
+
+
 def _find_greenhouse_board_token(url: str, job_id: str | None, company_name: str | None) -> str | None:
     if not os.getenv("OPENAI_API_KEY"):
         return None
@@ -155,44 +345,16 @@ def _fetch_greenhouse_job_text(url: str, company_name: str | None) -> dict | Non
             job_id = job_id or html_job_id
 
     if job_id and not board_token:
+        for candidate in _build_greenhouse_token_candidates(url, company_name):
+            result = _fetch_greenhouse_job_api(candidate, job_id, company_name)
+            if result:
+                return result
         board_token = _find_greenhouse_board_token(url, job_id, company_name)
 
     if not board_token or not job_id:
         return None
 
-    api_url = f"https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs/{job_id}"
-    try:
-        resp = HTTP_SESSION.get(api_url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"}, timeout=20)
-        if resp.status_code != 200:
-            print(f"Greenhouse API error {resp.status_code} for {api_url}")
-            return None
-        data = resp.json()
-    except Exception as exc:
-        print(f"Greenhouse API fetch failed: {exc}")
-        return None
-
-    title = (data.get("title") or "").strip()
-    loc = data.get("location")
-    location = ""
-    if isinstance(loc, dict):
-        location = (loc.get("name") or "").strip()
-    elif isinstance(loc, str):
-        location = loc.strip()
-
-    content_html = data.get("content") or ""
-    content_text = _extract_text_from_html_fragment(content_html)
-    text_content = "\n\n".join([p for p in [title, location, content_text] if p]).strip()
-
-    if not text_content:
-        return None
-
-    return {
-        "text": text_content,
-        "job_title": title or None,
-        "location": location or None,
-        "company_name": company_name or None,
-        "source": "greenhouse_api",
-    }
+    return _fetch_greenhouse_job_api(board_token, job_id, company_name)
 
 
 def _is_ashby_url(url: str) -> bool:
@@ -375,6 +537,40 @@ def _normalize_workday_location(value) -> str:
     return ""
 
 
+def _fetch_workday_api_json(api_url: str) -> dict | None:
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    try:
+        resp = HTTP_SESSION.get(api_url, headers=headers, timeout=20)
+    except Exception as exc:
+        print(f"Workday API fetch failed: {exc}")
+        return None
+
+    if resp.status_code == 406:
+        alt_headers = {"User-Agent": USER_AGENT, "Accept": "*/*"}
+        alt_urls = [api_url]
+        if "format=json" not in api_url:
+            joiner = "&" if "?" in api_url else "?"
+            alt_urls.append(f"{api_url}{joiner}format=json")
+        for alt_url in alt_urls:
+            try:
+                alt_resp = HTTP_SESSION.get(alt_url, headers=alt_headers, timeout=20)
+            except Exception:
+                continue
+            if alt_resp.status_code == 200:
+                resp = alt_resp
+                break
+
+    if resp.status_code != 200:
+        print(f"Workday API error {resp.status_code} for {api_url}")
+        return None
+
+    try:
+        return resp.json()
+    except Exception as exc:
+        print(f"Workday API JSON parse failed: {exc}")
+        return None
+
+
 def _fetch_workday_job_text(url: str, company_name: str | None) -> dict | None:
     if not _is_workday_url(url):
         return None
@@ -385,18 +581,8 @@ def _fetch_workday_job_text(url: str, company_name: str | None) -> dict | None:
         return None
 
     api_url = f"{parsed.scheme or 'https'}://{parsed.netloc}/wday/cxs/{tenant}/{site}/{job_slug}"
-    try:
-        resp = HTTP_SESSION.get(
-            api_url,
-            headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
-            timeout=20,
-        )
-        if resp.status_code != 200:
-            print(f"Workday API error {resp.status_code} for {api_url}")
-            return None
-        data = resp.json()
-    except Exception as exc:
-        print(f"Workday API fetch failed: {exc}")
+    data = _fetch_workday_api_json(api_url)
+    if not data:
         return None
 
     posting = data.get("jobPostingInfo") or data.get("jobPosting") or data.get("job_posting") or {}
@@ -529,8 +715,19 @@ class DataRetriever:
             # Fallback to alternate extraction if content is empty/short
             if not text_content or len(text_content.strip()) < 200:
                 fallback = extract_url(url)
+                structured_job = _extract_job_posting_from_json_ld(fallback.get("json_ld"))
+                structured_text = ""
+                if structured_job:
+                    if not job_title and structured_job.get("job_title"):
+                        job_title = structured_job["job_title"]
+                    if not company_name and structured_job.get("company_name"):
+                        company_name = structured_job["company_name"]
+                    structured_text = normalize_text(structured_job.get("text")).strip()
+                    if structured_text:
+                        text_content = structured_text
+
                 fallback_text = normalize_text(fallback.get("text")).strip()
-                if fallback_text and len(fallback_text) > len(text_content.strip()):
+                if not structured_text and fallback_text and len(fallback_text) > len(text_content.strip()):
                     text_content = fallback_text
 
             # Secondary fallback: use OpenAI web search to find an alternate source
