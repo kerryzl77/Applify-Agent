@@ -17,6 +17,36 @@ def _get_value(obj, key, default=None):
     return getattr(obj, key, default)
 
 
+def _normalize_result(item) -> Dict:
+    title = _get_value(item, "title", "") or _get_value(item, "name", "")
+    url = (
+        _get_value(item, "url", "")
+        or _get_value(item, "link", "")
+        or _get_value(item, "href", "")
+    )
+    snippet = (
+        _get_value(item, "snippet", "")
+        or _get_value(item, "content", "")
+        or _get_value(item, "description", "")
+    )
+    return {
+        "title": str(title or "").strip(),
+        "url": str(url or "").strip(),
+        "snippet": str(snippet or "").strip(),
+    }
+
+
+def _normalize_results(items) -> List[Dict]:
+    if not isinstance(items, list):
+        return []
+    normalized = []
+    for item in items:
+        result = _normalize_result(item)
+        if result["url"]:
+            normalized.append(result)
+    return normalized
+
+
 def _extract_tool_results(resp) -> Optional[List[Dict]]:
     """Prefer structured tool output when available."""
     raw = None
@@ -30,7 +60,7 @@ def _extract_tool_results(resp) -> Optional[List[Dict]]:
             if isinstance(item, dict) and item.get("type") == "web_search_call":
                 results = item.get("results")
                 if isinstance(results, list):
-                    return results
+                    return _normalize_results(results)
 
     output = getattr(resp, "output", None)
     if output:
@@ -39,7 +69,7 @@ def _extract_tool_results(resp) -> Optional[List[Dict]]:
             if item_type == "web_search_call":
                 results = _get_value(item, "results")
                 if isinstance(results, list):
-                    return results
+                    return _normalize_results(results)
     return None
 
 
@@ -105,9 +135,9 @@ No extra keys, no commentary."""
         try:
             data = json.loads(text)
             if isinstance(data, list):
-                return data[:num_results]
+                return _normalize_results(data)[:num_results]
             elif isinstance(data, dict) and "results" in data:
-                return data["results"][:num_results]
+                return _normalize_results(data["results"])[:num_results]
         except json.JSONDecodeError:
             logger.warning(f"Failed to parse JSON from web search: {text[:200]}")
             
