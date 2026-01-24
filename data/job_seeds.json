@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Seed list of 100 ATS job board roots (50 Greenhouse + 50 Ashby) for daily ingestion",
-  "last_updated": "2026-01-22",
+  "last_updated": "2026-01-23",
   "companies": [
     {
       "company_name": "Alma",
@@ -502,11 +502,111 @@
       "company_name": "Retool",
       "ats_type": "ashby",
       "board_root_url": "https://jobs.ashbyhq.com/retool"
+    },
+    {
+      "company_name": "Cohere",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/cohere"
+    },
+    {
+      "company_name": "Suno",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/suno"
+    },
+    {
+      "company_name": "Chai Discovery",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/chaidiscovery"
+    },
+    {
+      "company_name": "Cognition",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/cognition"
+    },
+    {
+      "company_name": "Writer",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/writer"
+    },
+    {
+      "company_name": "Character.AI",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/character"
+    },
+    {
+      "company_name": "Cursor",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/cursor"
+    },
+    {
+      "company_name": "Fathom",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/fathom.video"
+    },
+    {
+      "company_name": "Vanta",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/vanta"
+    },
+    {
+      "company_name": "Jasper",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/Jasper%20AI"
+    },
+    {
+      "company_name": "Tavus",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/tavus"
+    },
+    {
+      "company_name": "Cartesia",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/cartesia"
+    },
+    {
+      "company_name": "Mem0",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/mem0"
+    },
+    {
+      "company_name": "Normal Computing",
+      "ats_type": "ashby",
+      "board_root_url": "https://jobs.ashbyhq.com/Normal%20Computing%20AI"
+    },
+    {
+      "company_name": "DeepMind",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/deepmind"
+    },
+    {
+      "company_name": "Speechify",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/speechify"
+    },
+    {
+      "company_name": "Fireworks AI",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/fireworksai"
+    },
+    {
+      "company_name": "Together AI",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/togetherai"
+    },
+    {
+      "company_name": "Databricks",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/databricks"
+    },
+    {
+      "company_name": "Cerebras Systems",
+      "ats_type": "greenhouse",
+      "board_root_url": "https://job-boards.greenhouse.io/cerebrassystems"
     }
   ],
   "stats": {
-    "total_companies": 100,
-    "greenhouse_count": 50,
-    "ashby_count": 50
+    "total_companies": 120,
+    "greenhouse_count": 56,
+    "ashby_count": 64
   }
 }
