@@ -37,6 +37,8 @@ jobs:
           context: .
           push: true
           tags: registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/web
+          provenance: false
+          sbom: false
 
       - name: Install Heroku CLI
         run: curl https://cli-assets.heroku.com/install.sh | sh
