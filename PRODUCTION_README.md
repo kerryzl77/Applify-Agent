@@ -16,7 +16,7 @@ FastAPI (Python) + React SPA
 └── Redis                    ← Caching, session state
 ```
 
-**Deployment:** Single Heroku dyno (container stack)
+**Deployment:** Single Heroku dyno (container stack), released by GitHub Actions
 **Server:** Uvicorn ASGI with 2 workers
 
 ---
@@ -99,7 +99,7 @@ job-application-llm/
 │   │   │   └── useStore.js       # Zustand state (auth, profile, theme)
 │   │   └── utils/
 │   │       └── helpers.js        # Utility functions
-│   ├── dist/                     # Production build (committed for Heroku)
+│   ├── dist/                     # Production build output (built in CI/Docker)
 │   └── package.json
 │
 ├── database/
@@ -118,6 +118,7 @@ job-application-llm/
 │   └── gcp-oauth.keys.template.json  # Gmail OAuth template
 │
 ├── Dockerfile                    # Container definition
+├── .github/workflows/            # CI and auto-deploy pipelines
 ├── docker-compose.yml            # Local dev environment
 ├── Procfile                      # Heroku process: uvicorn
 ├── heroku.yml                    # Heroku container config

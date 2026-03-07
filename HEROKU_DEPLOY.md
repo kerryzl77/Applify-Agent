@@ -1,5 +1,21 @@
 # Heroku Deployment Guide
 
+## Recommended Deployment Flow
+
+Use GitHub Actions as the primary deployment path:
+
+1. Push or merge to `main`
+2. GitHub Actions runs backend tests, frontend lint/build, and a Docker image build
+3. If CI passes, GitHub Actions pushes the container image to Heroku and releases it
+
+Required GitHub repository secrets:
+
+- `HEROKU_API_KEY`
+- `HEROKU_APP_NAME=applify`
+- `HEROKU_EMAIL`
+
+Keep runtime application config in Heroku config vars rather than GitHub Actions.
+
 ## Quick Setup Commands
 
 ```bash
@@ -25,8 +41,7 @@ heroku config:set ENVIRONMENT=production -a your-app-name
 heroku config:set GCP_OAUTH_KEYS='<base64-encoded-oauth-config>' -a your-app-name
 heroku config:set GMAIL_REDIRECT_URI=https://your-app-name.herokuapp.com/api/gmail/oauth2callback -a your-app-name
 
-# 6. Deploy from GitHub
-# Connect your GitHub repo in Heroku dashboard, then:
+# 6. Optional emergency/manual deploy
 git push heroku main
 ```
 
@@ -50,18 +65,9 @@ These are automatically populated by addons:
 - `REDIS_URL` - Redis connection  
 - `PORT` - App port
 
-## Build Frontend Before Deploying
+## Frontend Build
 
-The frontend must be built before deploying:
-
-```bash
-cd client
-npm install
-npm run build
-cd ..
-git add client/dist
-git commit -m "Build frontend for production"
-```
+The Docker image builds the frontend during image creation. Production deploys no longer depend on committing `client/dist`.
 
 ## Scaling
 

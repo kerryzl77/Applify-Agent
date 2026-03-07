@@ -1,4 +1,14 @@
-# Use an official Python runtime as a parent image
+FROM node:20-bookworm-slim AS frontend-builder
+
+WORKDIR /frontend
+
+COPY client/package.json client/package-lock.json ./
+RUN npm ci
+
+COPY client/ ./
+RUN npm run build
+
+
 FROM python:3.11-slim
 
 # Install system dependencies (minimal set for production)
@@ -22,17 +32,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy the application code
 COPY . /app
 
-# Verify client/dist exists and list its contents for debugging
-RUN if [ -d "/app/client/dist" ]; then \
-        echo "✓ client/dist directory found"; \
-        echo "Contents:"; \
-        ls -la /app/client/dist; \
-    else \
-        echo "✗ ERROR: client/dist directory NOT found!"; \
-        echo "Creating empty dist directory as fallback"; \
-        mkdir -p /app/client/dist; \
-        echo '<html><body><h1>Frontend build missing</h1></body></html>' > /app/client/dist/index.html; \
-    fi
+# Prefer the image-built frontend artifact over any checked-in build output
+COPY --from=frontend-builder /frontend/dist /app/client/dist
 
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash appuser && \
@@ -52,7 +53,7 @@ ENV ENVIRONMENT=production
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:$PORT/health || exit 1
+  CMD curl -f http://localhost:${PORT:-5000}/health || exit 1
 
-# Run the application with uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "2", "--timeout-keep-alive", "180"]
+# Run the application with uvicorn on the runtime-assigned port
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-5000} --workers 2 --timeout-keep-alive 180"]

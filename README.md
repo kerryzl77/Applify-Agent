@@ -8,18 +8,22 @@
 
 ---
 
-## 🚀 Quick Deploy
+## 🚀 Deployment
+
+Production deploys from GitHub Actions after CI passes on `main`.
 
 ```bash
-# 1. Stage your changes
-git add .
-
-# 2. Commit your changes
-git commit -m "Your update message"
-
-# 3. Deploy to Heroku
+# Emergency/manual fallback only
 git push heroku main
 ```
+
+Configure these GitHub repository secrets before enabling deploys:
+
+- `HEROKU_API_KEY`
+- `HEROKU_APP_NAME=applify`
+- `HEROKU_EMAIL`
+
+CI runs backend tests, frontend lint/build, and a full Docker build on pull requests and pushes to `main`.
 
 ## 🔍 Verify Setup
 

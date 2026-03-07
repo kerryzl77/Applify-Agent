@@ -46,7 +46,8 @@ temp/
 .env.local
 .env.*.local
 
-# Build artifacts (but keep client/dist for production)
+# Build artifacts
+client/dist/
 uploads/
 output/
 
@@ -54,16 +55,10 @@ output/
 *.md
 !README.md
 
-# CI/CD
-.github/
-.circleci/
-
 # Testing
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 
-# DO NOT ignore client/dist - we need it for production!
-# client/dist should be built and committed or built during Docker build
-
+# client/dist is generated during the Docker build

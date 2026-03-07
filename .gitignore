@@ -20,8 +20,9 @@ node_modules/
 client/node_modules/
 package-lock.json.bak
 
-# Build outputs - commit client/dist for Heroku
+# Build outputs
 client/build/
+client/dist/
 *.egg-info/
 # dist/ 
 build/
