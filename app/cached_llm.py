@@ -16,17 +16,14 @@ class CachedLLMGenerator(LLMGenerator):
         """Generate LinkedIn message with caching."""
         return super().generate_linkedin_message(job_data, candidate_data, profile_data)
     
-    @cache_result("connection_email", ttl=3600)  
-    def generate_connection_email(self, job_data, candidate_data, profile_data):
+    def generate_connection_email_artifact(self, job_data, candidate_data, profile_data):
         """Generate connection email with caching."""
-        return super().generate_connection_email(job_data, candidate_data, profile_data)
+        return super().generate_connection_email_artifact(job_data, candidate_data, profile_data)
     
-    @cache_result("hiring_email", ttl=3600)
-    def generate_hiring_manager_email(self, job_data, candidate_data, profile_data=None):
+    def generate_hiring_manager_email_artifact(self, job_data, candidate_data, profile_data=None):
         """Generate hiring manager email with caching."""
-        return super().generate_hiring_manager_email(job_data, candidate_data, profile_data)
+        return super().generate_hiring_manager_email_artifact(job_data, candidate_data, profile_data)
     
-    @cache_result("cover_letter", ttl=3600)
-    def generate_cover_letter(self, job_data, candidate_data):
+    def generate_cover_letter_artifact(self, job_data, candidate_data):
         """Generate cover letter with caching."""
-        return super().generate_cover_letter(job_data, candidate_data)
+        return super().generate_cover_letter_artifact(job_data, candidate_data)

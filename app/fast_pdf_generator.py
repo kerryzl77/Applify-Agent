@@ -398,14 +398,16 @@ class FastPDFGenerator:
         
         canvas.restoreState()
     
-    def generate_cover_letter_pdf(self, content, job_data, candidate_data):
+    def generate_cover_letter_pdf(self, content, job_data, candidate_data, output_path=None):
         """Generate professional cover letter PDF."""
         try:
             # Generate filename
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             company_name = re.sub(r'[^\w\s-]', '', job_data.get('company_name', 'Company'))[:20]
             filename = f"Cover_Letter_{company_name}_{timestamp}.pdf"
-            filepath = os.path.join(self.output_dir, filename)
+            filepath = output_path or os.path.join(self.output_dir, filename)
+            if output_path:
+                filename = os.path.basename(output_path)
             
             # Create PDF document
             doc = SimpleDocTemplate(

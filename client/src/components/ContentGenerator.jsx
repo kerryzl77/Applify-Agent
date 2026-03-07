@@ -165,7 +165,12 @@ const ContentGenerator = () => {
   };
 
   const handleDownload = async (type, format = "docx") => {
-    if (fileInfo?.filename) {
+    if (fileInfo?.artifact_id && !isResumeConversation) {
+      await downloadWithAuth(
+        `/api/content/download/${fileInfo.artifact_id}/${format}`,
+        `${type}_${fileInfo.artifact_id}.${format}`,
+      );
+    } else if (fileInfo?.filename) {
       const encodedFilename = encodeURIComponent(fileInfo.filename);
       const endpoint = isResumeConversation
         ? `/api/resume/download/${encodedFilename}`
@@ -180,6 +185,14 @@ const ContentGenerator = () => {
   };
 
   const handleDownloadPDF = async () => {
+    if (fileInfo?.artifact_id && !isResumeConversation) {
+      await downloadWithAuth(
+        `/api/content/download/${fileInfo.artifact_id}/pdf`,
+        `${conversationType}_${fileInfo.artifact_id}.pdf`,
+      );
+      return;
+    }
+
     if (!fileInfo?.filename) {
       toast.error("No file available for PDF download");
       return;

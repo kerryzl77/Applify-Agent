@@ -4,10 +4,11 @@ from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 import datetime
-import platform
 import tempfile
-import shutil
 import time
+from typing import Optional
+
+from app.artifact_models import CoverLetterArtifact, EmailArtifact
 from app.fast_pdf_generator import FastPDFGenerator
 
 class OutputFormatter:
@@ -66,6 +67,121 @@ class OutputFormatter:
                 content = ' '.join(words[:350]) + '...'
         
         return content
+
+    def render_artifact_bundle(self, artifact, candidate_data, user_id: str, artifact_id: int):
+        """Render the same validated artifact to DOCX and PDF."""
+        content_type = artifact.metadata.content_type
+        docx_info = self.create_docx_from_artifact(
+            artifact=artifact,
+            candidate_data=candidate_data,
+            user_id=user_id,
+            artifact_id=artifact_id,
+        )
+        pdf_info = self.create_pdf_from_artifact(
+            artifact=artifact,
+            candidate_data=candidate_data,
+            user_id=user_id,
+            artifact_id=artifact_id,
+        )
+        if not docx_info and not pdf_info:
+            return None
+
+        return {
+            "artifact_id": artifact_id,
+            "content_type": content_type,
+            "available_formats": [
+                fmt for fmt, value in (("docx", docx_info), ("pdf", pdf_info)) if value
+            ],
+            "docx": self._public_file_info(docx_info, "docx") if docx_info else None,
+            "pdf": self._public_file_info(pdf_info, "pdf") if pdf_info else None,
+        }
+
+    def create_docx_from_artifact(self, artifact, candidate_data, user_id: str, artifact_id: int):
+        """Create a DOCX file from a validated artifact."""
+        try:
+            doc = Document()
+            for section in doc.sections:
+                section.top_margin = Inches(1)
+                section.bottom_margin = Inches(1)
+                section.left_margin = Inches(1)
+                section.right_margin = Inches(1)
+
+            if isinstance(artifact, CoverLetterArtifact):
+                self._format_cover_letter_artifact_docx(doc, artifact)
+            elif isinstance(artifact, EmailArtifact):
+                self._format_email_artifact_docx(doc, artifact)
+            else:
+                raise ValueError(f"Unsupported artifact type: {type(artifact).__name__}")
+
+            filepath = self._artifact_path(user_id, artifact_id, "docx")
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            doc.save(filepath)
+            return self._verify_file(filepath, artifact.metadata.content_type, "docx")
+        except Exception as e:
+            logging.error(f"Error creating structured DOCX: {str(e)}", exc_info=True)
+            return None
+
+    def create_pdf_from_artifact(self, artifact, candidate_data, user_id: str, artifact_id: int):
+        """Create a PDF file from the same validated artifact."""
+        try:
+            filepath = self._artifact_path(user_id, artifact_id, "pdf")
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            if isinstance(artifact, CoverLetterArtifact):
+                pdf_result = self.pdf_generator.generate_cover_letter_pdf(
+                    content=artifact.to_plain_text(),
+                    job_data=artifact.metadata.model_dump(),
+                    candidate_data=candidate_data,
+                    output_path=filepath,
+                )
+            elif isinstance(artifact, EmailArtifact):
+                pdf_result = self.pdf_generator.generate_cover_letter_pdf(
+                    content=artifact.to_plain_text(),
+                    job_data=artifact.metadata.model_dump(),
+                    candidate_data=candidate_data,
+                    output_path=filepath,
+                )
+            else:
+                raise ValueError(f"Unsupported artifact type: {type(artifact).__name__}")
+            if not pdf_result:
+                return None
+            return self._verify_file(filepath, artifact.metadata.content_type, "pdf")
+        except Exception as e:
+            logging.error(f"Error creating structured PDF: {str(e)}", exc_info=True)
+            return None
+
+    def get_artifact_download_path(self, user_id: str, artifact_id: int, fmt: str) -> Optional[str]:
+        """Resolve a user-scoped artifact file path."""
+        if fmt not in {"docx", "pdf"}:
+            return None
+        filepath = self._artifact_path(user_id, artifact_id, fmt)
+        if os.path.exists(filepath):
+            return filepath
+        return None
+
+    def _artifact_path(self, user_id: str, artifact_id: int, fmt: str) -> str:
+        safe_user_id = str(user_id).replace("/", "_")
+        return os.path.join(self.output_dir, safe_user_id, str(artifact_id), f"artifact.{fmt}")
+
+    def _verify_file(self, filepath: str, content_type: str, fmt: str):
+        max_retries = 3
+        for _ in range(max_retries):
+            if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                return {
+                    "filename": os.path.basename(filepath),
+                    "filepath": filepath,
+                    "size_bytes": os.path.getsize(filepath),
+                    "content_type": content_type,
+                    "format": fmt,
+                }
+            time.sleep(0.1)
+        return None
+
+    def _public_file_info(self, file_info, fmt: str):
+        return {
+            "filename": file_info["filename"],
+            "size_bytes": file_info.get("size_bytes", 0),
+            "format": fmt,
+        }
     
     def create_docx(self, content, job_data, candidate_data, content_type):
         """Create a DOCX file with the formatted content."""
@@ -119,71 +235,9 @@ class OutputFormatter:
     
     def convert_to_pdf(self, docx_info):
         """
-        FAST PDF generation - bypasses slow LibreOffice conversion.
-        
-        Performance: ~50-100ms (vs 30-60s LibreOffice)
+        Deprecated compatibility wrapper.
         """
-        print("⚡ Using fast PDF generation (bypassing LibreOffice)")
-        
-        try:
-            from docx import Document
-            import os
-            
-            # Read the DOCX file to extract content
-            if not os.path.exists(docx_info['filepath']):
-                print(f"❌ DOCX file not found: {docx_info['filepath']}")
-                return None
-            
-            doc = Document(docx_info['filepath'])
-            
-            # Extract text content from DOCX
-            content_paragraphs = []
-            for paragraph in doc.paragraphs:
-                if paragraph.text.strip():
-                    content_paragraphs.append(paragraph.text.strip())
-            
-            full_content = '\n\n'.join(content_paragraphs)
-            
-            # Determine content type from filename
-            filename = docx_info['filename'].lower()
-            if 'cover_letter' in filename:
-                content_type = 'cover_letter'
-            elif 'email' in filename:
-                content_type = 'hiring_manager_email'
-            else:
-                content_type = 'cover_letter'  # Default
-            
-            # Create fake job_data and candidate_data from filename
-            job_data = {
-                'company_name': 'Company',
-                'job_title': 'Position',
-                'location': 'Location'
-            }
-            
-            candidate_data = {
-                'personal_info': {
-                    'name': 'Candidate Name',
-                    'email': 'candidate@email.com',
-                    'phone': '(555) 123-4567',
-                    'location': 'City, State'
-                }
-            }
-            
-            # Generate PDF directly using fast generator
-            pdf_result = self.pdf_generator.generate_cover_letter_pdf(
-                full_content, job_data, candidate_data
-            )
-            
-            if pdf_result:
-                print(f"✅ Successfully converted DOCX to PDF: {pdf_result['filename']}")
-                return pdf_result
-            else:
-                print("❌ PDF generation failed")
-                return None
-                
-        except Exception as e:
-            print(f"❌ Error converting DOCX to PDF: {str(e)}")
-            return None
+        raise ValueError("Direct DOCX conversion is no longer supported; render PDFs from structured artifacts")
     
     def create_pdf_direct(self, content, job_data, candidate_data, content_type):
         """
@@ -305,3 +359,50 @@ class OutputFormatter:
                     p = doc.add_paragraph()
                     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     p.add_run(paragraph) 
+
+    def _format_cover_letter_artifact_docx(self, doc, artifact: CoverLetterArtifact):
+        self._add_header_lines(doc, artifact.header)
+        self._add_paragraph_line(doc, artifact.greeting, font_name="Times New Roman")
+        self._add_paragraph_line(doc, artifact.opening.text, font_name="Times New Roman")
+        for block in artifact.body:
+            self._add_paragraph_line(doc, block.text, font_name="Times New Roman")
+        self._add_paragraph_line(doc, artifact.closing.text, font_name="Times New Roman")
+        self._add_paragraph_line(doc, artifact.signature.signoff, font_name="Times New Roman")
+
+    def _format_email_artifact_docx(self, doc, artifact: EmailArtifact):
+        self._add_header_lines(doc, artifact.header, include_name=False)
+        self._add_paragraph_line(doc, f"Subject: {artifact.subject}")
+        self._add_paragraph_line(doc, artifact.greeting)
+        for block in artifact.body:
+            self._add_paragraph_line(doc, block.text)
+        self._add_paragraph_line(doc, artifact.call_to_action.text)
+        self._add_paragraph_line(doc, artifact.signature.signoff)
+
+    def _add_header_lines(self, doc, header, include_name=True):
+        header_parts = [
+            part for part in [
+                header.applicant_email,
+                header.applicant_phone,
+                header.applicant_location,
+            ] if part
+        ]
+        if include_name and header.applicant_name:
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            run = p.add_run(header.applicant_name)
+            run.bold = True
+            run.font.name = "Times New Roman"
+            run.font.size = Pt(12)
+        if header_parts:
+            self._add_paragraph_line(doc, " - ".join(header_parts), font_size=11, spacing=False)
+        if include_name or header_parts:
+            doc.add_paragraph()
+
+    def _add_paragraph_line(self, doc, text, font_name="Calibri", font_size=12, spacing=True):
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        run = p.add_run(text)
+        run.font.name = font_name
+        run.font.size = Pt(font_size)
+        if spacing:
+            p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE

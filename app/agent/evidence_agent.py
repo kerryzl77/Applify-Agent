@@ -2,11 +2,10 @@
 
 import json
 import logging
-import os
 import re
 from typing import Any, Dict, List, Optional
 
-from openai import OpenAI
+from app.llm_service import LLMService
 
 from app.utils.text import normalize_job_data
 
@@ -17,7 +16,9 @@ class EvidenceAgent:
     """Builds evidence pack grounding resume experience to job requirements."""
     
     def __init__(self):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        llm = LLMService()
+        self.client = llm.client
+        self.model = llm.model
     
     def build_evidence_pack(
         self,
@@ -161,7 +162,7 @@ Return ONLY valid JSON."""
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-5.2",
+                model=self.model,
                 messages=[
                     {"role": "system", "content": "You are an expert career coach creating compelling job application evidence. Return only valid JSON."},
                     {"role": "user", "content": prompt}

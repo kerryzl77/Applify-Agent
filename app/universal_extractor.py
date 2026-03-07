@@ -13,6 +13,7 @@ except Exception:  # pragma: no cover
 from bs4 import BeautifulSoup
 from openai import OpenAI
 
+from app.llm_service import get_default_model
 from app.search.openai_web_search import openai_web_search
 from app.utils.url import normalize_url
 
@@ -262,7 +263,7 @@ def _llm_choose_candidate(
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-5.2",
+            model=get_default_model(),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -381,7 +382,7 @@ def _llm_profile_from_docs(
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-5.2",
+            model=get_default_model(),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -707,7 +708,7 @@ def _llm_profile_from_context(context: str, title: str = "") -> Optional[Dict[st
             {"role": "user", "content": f"Title: {title}\n\nContext:\n{context}"}
         ]
         resp = client.chat.completions.create(
-            model="gpt-5.2",
+            model=get_default_model(),
             messages=messages,
             temperature=0.2,
             max_completion_tokens=700,

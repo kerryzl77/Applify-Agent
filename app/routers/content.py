@@ -225,16 +225,29 @@ async def generate_content(
     job_data = normalize_job_data(job_data)
 
     # Generate content based on type
-    if content_type == "linkedin_message":
-        content = llm_generator.generate_linkedin_message(job_data, candidate_data, profile_data)
-    elif content_type == "connection_email":
-        content = llm_generator.generate_connection_email(job_data, candidate_data, profile_data)
-    elif content_type == "hiring_manager_email":
-        content = llm_generator.generate_hiring_manager_email(job_data, candidate_data, profile_data)
-    elif content_type == "cover_letter":
-        content = llm_generator.generate_cover_letter(job_data, candidate_data)
-    else:
-        raise HTTPException(status_code=400, detail="Invalid content type")
+    artifact = None
+    try:
+        if content_type == "linkedin_message":
+            content = llm_generator.generate_linkedin_message(job_data, candidate_data, profile_data)
+        elif content_type == "connection_email":
+            artifact = llm_generator.generate_connection_email_artifact(job_data, candidate_data, profile_data)
+            content = artifact.to_plain_text()
+        elif content_type == "hiring_manager_email":
+            artifact = llm_generator.generate_hiring_manager_email_artifact(job_data, candidate_data, profile_data)
+            content = artifact.to_plain_text()
+        elif content_type == "cover_letter":
+            artifact = llm_generator.generate_cover_letter_artifact(job_data, candidate_data)
+            content = artifact.to_plain_text()
+        else:
+            raise HTTPException(status_code=400, detail="Invalid content type")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Structured content generation failed", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Content generation failed: {str(e)}",
+        ) from e
     
     # Format the content
     formatted_content = output_formatter.format_text(content, content_type)
@@ -242,7 +255,7 @@ async def generate_content(
     email_bundle = None
     if content_type in ["connection_email", "hiring_manager_email"]:
         email_bundle = {
-            "subject": llm_generator.generate_email_subject(
+            "subject": artifact.subject if artifact else llm_generator.generate_email_subject(
                 formatted_content, content_type.replace("_", " ")
             ),
             "body_html": llm_generator._convert_to_html(formatted_content),
@@ -259,6 +272,8 @@ async def generate_content(
         "generated_at": str(datetime.datetime.now()),
         "input_type": input_type,
     }
+    if artifact:
+        metadata["artifact"] = artifact.model_dump()
     if email_bundle:
         metadata.update({
             "email_subject": email_bundle.get("subject", ""),
@@ -271,11 +286,15 @@ async def generate_content(
     file_info = None
     if content_type in ["cover_letter", "connection_email", "hiring_manager_email"]:
         try:
-            file_info = output_formatter.create_docx(
-                formatted_content, job_data, candidate_data, content_type
-            )
+            if artifact:
+                file_info = output_formatter.render_artifact_bundle(
+                    artifact=artifact,
+                    candidate_data=candidate_data,
+                    user_id=user_id,
+                    artifact_id=content_id,
+                )
             if file_info:
-                logger.info(f"Document created: {file_info['filename']}")
+                logger.info(f"Structured artifacts created for content_id={content_id}")
         except Exception as e:
             logger.error(f"Error creating document: {str(e)}")
     
@@ -381,23 +400,30 @@ async def validate_url(
     )
 
 
-@router.get("/download/{file_path:path}")
+@router.get("/download/{content_id:int}/{fmt}")
 async def download_file(
-    file_path: str,
+    content_id: int,
+    fmt: str,
     current_user: TokenData = Depends(get_current_user),
+    db: DatabaseManager = Depends(get_db),
 ):
-    """Download a generated file."""
-    import os
-    
-    file_full_path = os.path.join(output_formatter.output_dir, file_path)
-    
-    if not os.path.exists(file_full_path):
-        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
-    
+    """Download a generated file owned by the current user."""
+    record = db.get_generated_content(content_id, current_user.user_id)
+    if not record:
+        raise HTTPException(status_code=404, detail=f"Artifact not found: {content_id}")
+
+    file_full_path = output_formatter.get_artifact_download_path(
+        current_user.user_id,
+        content_id,
+        fmt,
+    )
+    if not file_full_path:
+        raise HTTPException(status_code=404, detail=f"File format not found: {fmt}")
+
     return FileResponse(
         path=file_full_path,
-        filename=file_path,
-        media_type="application/octet-stream",
+        filename=f"{record['content_type']}_{content_id}.{fmt}",
+        media_type="application/pdf" if fmt == "pdf" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
 
@@ -406,25 +432,8 @@ async def convert_to_pdf(
     file_path: str,
     current_user: TokenData = Depends(get_current_user),
 ):
-    """Convert a DOCX file to PDF and download it."""
-    import os
-    
-    docx_path = os.path.join(output_formatter.output_dir, file_path)
-    
-    if not os.path.exists(docx_path):
-        raise HTTPException(status_code=404, detail=f"Source file not found: {file_path}")
-    
-    docx_info = {"filename": file_path, "filepath": docx_path}
-    pdf_info = output_formatter.convert_to_pdf(docx_info)
-    
-    if pdf_info and os.path.exists(pdf_info["filepath"]):
-        return FileResponse(
-            path=pdf_info["filepath"],
-            filename=pdf_info["filename"],
-            media_type="application/pdf",
-        )
-    else:
-        raise HTTPException(
-            status_code=500,
-            detail="PDF conversion failed. Please try downloading the DOCX file instead.",
-        )
+    """Legacy endpoint retained for backwards compatibility."""
+    raise HTTPException(
+        status_code=410,
+        detail="DOCX conversion endpoint retired; request the PDF artifact directly.",
+    )

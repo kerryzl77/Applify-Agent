@@ -1,5 +1,5 @@
 """
-Resume Rewriter using GPT-5.2 VLM (Tier 2)
+Resume Rewriter using GPT-5.4 VLM (Tier 2)
 ==========================================
 
 Uses OpenAI Responses API with structured outputs to:
@@ -9,13 +9,13 @@ Uses OpenAI Responses API with structured outputs to:
 Leverages vision capabilities for multi-column/complex layouts.
 """
 
-import os
 import logging
 from typing import Optional, List
 from dataclasses import dataclass
 
-from openai import OpenAI
 from pydantic import BaseModel, Field
+
+from app.llm_service import LLMService, get_default_model
 
 logger = logging.getLogger(__name__)
 
@@ -113,21 +113,22 @@ class TailoredResume(BaseModel):
 
 class ResumeRewriterVLM:
     """
-    Tier 2: GPT-5.2 VLM-powered resume parsing and tailoring.
+    Tier 2: GPT-5.4-powered resume parsing and tailoring.
     
     Uses Responses API with structured outputs for reliable JSON.
     """
     
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-5.2"):
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         """
         Initialize the VLM rewriter.
         
         Args:
             api_key: OpenAI API key (defaults to env var)
-            model: Model to use (default gpt-5.2)
+            model: Model to use (defaults to shared app model)
         """
-        self.client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
-        self.model = model
+        llm = LLMService(model=model or get_default_model(), api_key=api_key)
+        self.client = llm.client
+        self.model = llm.model
     
     def parse_resume(
         self,

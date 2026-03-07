@@ -1,7 +1,15 @@
-import os
-from openai import OpenAI
 from dotenv import load_dotenv
 
+from app.artifact_models import (
+    ArtifactMetadata,
+    CoverLetterArtifact,
+    DocumentHeader,
+    EmailArtifact,
+    LinkedInMessageArtifact,
+    ParagraphBlock,
+    SignatureBlock,
+)
+from app.llm_service import LLMService
 from app.utils.text import normalize_text
 
 # Load environment variables
@@ -9,50 +17,99 @@ load_dotenv()
 
 class LLMGenerator:
     def __init__(self):
-        # Initialize OpenAI client with API key from environment variable
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.llm = LLMService()
+        self.writer_system_prompt = (
+            "You are an expert professional writer and career advisor with deep understanding "
+            "of modern job markets, hiring practices, and effective communication strategies. "
+            "You create highly personalized, impactful application materials that resonate with "
+            "hiring managers and decision makers."
+        )
         
     def generate_linkedin_message(self, job_data, candidate_data, profile_data=None):
         """Generate a LinkedIn connection message (200 characters max)."""
         prompt = self._build_linkedin_message_prompt(job_data, candidate_data, profile_data)
-        return self._generate_text(prompt, max_completion_tokens=100)  # ~200 characters
+        artifact = self.llm.parse_structured(
+            system_prompt=(
+                f"{self.writer_system_prompt} Return only a validated LinkedIn note "
+                "under 200 characters."
+            ),
+            user_prompt=prompt,
+            schema=LinkedInMessageArtifact,
+        )
+        return artifact.body
     
-    def generate_connection_email(self, job_data, candidate_data, profile_data=None):
-        """Generate a connection email (200 words max)."""
+    def generate_connection_email_artifact(self, job_data, candidate_data, profile_data=None):
+        """Generate a structured connection email."""
         prompt = self._build_connection_email_prompt(job_data, candidate_data, profile_data)
-        return self._generate_text(prompt, max_completion_tokens=300)  # ~200 words
+        return self._generate_email_artifact(prompt, job_data, candidate_data, "connection_email")
     
-    def generate_hiring_manager_email(self, job_data, candidate_data, profile_data=None):
-        """Generate an email to a hiring manager (200 words max)."""
+    def generate_hiring_manager_email_artifact(self, job_data, candidate_data, profile_data=None):
+        """Generate a structured email to a hiring manager."""
         prompt = self._build_hiring_manager_email_prompt(job_data, candidate_data, profile_data)
-        return self._generate_text(prompt, max_completion_tokens=300)  # ~200 words
+        return self._generate_email_artifact(prompt, job_data, candidate_data, "hiring_manager_email")
     
-    def generate_cover_letter(self, job_data, candidate_data):
-        """Generate a cover letter (350 words max)."""
+    def generate_cover_letter_artifact(self, job_data, candidate_data):
+        """Generate a structured cover letter."""
         prompt = self._build_cover_letter_prompt(job_data, candidate_data)
-        return self._generate_text(prompt, max_completion_tokens=500)  # ~350 words
-    
-    def _generate_text(self, prompt, max_completion_tokens=300):
-        """Call the OpenAI API to generate text."""
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-5.2",
-                messages=[
-                    {"role": "system", "content": "You are an expert professional writer and career advisor with deep understanding of modern job markets, hiring practices, and effective communication strategies. You create highly personalized, impactful application materials that resonate with hiring managers and decision makers."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_completion_tokens=max_completion_tokens,
-                temperature=0.6  # Slightly lower for more consistency while maintaining creativity
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            return f"Error generating text: {str(e)}"
+        personal_info = candidate_data.get("personal_info", {})
+        artifact = self.llm.parse_structured(
+            system_prompt=(
+                f"{self.writer_system_prompt} Return a cover letter artifact that follows "
+                "the requested structure exactly. Keep it plain-text ready and ATS-friendly."
+            ),
+            user_prompt=(
+                f"{prompt}\n\n"
+                "Return a structured cover letter with:\n"
+                "- greeting\n"
+                "- opening paragraph\n"
+                "- 1 to 3 body paragraphs\n"
+                "- closing paragraph\n"
+                '- signature signoff "Sincerely,"\n'
+                "- metadata.content_type='cover_letter'\n"
+                f"- metadata.company_name='{job_data.get('company_name', '')}'\n"
+                f"- metadata.job_title='{job_data.get('job_title', '')}'\n"
+            ),
+            schema=CoverLetterArtifact,
+        )
+        if not artifact.header.applicant_name:
+            artifact.header = self._build_header(personal_info)
+        return artifact
+
+    def _generate_email_artifact(self, prompt, job_data, candidate_data, content_type):
+        personal_info = candidate_data.get("personal_info", {})
+        artifact = self.llm.parse_structured(
+            system_prompt=(
+                f"{self.writer_system_prompt} Return a professional outreach email artifact "
+                "that matches the requested structure exactly."
+            ),
+            user_prompt=(
+                f"{prompt}\n\n"
+                "Return a structured email with:\n"
+                "- subject\n"
+                "- greeting\n"
+                "- 1 to 4 body paragraphs\n"
+                "- a final call_to_action paragraph\n"
+                '- signature signoff "Best,"\n'
+                f"- metadata.content_type='{content_type}'\n"
+                f"- metadata.company_name='{job_data.get('company_name', '')}'\n"
+                f"- metadata.job_title='{job_data.get('job_title', '')}'\n"
+            ),
+            schema=EmailArtifact,
+        )
+        if not artifact.header.applicant_name:
+            artifact.header = self._build_header(personal_info)
+        return artifact
+
+    def _build_header(self, personal_info):
+        return DocumentHeader(
+            applicant_name=personal_info.get("name", "") or "",
+            applicant_email=personal_info.get("email", "") or "",
+            applicant_phone=personal_info.get("phone", "") or "",
+            applicant_location=personal_info.get("location", "") or "",
+        )
 
     def generate_email_subject(self, email_body: str, context_type: str) -> str:
         """Derive an email subject line based on the generated body."""
-        if email_body.startswith("Error generating text"):
-            return ""
-
         prompt = f"""
         You are crafting professional email subject lines.
 
@@ -69,7 +126,12 @@ class LLMGenerator:
         - Do not add quotes or additional commentary.
         """
 
-        subject = self._generate_text(prompt, max_completion_tokens=32)
+        subject = self.llm.generate_text(
+            system_prompt="You craft professional email subject lines. Return only the subject line.",
+            user_prompt=prompt,
+            max_completion_tokens=32,
+            temperature=0.4,
+        )
         return subject.replace("Subject:", "").strip()
 
     def _convert_to_html(self, body: str) -> str:

@@ -328,6 +328,37 @@ class DatabaseManager:
             if conn:
                 self._return_connection(conn)
 
+    def get_generated_content(self, content_id, user_id):
+        """Get one generated content record owned by the user."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, content_type, content, metadata, created_at
+                    FROM generated_content
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    (content_id, user_id),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {
+                    "id": row[0],
+                    "content_type": row[1],
+                    "content": row[2],
+                    "metadata": row[3],
+                    "created_at": row[4].isoformat() if hasattr(row[4], "isoformat") else row[4],
+                }
+        except Exception as e:
+            logger.error(f"Error getting generated content {content_id}: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
     # ------------------------------------------------------------------
     # Gmail OAuth credential helpers
     # ------------------------------------------------------------------

@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     
     # OpenAI
     openai_api_key: Optional[str] = None
+    openai_default_model: str = "gpt-5.4"
     
     # CORS
     allowed_origins: str = "*"
@@ -40,6 +41,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"
 
 
 @lru_cache()

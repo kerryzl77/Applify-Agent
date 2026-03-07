@@ -2,10 +2,9 @@
 
 import json
 import logging
-import os
 from typing import Any, Dict, List, Optional
 
-from openai import OpenAI
+from app.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +13,9 @@ class DraftAgent:
     """Generates outreach drafts and follow-ups with additive feedback support."""
     
     def __init__(self):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        llm = LLMService()
+        self.client = llm.client
+        self.model = llm.model
     
     def generate_drafts(
         self,
@@ -317,7 +318,7 @@ Return JSON: {{"body": "..."}}"""
         """Call LLM to generate a draft."""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-5.2",
+                model=self.model,
                 messages=[
                     {"role": "system", "content": "You are an expert at writing professional outreach emails. Return only valid JSON."},
                     {"role": "user", "content": prompt}
@@ -411,7 +412,7 @@ Return JSON:
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-5.2",
+                model=self.model,
                 messages=[
                     {"role": "system", "content": "You are an expert at writing professional follow-up emails. Return only valid JSON."},
                     {"role": "user", "content": prompt}
