@@ -9,6 +9,13 @@ from app.artifact_models import (
     ParagraphBlock,
     SignatureBlock,
 )
+from app.document_intelligence import (
+    build_application_evidence_pack,
+    summarize_candidate_profile,
+    summarize_grounding,
+    summarize_job_profile,
+)
+from app.document_intelligence_models import ArtifactKind
 from app.llm_service import LLMService
 from app.utils.text import normalize_text
 
@@ -25,9 +32,9 @@ class LLMGenerator:
             "hiring managers and decision makers."
         )
         
-    def generate_linkedin_message(self, job_data, candidate_data, profile_data=None):
+    def generate_linkedin_message(self, job_data, candidate_data, profile_data=None, evidence_pack=None):
         """Generate a LinkedIn connection message (200 characters max)."""
-        prompt = self._build_linkedin_message_prompt(job_data, candidate_data, profile_data)
+        prompt = self._build_linkedin_message_prompt(job_data, candidate_data, profile_data, evidence_pack=evidence_pack)
         artifact = self.llm.parse_structured(
             system_prompt=(
                 f"{self.writer_system_prompt} Return only a validated LinkedIn note "
@@ -38,19 +45,19 @@ class LLMGenerator:
         )
         return artifact.body
     
-    def generate_connection_email_artifact(self, job_data, candidate_data, profile_data=None):
+    def generate_connection_email_artifact(self, job_data, candidate_data, profile_data=None, evidence_pack=None):
         """Generate a structured connection email."""
-        prompt = self._build_connection_email_prompt(job_data, candidate_data, profile_data)
+        prompt = self._build_connection_email_prompt(job_data, candidate_data, profile_data, evidence_pack=evidence_pack)
         return self._generate_email_artifact(prompt, job_data, candidate_data, "connection_email")
     
-    def generate_hiring_manager_email_artifact(self, job_data, candidate_data, profile_data=None):
+    def generate_hiring_manager_email_artifact(self, job_data, candidate_data, profile_data=None, evidence_pack=None):
         """Generate a structured email to a hiring manager."""
-        prompt = self._build_hiring_manager_email_prompt(job_data, candidate_data, profile_data)
+        prompt = self._build_hiring_manager_email_prompt(job_data, candidate_data, profile_data, evidence_pack=evidence_pack)
         return self._generate_email_artifact(prompt, job_data, candidate_data, "hiring_manager_email")
     
-    def generate_cover_letter_artifact(self, job_data, candidate_data):
+    def generate_cover_letter_artifact(self, job_data, candidate_data, evidence_pack=None):
         """Generate a structured cover letter."""
-        prompt = self._build_cover_letter_prompt(job_data, candidate_data)
+        prompt = self._build_cover_letter_prompt(job_data, candidate_data, evidence_pack=evidence_pack)
         personal_info = candidate_data.get("personal_info", {})
         artifact = self.llm.parse_structured(
             system_prompt=(
@@ -152,9 +159,19 @@ class LLMGenerator:
             .replace('"', "&quot;")
             .replace("'", "&#x27;")
         )
+
+    def _build_application_context(self, job_data, candidate_data, evidence_pack=None):
+        pack = evidence_pack or build_application_evidence_pack(job_data, candidate_data)
+        return {
+            "candidate_summary": summarize_candidate_profile(pack.candidate_profile),
+            "job_summary": summarize_job_profile(pack.job_profile),
+            "outreach_grounding": summarize_grounding(pack, ArtifactKind.outreach),
+            "cover_letter_grounding": summarize_grounding(pack, ArtifactKind.cover_letter),
+        }
     
-    def _build_linkedin_message_prompt(self, job_data, candidate_data, profile_data=None):
+    def _build_linkedin_message_prompt(self, job_data, candidate_data, profile_data=None, evidence_pack=None):
         """Build prompt for LinkedIn connection message."""
+        context = self._build_application_context(job_data, candidate_data, evidence_pack=evidence_pack)
         # Extract relevant data
         job_title = normalize_text(job_data.get('job_title', 'the position')) or 'the position'
         job_description = normalize_text(job_data.get('job_description', ''))
@@ -195,16 +212,17 @@ class LLMGenerator:
         - Web Research: {search_context[:200] if search_context else 'Limited context available'}
         
         CANDIDATE PROFILE:
-        - Name: {candidate_name}
-        - Current Summary: {candidate_summary}
+        {context["candidate_summary"]}
         - Relevant Skills: {', '.join(candidate_skills)}
         - Recent Experience: {(candidate_experience[0].get('title', '') or 'Professional') + ' at ' + (candidate_experience[0].get('company', '') or 'Company') if candidate_experience else 'Professional experience'}
         
         JOB CONTEXT:
-        - Position: {job_title} at {company_name}
+        {context["job_summary"]}
         - Key Requirements: {job_description[:300]}...
         
         CONNECTION POINTS: {', '.join(connection_points) if connection_points else 'Professional interest in the role'}
+        GROUNDED EVIDENCE TO REUSE:
+        {context["outreach_grounding"] or '- Keep claims conservative.'}
         
         REQUIREMENTS:
         1. Maximum 200 characters (LinkedIn limit)
@@ -218,8 +236,9 @@ class LLMGenerator:
         Write ONLY the connection message content:
         """
     
-    def _build_connection_email_prompt(self, job_data, candidate_data, profile_data=None):
+    def _build_connection_email_prompt(self, job_data, candidate_data, profile_data=None, evidence_pack=None):
         """Build prompt for connection email."""
+        context = self._build_application_context(job_data, candidate_data, evidence_pack=evidence_pack)
         # Extract relevant data
         job_title = normalize_text(job_data.get('job_title', 'the position')) or 'the position'
         job_description = normalize_text(job_data.get('job_description', ''))
@@ -277,18 +296,19 @@ class LLMGenerator:
         {search_context if search_context else 'No additional web context available'}
         
         CANDIDATE PROFILE:
-        - Name: {candidate_name}
-        - Professional Summary: {candidate_summary}
+        {context["candidate_summary"]}
         - Relevant Skills for this Role: {', '.join(job_fit_points[:3]) if job_fit_points else ', '.join(candidate_skills[:3])}
         - Key Experience: {(candidate_experience[0].get('title', '') or 'Professional') + ' at ' + (candidate_experience[0].get('company', '') or 'Company') if candidate_experience else 'Professional experience'}
         - Notable Achievement: {(candidate_experience[0].get('description', '') or 'Professional achievements')[:100] if candidate_experience else 'Professional achievements'}
         
         JOB CONTEXT:
-        - Position: {job_title} at {company_name}
+        {context["job_summary"]}
         - Key Requirements: {job_requirements[:400]}
         - Role Description: {job_description[:400]}
         
         CONNECTION INSIGHTS: {', '.join(connection_insights) if connection_insights else 'Professional interest and relevant background'}
+        SHARED EVIDENCE TO REUSE:
+        {context["outreach_grounding"] or '- Keep claims conservative.'}
         
         EMAIL REQUIREMENTS:
         1. Subject line: "Re: {job_title} opportunity - {candidate_name}"
@@ -307,8 +327,9 @@ class LLMGenerator:
         Write the complete email including subject line:
         """
     
-    def _build_hiring_manager_email_prompt(self, job_data, candidate_data, profile_data=None):
+    def _build_hiring_manager_email_prompt(self, job_data, candidate_data, profile_data=None, evidence_pack=None):
         """Build prompt for hiring manager email."""
+        context = self._build_application_context(job_data, candidate_data, evidence_pack=evidence_pack)
         # Extract job details
         job_title = normalize_text(job_data.get('job_title', 'the position')) or 'the position'
         company_name = normalize_text(job_data.get('company_name', 'the company')) or 'the company'
@@ -375,21 +396,21 @@ class LLMGenerator:
         {search_context if search_context else 'No additional web context available'}
 
         JOB ANALYSIS:
-        - Position: {job_title} at {company_name}
+        {context["job_summary"]}
         - Location: {job_location}
         - Key Requirements: {job_requirements[:500]}
         - Role Description: {job_description[:500]}
         
         CANDIDATE PROFILE:
-        - Name: {candidate_name}
         - Contact: {candidate_email}{', ' + candidate_phone if candidate_phone else ''}
-        - Professional Summary: {candidate_summary}
+        {context["candidate_summary"]}
         - Education: {(candidate_education.get('degree', '') or '') + ' from ' + (candidate_education.get('institution', '') or '') if candidate_education and (candidate_education.get('degree') or candidate_education.get('institution')) else 'Relevant education'}
         
         RELEVANT QUALIFICATIONS:
         - Matching Skills: {', '.join(matching_skills[:5]) if matching_skills else ', '.join(candidate_skills[:5])}
         - Most Relevant Experience: {(relevant_experience[0][0].get('title', '') or 'Professional') + ' at ' + (relevant_experience[0][0].get('company', '') or 'Company') if relevant_experience else (candidate_experience[0].get('title', '') or 'Professional') + ' at ' + (candidate_experience[0].get('company', '') or 'Company') if candidate_experience else 'Professional experience'}
         - Key Achievements: {achievements[0] if achievements else 'Professional achievements in relevant areas'}
+        - Shared Evidence: {context["outreach_grounding"] or 'Keep claims conservative.'}
         
         EMAIL REQUIREMENTS:
         1. Subject line: "Application for {job_title} Position - {candidate_name}"
@@ -406,8 +427,9 @@ class LLMGenerator:
         Write the complete email including subject line:
         """
     
-    def _build_cover_letter_prompt(self, job_data, candidate_data):
+    def _build_cover_letter_prompt(self, job_data, candidate_data, evidence_pack=None):
         """Build prompt for cover letter."""
+        context = self._build_application_context(job_data, candidate_data, evidence_pack=evidence_pack)
         # Extract comprehensive job details
         job_title = normalize_text(job_data.get('job_title', 'the position')) or 'the position'
         company_name = normalize_text(job_data.get('company_name', 'the company')) or 'the company'
@@ -487,16 +509,15 @@ class LLMGenerator:
         CONTEXT: Write a compelling, ATS-optimized cover letter for {candidate_name} applying for the {job_title} position at {company_name}. This should be highly tailored and demonstrate clear value proposition.
 
         JOB ANALYSIS:
-        - Position: {job_title} at {company_name}
+        {context["job_summary"]}
         - Location: {job_location}
         - Core Requirements: {job_requirements[:600]}
         - Role Description: {job_description[:600]}
         - Company Context: {company_insights}
         
         CANDIDATE PROFILE:
-        - Name: {candidate_name}
         - Contact: {candidate_email}{', ' + candidate_phone if candidate_phone else ''}
-        - Professional Summary: {candidate_summary}
+        {context["candidate_summary"]}
         - Education: {(candidate_education.get('degree', '') or '') + ', ' + (candidate_education.get('institution', '') or '') if candidate_education and (candidate_education.get('degree') or candidate_education.get('institution')) else 'Relevant educational background'}
         
         STRATEGIC MATCHING:
@@ -504,6 +525,7 @@ class LLMGenerator:
         - Additional Relevant Skills: {', '.join(matching_skills[:4]) if matching_skills else ', '.join(candidate_skills[:4])}
         - Most Relevant Experience: {(top_experiences[0].get('title', '') or 'Professional') + ' at ' + (top_experiences[0].get('company', '') or 'Company') if top_experiences else 'Professional experience'}
         - Key Achievements: {achievements[:2] if achievements else ['Professional accomplishments with measurable impact']}
+        - Evidence To Ground Claims: {context["cover_letter_grounding"] or 'Keep claims conservative.'}
         
         COVER LETTER REQUIREMENTS:
         1. Professional header: Date, then "Dear Hiring Manager," or "Dear {company_name} Hiring Team,"

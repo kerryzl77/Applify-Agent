@@ -3,115 +3,106 @@
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
+from app.document_intelligence import build_application_evidence_pack
 from app.llm_service import LLMService
-
 from app.utils.text import normalize_job_data
 
 logger = logging.getLogger(__name__)
 
 
 class EvidenceAgent:
-    """Builds evidence pack grounding resume experience to job requirements."""
-    
+    """Builds a shared evidence pack for cover letters and outreach drafts."""
+
     def __init__(self):
         llm = LLMService()
         self.client = llm.client
         self.model = llm.model
-    
+
     def build_evidence_pack(
         self,
         job_data: Dict[str, Any],
         candidate_data: Dict[str, Any],
         emit_trace: callable = None,
     ) -> Dict[str, Any]:
-        """
-        Build evidence pack with grounded 'why me' bullets and project angles.
-        
-        Returns:
-            {
-                'why_me_bullets': [{'text': ..., 'citations': [...]}],
-                'project_angles': [{'text': ..., 'citations': [...]}],
-                'resume_snippets': {snippet_id: text}
-            }
-        """
         if emit_trace:
-            emit_trace({'type': 'step_progress', 'step': 'evidence', 'message': 'Building resume snippet index...'})
-        
-        job_data = normalize_job_data(job_data)
+            emit_trace({"type": "step_progress", "step": "evidence", "message": "Building resume snippet index..."})
 
-        # Build stable snippet IDs from resume
+        job_data = normalize_job_data(job_data)
         snippets = self._build_snippet_index(candidate_data)
-        
+
         if emit_trace:
-            emit_trace({'type': 'step_progress', 'step': 'evidence', 'message': f'Indexed {len(snippets)} resume snippets, matching to job requirements...'})
-        
-        # Extract requirements from JD
-        requirements = job_data.get('requirements', '') or job_data.get('job_description', '')[:2000]
-        job_title = job_data.get('job_title', job_data.get('title', ''))
-        company_name = job_data.get('company_name', '')
-        
-        # Use LLM to generate grounded evidence
-        evidence = self._generate_evidence_with_llm(
-            job_title, company_name, requirements, snippets, candidate_data
+            emit_trace(
+                {
+                    "type": "step_progress",
+                    "step": "evidence",
+                    "message": f"Indexed {len(snippets)} resume snippets, matching to job requirements...",
+                }
+            )
+
+        requirements = job_data.get("requirements", "") or job_data.get("job_description", "")[:2000]
+        evidence_summary = self._generate_evidence_with_llm(
+            job_data.get("job_title", job_data.get("title", "")),
+            job_data.get("company_name", ""),
+            requirements,
+            snippets,
+            candidate_data,
         )
-        
+
+        typed_pack = build_application_evidence_pack(job_data, candidate_data, evidence_hints={**evidence_summary, "resume_snippets": snippets})
+        payload = typed_pack.model_dump(mode="json")
+        payload["resume_snippets"] = snippets
+        payload["why_me_bullets"] = evidence_summary.get("why_me_bullets", [])
+        payload["project_angles"] = evidence_summary.get("project_angles", [])
+
         if emit_trace:
-            emit_trace({'type': 'step_progress', 'step': 'evidence', 'message': f'Generated {len(evidence.get("why_me_bullets", []))} evidence bullets'})
-        
-        evidence['resume_snippets'] = snippets
-        return evidence
-    
+            emit_trace(
+                {
+                    "type": "step_progress",
+                    "step": "evidence",
+                    "message": f"Generated {len(payload.get('why_me_bullets', []))} evidence bullets",
+                }
+            )
+        return payload
+
     def _build_snippet_index(self, candidate_data: Dict[str, Any]) -> Dict[str, str]:
-        """Build stable ID -> text mapping for resume snippets."""
         snippets = {}
-        
-        resume = candidate_data.get('resume', {})
-        
-        # Index experience
-        experiences = resume.get('experience', [])
-        for i, exp in enumerate(experiences):
-            exp_id = f"exp_{i}"
-            
-            # Add overall description
-            desc = exp.get('description', '')
-            if desc:
-                snippets[f"{exp_id}.desc"] = f"{exp.get('title', '')} at {exp.get('company', '')}: {desc}"
-            
-            # Add bullet points if available
-            bullets = exp.get('bullet_points', [])
+        resume = candidate_data.get("resume", {})
+
+        experiences = resume.get("experience", [])
+        for index, experience in enumerate(experiences):
+            exp_id = f"exp_{index}"
+            description = experience.get("description", "")
+            if description:
+                snippets[f"{exp_id}.desc"] = f"{experience.get('title', '')} at {experience.get('company', '')}: {description}"
+            bullets = experience.get("bullet_points", [])
             if bullets:
-                for j, bullet in enumerate(bullets):
-                    snippets[f"{exp_id}.bullet_{j}"] = bullet
-            elif desc:
-                # Split description into sentences as fallback
-                sentences = re.split(r'[.;]', desc)
-                for j, sent in enumerate(sentences[:5]):
-                    sent = sent.strip()
-                    if len(sent) > 20:
-                        snippets[f"{exp_id}.sent_{j}"] = sent
-        
-        # Index skills
-        skills = resume.get('skills', [])
+                for bullet_index, bullet in enumerate(bullets):
+                    snippets[f"{exp_id}.bullet_{bullet_index}"] = bullet
+            elif description:
+                for sentence_index, sentence in enumerate(re.split(r"[.;]", description)[:5]):
+                    cleaned = sentence.strip()
+                    if len(cleaned) > 20:
+                        snippets[f"{exp_id}.sent_{sentence_index}"] = cleaned
+
+        skills = resume.get("skills", [])
         if skills:
-            snippets['skills'] = ', '.join(skills[:20])
-        
-        # Index summary
-        summary = resume.get('summary', '')
+            snippets["skills"] = ", ".join(skills[:20])
+
+        summary = resume.get("summary", "")
         if summary:
-            snippets['summary'] = summary
-        
-        # Index education
-        education = resume.get('education', [])
-        for i, edu in enumerate(education):
-            degree = edu.get('degree', '')
-            institution = edu.get('institution', '')
+            snippets["summary"] = summary
+
+        education = resume.get("education", [])
+        for index, item in enumerate(education):
+            degree = item.get("degree", "")
+            institution = item.get("institution", "")
             if degree or institution:
-                snippets[f"edu_{i}"] = f"{degree} from {institution}"
-        
+                snippets[f"edu_{index}"] = f"{degree} from {institution}"
+
         return snippets
-    
+
     def _generate_evidence_with_llm(
         self,
         job_title: str,
@@ -120,14 +111,7 @@ class EvidenceAgent:
         snippets: Dict[str, str],
         candidate_data: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Use LLM to generate grounded evidence pack."""
-        
-        # Format snippets for prompt
-        snippet_lines = []
-        for sid, text in snippets.items():
-            snippet_lines.append(f"[{sid}]: {text}")
-        snippets_text = "\n".join(snippet_lines)
-        
+        snippet_lines = [f"[{sid}]: {text}" for sid, text in snippets.items()]
         prompt = f"""You are helping a candidate prepare evidence for a job application.
 
 JOB:
@@ -137,13 +121,13 @@ JOB:
 {requirements[:3000]}
 
 CANDIDATE RESUME SNIPPETS (with IDs for citation):
-{snippets_text}
+{chr(10).join(snippet_lines)}
 
 CANDIDATE NAME: {candidate_data.get('personal_info', {}).get('name', 'Candidate')}
 
 Generate:
-1. THREE "why me" bullets - concise statements explaining why this candidate is a great fit
-2. TWO project angles - specific projects/experiences to highlight when talking to a hiring manager
+1. THREE "why me" bullets
+2. TWO project angles
 
 Each item MUST cite specific resume snippets using their IDs.
 
@@ -153,36 +137,31 @@ Return JSON:
         {{"text": "...", "citations": ["exp_0.desc", "skills"]}}
     ],
     "project_angles": [
-        {{"text": "If discussing X, I would highlight my work on Y...", "citations": ["exp_1.bullet_0"]}}
+        {{"text": "...", "citations": ["exp_1.bullet_0"]}}
     ]
 }}
 
-Make bullets specific, quantified where possible, and directly tied to job requirements.
 Return ONLY valid JSON."""
 
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are an expert career coach creating compelling job application evidence. Return only valid JSON."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are an expert career coach creating compelling job application evidence. Return only valid JSON.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,
                 max_completion_tokens=1000,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
-            
-            text = response.choices[0].message.content.strip()
-            data = json.loads(text)
-            
+            data = json.loads(response.choices[0].message.content.strip())
             return {
-                'why_me_bullets': data.get('why_me_bullets', []),
-                'project_angles': data.get('project_angles', [])
+                "why_me_bullets": data.get("why_me_bullets", []),
+                "project_angles": data.get("project_angles", []),
             }
-            
-        except Exception as e:
-            logger.error(f"Error generating evidence with LLM: {e}")
-            return {
-                'why_me_bullets': [],
-                'project_angles': []
-            }
+        except Exception as exc:
+            logger.error("Error generating evidence with LLM: %s", exc)
+            return {"why_me_bullets": [], "project_angles": []}

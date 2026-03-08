@@ -60,4 +60,20 @@ Replace the current split dashboard/campaign journey with:
 - Full-stack: worker jobs, `application_runs`, artifact persistence, object storage
 - AI: candidate schema, normalization, scoring, grounding, shared evidence model
 - Frontend: waits until the API contract and artifact shapes stabilize
-I 
+
+## Current Backend Scope After 2026-03-08 Integration
+
+- Landed now:
+  - durable campaign runs with `application_runs`, `run_steps`, and run-read APIs
+  - persisted generated-content file artifacts with object-storage-friendly download lookup
+  - shared typed candidate/job/evidence contract wired into evidence generation and prompt building
+  - corrected generated-content cache behavior that preserves artifact handles on cache hits
+
+- Not landed yet:
+  - tailored resume generation as a durable run artifact
+  - package compilation step that bundles resume, cover letter, and outreach under one run
+  - frontend workspace migration onto the new run/artifact contract
+
+- Interpretation:
+  - the backend now supports durable campaign execution and durable standalone content artifacts
+  - the full one-command application package remains a staged follow-up, not a completed claim

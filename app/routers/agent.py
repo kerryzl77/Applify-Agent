@@ -60,6 +60,46 @@ class CampaignViewModel(BaseModel):
     updated_at: Optional[str]
 
 
+class RunStepViewModel(BaseModel):
+    step_key: str
+    position: int
+    status: str
+    output_payload: dict = {}
+    error: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
+
+class ArtifactViewModel(BaseModel):
+    id: int
+    artifact_key: str
+    artifact_type: str
+    kind: str
+    format: Optional[str] = None
+    payload_json: Optional[dict | list] = None
+    filename: Optional[str] = None
+    content_type: Optional[str] = None
+    size_bytes: Optional[int] = None
+    metadata: dict = {}
+    created_at: Optional[str] = None
+
+
+class ApplicationRunViewModel(BaseModel):
+    id: str
+    run_type: str
+    source_type: str
+    source_id: str
+    status: str
+    request_payload: dict
+    result_payload: dict
+    error: Optional[str] = None
+    queued_at: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    steps: list[RunStepViewModel] = []
+    artifacts: list[ArtifactViewModel] = []
+
+
 # ============================================================
 # Endpoints
 # ============================================================
@@ -113,13 +153,69 @@ async def run_campaign(
         )
     
     # Start async run
-    run_id = campaign_runner.run_async(
-        campaign_id=campaign_id,
-        user_id=current_user.user_id,
-        mode=request.mode,
-    )
+    try:
+        run_id = campaign_runner.run_async(
+            campaign_id=campaign_id,
+            user_id=current_user.user_id,
+            mode=request.mode,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
     
     return RunCampaignResponse(success=True, run_id=run_id)
+
+
+@router.get("/campaigns/{campaign_id}/runs/latest", response_model=ApplicationRunViewModel)
+async def get_latest_campaign_run(
+    campaign_id: int,
+    current_user: TokenData = Depends(get_current_user),
+    db: DatabaseManager = Depends(get_db),
+):
+    """Get the latest durable run for a campaign."""
+    campaign = db.get_job_campaign(campaign_id, current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    runs = db.list_application_runs(
+        user_id=current_user.user_id,
+        source_type="job_campaign",
+        source_id=campaign_id,
+        limit=1,
+    )
+    if not runs:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No runs found")
+
+    run = runs[0]
+    steps = db.list_run_steps(run["id"])
+    artifacts = db.list_artifacts(user_id=current_user.user_id, run_id=run["id"])
+    return ApplicationRunViewModel(
+        **run,
+        steps=[RunStepViewModel(**step) for step in steps],
+        artifacts=[ArtifactViewModel(**artifact) for artifact in artifacts],
+    )
+
+
+@router.get("/runs/{run_id}", response_model=ApplicationRunViewModel)
+async def get_application_run(
+    run_id: str,
+    current_user: TokenData = Depends(get_current_user),
+    db: DatabaseManager = Depends(get_db),
+):
+    """Get a durable application run by ID."""
+    run = db.get_application_run(run_id, current_user.user_id)
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+
+    steps = db.list_run_steps(run_id)
+    artifacts = db.list_artifacts(user_id=current_user.user_id, run_id=run_id)
+    return ApplicationRunViewModel(
+        **run,
+        steps=[RunStepViewModel(**step) for step in steps],
+        artifacts=[ArtifactViewModel(**artifact) for artifact in artifacts],
+    )
 
 
 @router.get("/campaigns/{campaign_id}/events")

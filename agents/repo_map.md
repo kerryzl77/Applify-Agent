@@ -18,15 +18,18 @@
 - `app/main.py`: FastAPI entrypoint.
 - `app/routers/`: HTTP routes including jobs, auth, resume, content, Gmail, and agent endpoints.
 - `app/agent/`: research, drafting, scheduling, campaign running, evidence, and SSE-related flows.
+- `app/document_intelligence.py`, `app/document_intelligence_models.py`: shared typed candidate/job/evidence contract and legacy adapters.
 - `app/llm_service.py`, `app/llm_generator.py`, `app/cached_llm.py`: generation and model integration layer.
 - `app/artifact_models.py`, `app/output_formatter.py`, `app/fast_pdf_generator.py`: artifact shaping and export.
+- `app/object_storage.py`, `app/run_queue.py`, `app/run_dispatcher.py`, `app/worker.py`: durable artifact storage and background run execution.
 - `app/security.py`, `app/dependencies.py`, `app/config.py`: auth and runtime configuration.
 
 ## High-Value Data Areas
 
 - `database/db_manager.py`: database access boundary.
 - `database/migrations/001_jobs_tables.sql`: current schema baseline.
-- Future likely hotspot: new `application_runs` and artifact persistence tables.
+- `database/migrations/002_application_runs.sql`: durable run, step, and artifact persistence baseline.
+- `database/db_manager.py`: now also owns durable run/step/artifact CRUD used by campaign and content generation paths.
 
 ## High-Value Frontend Area
 

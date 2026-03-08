@@ -4,6 +4,8 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
+from app.document_intelligence import coerce_application_evidence_pack, summarize_grounding
+from app.document_intelligence_models import ArtifactKind
 from app.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,8 @@ class DraftAgent:
             }
         """
         drafts = {}
+        typed_pack = coerce_application_evidence_pack(evidence_pack)
+        outreach_evidence = summarize_grounding(typed_pack, ArtifactKind.outreach)
         
         # Build feedback prompt section
         feedback_prompt = self._build_feedback_prompt(feedback)
@@ -52,7 +56,7 @@ class DraftAgent:
                 emit_trace({'type': 'step_progress', 'step': 'drafts', 'message': 'Generating warm intro draft...'})
             drafts['warm_intro'] = self._generate_warm_intro(
                 job_data, candidate_data, selected_contacts['warm_intro'],
-                evidence_pack, feedback_prompt, feedback.get('draft_specific', {}).get('warm_intro', []) if feedback else []
+                evidence_pack, outreach_evidence, feedback_prompt, feedback.get('draft_specific', {}).get('warm_intro', []) if feedback else []
             )
         
         if selected_contacts.get('recruiter'):
@@ -60,7 +64,7 @@ class DraftAgent:
                 emit_trace({'type': 'step_progress', 'step': 'drafts', 'message': 'Generating recruiter email...'})
             drafts['recruiter_email'] = self._generate_recruiter_email(
                 job_data, candidate_data, selected_contacts['recruiter'],
-                evidence_pack, feedback_prompt, feedback.get('draft_specific', {}).get('recruiter_email', []) if feedback else []
+                evidence_pack, outreach_evidence, feedback_prompt, feedback.get('draft_specific', {}).get('recruiter_email', []) if feedback else []
             )
         
         if selected_contacts.get('hiring_manager'):
@@ -68,7 +72,7 @@ class DraftAgent:
                 emit_trace({'type': 'step_progress', 'step': 'drafts', 'message': 'Generating hiring manager email...'})
             drafts['hm_email'] = self._generate_hm_email(
                 job_data, candidate_data, selected_contacts['hiring_manager'],
-                evidence_pack, feedback_prompt, feedback.get('draft_specific', {}).get('hm_email', []) if feedback else []
+                evidence_pack, outreach_evidence, feedback_prompt, feedback.get('draft_specific', {}).get('hm_email', []) if feedback else []
             )
         
         # Optional LinkedIn note
@@ -80,7 +84,7 @@ class DraftAgent:
             or selected_contacts.get('warm_intro')
         )
         drafts['linkedin_note'] = self._generate_linkedin_note(
-            job_data, candidate_data, evidence_pack, feedback_prompt, linkedin_contact
+            job_data, candidate_data, evidence_pack, outreach_evidence, feedback_prompt, linkedin_contact
         )
         
         return drafts
@@ -140,6 +144,7 @@ class DraftAgent:
         candidate_data: Dict[str, Any],
         contact: Dict[str, Any],
         evidence_pack: Dict[str, Any],
+        outreach_evidence: str,
         global_feedback: str,
         draft_feedback: List[Dict[str, Any]],
     ) -> Dict[str, str]:
@@ -163,6 +168,9 @@ CONTEXT:
 CANDIDATE STRENGTHS:
 {why_me}
 
+SHARED EVIDENCE CONTRACT:
+{outreach_evidence or '- Keep claims conservative.'}
+
 {global_feedback}
 
 {draft_fb}
@@ -184,6 +192,7 @@ Return JSON: {{"subject": "...", "body": "..."}}"""
         candidate_data: Dict[str, Any],
         contact: Dict[str, Any],
         evidence_pack: Dict[str, Any],
+        outreach_evidence: str,
         global_feedback: str,
         draft_feedback: List[Dict[str, Any]],
     ) -> Dict[str, str]:
@@ -207,6 +216,9 @@ CONTEXT:
 CANDIDATE STRENGTHS:
 {why_me}
 
+SHARED EVIDENCE CONTRACT:
+{outreach_evidence or '- Keep claims conservative.'}
+
 {global_feedback}
 
 {draft_fb}
@@ -228,6 +240,7 @@ Return JSON: {{"subject": "...", "body": "..."}}"""
         candidate_data: Dict[str, Any],
         contact: Dict[str, Any],
         evidence_pack: Dict[str, Any],
+        outreach_evidence: str,
         global_feedback: str,
         draft_feedback: List[Dict[str, Any]],
     ) -> Dict[str, str]:
@@ -255,6 +268,9 @@ CANDIDATE STRENGTHS:
 PROJECT ANGLES TO HIGHLIGHT:
 {project_angles}
 
+SHARED EVIDENCE CONTRACT:
+{outreach_evidence or '- Keep claims conservative.'}
+
 {global_feedback}
 
 {draft_fb}
@@ -276,6 +292,7 @@ Return JSON: {{"subject": "...", "body": "..."}}"""
         job_data: Dict[str, Any],
         candidate_data: Dict[str, Any],
         evidence_pack: Dict[str, Any],
+        outreach_evidence: str,
         global_feedback: str,
         contact: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, str]:
@@ -297,6 +314,9 @@ Return JSON: {{"subject": "...", "body": "..."}}"""
 CONTEXT:
 - Candidate (SENDER): {candidate_name}
 - Target (RECIPIENT): {recipient_label}
+
+SHARED EVIDENCE CONTRACT:
+{outreach_evidence or '- Keep claims conservative.'}
 
 {global_feedback}
 

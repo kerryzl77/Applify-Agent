@@ -360,6 +360,500 @@ class DatabaseManager:
                 self._return_connection(conn)
 
     # ------------------------------------------------------------------
+    # Durable application runs / steps / artifacts
+    # ------------------------------------------------------------------
+    def create_application_run(self, user_id, run_type, source_type, source_id, request_payload=None, status="queued"):
+        """Create a durable application run and return the run ID."""
+        conn = None
+        run_id = str(uuid.uuid4())
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO application_runs
+                    (id, user_id, run_type, source_type, source_id, status, request_payload)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        run_id,
+                        user_id,
+                        run_type,
+                        source_type,
+                        str(source_id),
+                        status,
+                        Json(request_payload or {}),
+                    ),
+                )
+                conn.commit()
+                return run_id
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error creating application run: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_application_run(self, run_id, user_id=None):
+        """Get a durable application run by ID."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                query = """
+                    SELECT id, user_id, run_type, source_type, source_id, status,
+                           request_payload, result_payload, error, queued_at, started_at,
+                           completed_at, created_at, updated_at
+                    FROM application_runs
+                    WHERE id = %s
+                """
+                params = [run_id]
+                if user_id:
+                    query += " AND user_id = %s"
+                    params.append(user_id)
+                cur.execute(query, params)
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {
+                    "id": row[0],
+                    "user_id": row[1],
+                    "run_type": row[2],
+                    "source_type": row[3],
+                    "source_id": row[4],
+                    "status": row[5],
+                    "request_payload": row[6] or {},
+                    "result_payload": row[7] or {},
+                    "error": row[8],
+                    "queued_at": row[9].isoformat() if row[9] else None,
+                    "started_at": row[10].isoformat() if row[10] else None,
+                    "completed_at": row[11].isoformat() if row[11] else None,
+                    "created_at": row[12].isoformat() if row[12] else None,
+                    "updated_at": row[13].isoformat() if row[13] else None,
+                }
+        except Exception as e:
+            logger.error(f"Error getting application run {run_id}: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def list_application_runs(self, user_id=None, source_type=None, source_id=None, limit=20):
+        """List application runs, newest first."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                query = """
+                    SELECT id, user_id, run_type, source_type, source_id, status,
+                           request_payload, result_payload, error, queued_at, started_at,
+                           completed_at, created_at, updated_at
+                    FROM application_runs
+                    WHERE 1 = 1
+                """
+                params = []
+                if user_id:
+                    query += " AND user_id = %s"
+                    params.append(user_id)
+                if source_type:
+                    query += " AND source_type = %s"
+                    params.append(source_type)
+                if source_id is not None:
+                    query += " AND source_id = %s"
+                    params.append(str(source_id))
+                query += " ORDER BY created_at DESC LIMIT %s"
+                params.append(limit)
+                cur.execute(query, params)
+                rows = cur.fetchall()
+                return [
+                    {
+                        "id": row[0],
+                        "user_id": row[1],
+                        "run_type": row[2],
+                        "source_type": row[3],
+                        "source_id": row[4],
+                        "status": row[5],
+                        "request_payload": row[6] or {},
+                        "result_payload": row[7] or {},
+                        "error": row[8],
+                        "queued_at": row[9].isoformat() if row[9] else None,
+                        "started_at": row[10].isoformat() if row[10] else None,
+                        "completed_at": row[11].isoformat() if row[11] else None,
+                        "created_at": row[12].isoformat() if row[12] else None,
+                        "updated_at": row[13].isoformat() if row[13] else None,
+                    }
+                    for row in rows
+                ]
+        except Exception as e:
+            logger.error(f"Error listing application runs: {str(e)}")
+            return []
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def update_application_run(self, run_id, status=None, result_payload_patch=None, error=None, started=False, completed=False):
+        """Update application run state with durable timestamps."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT result_payload FROM application_runs WHERE id = %s FOR UPDATE",
+                    (run_id,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return False
+                result_payload = row[0] or {}
+                if result_payload_patch:
+                    result_payload = self._deep_merge(result_payload, result_payload_patch)
+
+                updates = ["result_payload = %s", "updated_at = NOW()"]
+                params = [Json(result_payload)]
+                if status:
+                    updates.append("status = %s")
+                    params.append(status)
+                if error is not None:
+                    updates.append("error = %s")
+                    params.append(error)
+                if started:
+                    updates.append("started_at = COALESCE(started_at, NOW())")
+                if completed:
+                    updates.append("completed_at = NOW()")
+                params.append(run_id)
+                cur.execute(
+                    f"UPDATE application_runs SET {', '.join(updates)} WHERE id = %s",
+                    params,
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error updating application run {run_id}: {str(e)}")
+            return False
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def claim_application_run(self, run_id):
+        """Atomically claim a queued run for execution."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE application_runs
+                    SET status = 'running',
+                        started_at = COALESCE(started_at, NOW()),
+                        updated_at = NOW(),
+                        error = NULL
+                    WHERE id = %s AND status = 'queued'
+                    RETURNING id
+                    """,
+                    (run_id,),
+                )
+                claimed = cur.fetchone()
+                conn.commit()
+                return bool(claimed)
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error claiming application run {run_id}: {str(e)}")
+            return False
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def upsert_run_step(self, run_id, step_key, position, status="queued", input_payload=None):
+        """Create or update a run step."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO run_steps (run_id, step_key, position, status, input_payload)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (run_id, step_key)
+                    DO UPDATE SET
+                        position = EXCLUDED.position,
+                        status = EXCLUDED.status,
+                        input_payload = EXCLUDED.input_payload,
+                        updated_at = NOW()
+                    """,
+                    (run_id, step_key, position, status, Json(input_payload or {})),
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error upserting run step {run_id}/{step_key}: {str(e)}")
+            return False
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def update_run_step(self, run_id, step_key, status, output_payload=None, error=None, started=False, completed=False):
+        """Update a run step."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                updates = ["status = %s", "updated_at = NOW()"]
+                params = [status]
+                if output_payload is not None:
+                    updates.append("output_payload = %s")
+                    params.append(Json(output_payload))
+                if error is not None:
+                    updates.append("error = %s")
+                    params.append(error)
+                if started:
+                    updates.append("started_at = COALESCE(started_at, NOW())")
+                if completed:
+                    updates.append("completed_at = NOW()")
+                params.extend([run_id, step_key])
+                cur.execute(
+                    f"UPDATE run_steps SET {', '.join(updates)} WHERE run_id = %s AND step_key = %s",
+                    params,
+                )
+                conn.commit()
+                return cur.rowcount > 0
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error updating run step {run_id}/{step_key}: {str(e)}")
+            return False
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def list_run_steps(self, run_id):
+        """List steps for a run ordered by position."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT step_key, position, status, input_payload, output_payload,
+                           error, started_at, completed_at, created_at, updated_at
+                    FROM run_steps
+                    WHERE run_id = %s
+                    ORDER BY position ASC, id ASC
+                    """,
+                    (run_id,),
+                )
+                rows = cur.fetchall()
+                return [
+                    {
+                        "step_key": row[0],
+                        "position": row[1],
+                        "status": row[2],
+                        "input_payload": row[3] or {},
+                        "output_payload": row[4] or {},
+                        "error": row[5],
+                        "started_at": row[6].isoformat() if row[6] else None,
+                        "completed_at": row[7].isoformat() if row[7] else None,
+                        "created_at": row[8].isoformat() if row[8] else None,
+                        "updated_at": row[9].isoformat() if row[9] else None,
+                    }
+                    for row in rows
+                ]
+        except Exception as e:
+            logger.error(f"Error listing steps for run {run_id}: {str(e)}")
+            return []
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def create_artifact(
+        self,
+        user_id,
+        source_type,
+        source_id,
+        artifact_key,
+        artifact_type,
+        kind,
+        run_id=None,
+        step_key=None,
+        format=None,
+        payload_json=None,
+        storage_backend=None,
+        bucket_name=None,
+        object_key=None,
+        filename=None,
+        content_type=None,
+        size_bytes=None,
+        metadata=None,
+    ):
+        """Create an artifact record and return its ID."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO artifacts
+                    (user_id, run_id, source_type, source_id, step_key, artifact_key,
+                     artifact_type, kind, format, payload_json, storage_backend, bucket_name,
+                     object_key, filename, content_type, size_bytes, metadata)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        user_id,
+                        run_id,
+                        source_type,
+                        str(source_id),
+                        step_key,
+                        artifact_key,
+                        artifact_type,
+                        kind,
+                        format,
+                        Json(payload_json) if payload_json is not None else None,
+                        storage_backend,
+                        bucket_name,
+                        object_key,
+                        filename,
+                        content_type,
+                        size_bytes,
+                        Json(metadata or {}),
+                    ),
+                )
+                artifact_id = cur.fetchone()[0]
+                conn.commit()
+                return artifact_id
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error creating artifact {artifact_key}: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def list_artifacts(self, user_id=None, run_id=None, source_type=None, source_id=None):
+        """List artifacts filtered by run or source."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                query = """
+                    SELECT id, user_id, run_id, source_type, source_id, step_key, artifact_key,
+                           artifact_type, kind, format, payload_json, storage_backend, bucket_name,
+                           object_key, filename, content_type, size_bytes, metadata, created_at
+                    FROM artifacts
+                    WHERE 1 = 1
+                """
+                params = []
+                if user_id:
+                    query += " AND user_id = %s"
+                    params.append(user_id)
+                if run_id:
+                    query += " AND run_id = %s"
+                    params.append(run_id)
+                if source_type:
+                    query += " AND source_type = %s"
+                    params.append(source_type)
+                if source_id is not None:
+                    query += " AND source_id = %s"
+                    params.append(str(source_id))
+                query += " ORDER BY created_at DESC, id DESC"
+                cur.execute(query, params)
+                rows = cur.fetchall()
+                return [
+                    {
+                        "id": row[0],
+                        "user_id": row[1],
+                        "run_id": row[2],
+                        "source_type": row[3],
+                        "source_id": row[4],
+                        "step_key": row[5],
+                        "artifact_key": row[6],
+                        "artifact_type": row[7],
+                        "kind": row[8],
+                        "format": row[9],
+                        "payload_json": row[10],
+                        "storage_backend": row[11],
+                        "bucket_name": row[12],
+                        "object_key": row[13],
+                        "filename": row[14],
+                        "content_type": row[15],
+                        "size_bytes": row[16],
+                        "metadata": row[17] or {},
+                        "created_at": row[18].isoformat() if row[18] else None,
+                    }
+                    for row in rows
+                ]
+        except Exception as e:
+            logger.error(f"Error listing artifacts: {str(e)}")
+            return []
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def get_latest_artifact(self, source_type, source_id, artifact_key=None, format=None, user_id=None):
+        """Get the latest artifact matching a source and optional key."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                query = """
+                    SELECT id, user_id, run_id, source_type, source_id, step_key, artifact_key,
+                           artifact_type, kind, format, payload_json, storage_backend, bucket_name,
+                           object_key, filename, content_type, size_bytes, metadata, created_at
+                    FROM artifacts
+                    WHERE source_type = %s AND source_id = %s
+                """
+                params = [source_type, str(source_id)]
+                if user_id:
+                    query += " AND user_id = %s"
+                    params.append(user_id)
+                if artifact_key:
+                    query += " AND artifact_key = %s"
+                    params.append(artifact_key)
+                if format:
+                    query += " AND format = %s"
+                    params.append(format)
+                query += " ORDER BY created_at DESC, id DESC LIMIT 1"
+                cur.execute(query, params)
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {
+                    "id": row[0],
+                    "user_id": row[1],
+                    "run_id": row[2],
+                    "source_type": row[3],
+                    "source_id": row[4],
+                    "step_key": row[5],
+                    "artifact_key": row[6],
+                    "artifact_type": row[7],
+                    "kind": row[8],
+                    "format": row[9],
+                    "payload_json": row[10],
+                    "storage_backend": row[11],
+                    "bucket_name": row[12],
+                    "object_key": row[13],
+                    "filename": row[14],
+                    "content_type": row[15],
+                    "size_bytes": row[16],
+                    "metadata": row[17] or {},
+                    "created_at": row[18].isoformat() if row[18] else None,
+                }
+        except Exception as e:
+            logger.error(f"Error getting latest artifact for {source_type}/{source_id}: {str(e)}")
+            return None
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    # ------------------------------------------------------------------
     # Gmail OAuth credential helpers
     # ------------------------------------------------------------------
     def save_gmail_token(self, user_id, access_token, refresh_token, expiry, scope, email):

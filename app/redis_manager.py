@@ -118,36 +118,31 @@ class RedisManager:
             return f"{prefix}:{key_hash}"
         return key_string
 
-    def cache_generated_content(self, content_type: str, content: str, 
-                              job_data: Dict, user_id: str, ttl: int = 1800) -> str:
-        """Cache generated content with smart key generation."""
-        cache_key = self.generate_cache_key(
+    def build_generated_content_cache_key(self, content_type: str, user_id: str, cache_context: Dict) -> str:
+        """Build a stable cache key for generated content responses."""
+        cache_fingerprint = json.dumps(cache_context, sort_keys=True, separators=(",", ":"), default=str)
+        return self.generate_cache_key(
             "content",
             content_type,
             user_id,
-            job_data.get('company_name', ''),
-            job_data.get('job_title', '')
+            hashlib.md5(cache_fingerprint.encode("utf-8")).hexdigest(),
         )
-        
+
+    def cache_generated_content(self, content_type: str, user_id: str, cache_context: Dict, response_payload: Dict, ttl: int = 1800) -> str:
+        """Cache the full generated-content response, including artifact handles."""
+        cache_key = self.build_generated_content_cache_key(content_type, user_id, cache_context)
         cache_data = {
-            'content': content,
-            'content_type': content_type,
-            'job_data': job_data,
-            'generated_at': str(datetime.datetime.now())
+            "response": response_payload,
+            "content_type": content_type,
+            "cache_context": cache_context,
+            "generated_at": str(datetime.datetime.now()),
         }
-        
         self.set(cache_key, cache_data, ttl)
         return cache_key
 
-    def get_cached_content(self, content_type: str, job_data: Dict, user_id: str) -> Optional[Dict]:
+    def get_cached_content(self, content_type: str, user_id: str, cache_context: Dict) -> Optional[Dict]:
         """Retrieve cached generated content."""
-        cache_key = self.generate_cache_key(
-            "content",
-            content_type,
-            user_id,
-            job_data.get('company_name', ''),
-            job_data.get('job_title', '')
-        )
+        cache_key = self.build_generated_content_cache_key(content_type, user_id, cache_context)
         return self.get(cache_key)
 
     def invalidate_user_cache(self, user_id: str):

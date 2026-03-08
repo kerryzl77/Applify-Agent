@@ -40,16 +40,12 @@ app = FastAPI(
 )
 
 # CORS configuration
-allowed_origins = settings.allowed_origins
-if allowed_origins != "*":
-    origins = [origin.strip() for origin in allowed_origins.split(",")]
-else:
-    origins = ["*"]
+origins = settings.cors_origins or ["*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
+    allow_credentials=origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -155,6 +151,8 @@ async def startup_event():
     """Initialize services on startup."""
     logger.info(f"Starting {settings.app_name} in {settings.environment} mode")
     logger.info(f"Client dist path: {CLIENT_DIST}")
+    if origins == ["*"]:
+        logger.warning("No explicit CORS origins configured; using wildcard fallback")
     
     # Initialize database
     try:
