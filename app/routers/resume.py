@@ -7,6 +7,7 @@ import uuid
 import threading
 import tempfile
 import shutil
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -278,6 +279,24 @@ def _extract_job_title(job_description: str) -> str:
     return "Position"
 
 
+def _resolve_legacy_download_path(file_path: str) -> Path:
+    """Resolve a legacy resume download path without allowing traversal."""
+    if not file_path:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    requested = Path(file_path)
+    output_root = Path(output_formatter.output_dir).resolve()
+
+    if requested.is_absolute() or requested.name != file_path:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    resolved = (output_root / requested).resolve()
+    if resolved.parent != output_root or not resolved.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return resolved
+
+
 def _save_uploaded_file(file_obj, filename: str) -> str:
     """Save uploaded file to temp directory and return path."""
     from werkzeug.utils import secure_filename
@@ -534,13 +553,10 @@ async def download_resume_file(
     current_user: TokenData = Depends(get_current_user),
 ):
     """Download a generated resume file."""
-    file_full_path = os.path.join(output_formatter.output_dir, file_path)
-    
-    if not os.path.exists(file_full_path):
-        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
-    
+    file_full_path = _resolve_legacy_download_path(file_path)
+
     return FileResponse(
-        path=file_full_path,
-        filename=file_path,
+        path=str(file_full_path),
+        filename=file_full_path.name,
         media_type="application/octet-stream",
     )

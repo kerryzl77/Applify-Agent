@@ -25,7 +25,7 @@ class DatabaseManager:
     def _initialize_pool(self):
         """Initialize the connection pool."""
         try:
-            self._connection_pool = pool.SimpleConnectionPool(
+            self._connection_pool = pool.ThreadedConnectionPool(
                 1,  # min connections
                 10,  # max connections
                 os.environ.get('DATABASE_URL')

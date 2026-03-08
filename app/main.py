@@ -159,8 +159,10 @@ async def startup_event():
     """Initialize services on startup."""
     logger.info(f"Starting {settings.app_name} in {settings.environment} mode")
     logger.info(f"Client dist path: {CLIENT_DIST}")
-    if settings.environment == "production" and settings.jwt_secret_key == "dev-secret-key-change-in-production":
-        logger.warning("JWT secret key is using the development default; configure JWT_SECRET_KEY for production")
+    if settings.environment.lower() == "production" and settings.is_default_jwt_secret:
+        raise RuntimeError(
+            "JWT_SECRET_KEY or SECRET_KEY must be set to a non-default value in production"
+        )
     if not origins:
         logger.warning("No explicit CORS origins configured")
     

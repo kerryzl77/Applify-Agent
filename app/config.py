@@ -7,6 +7,8 @@ from typing import Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
+DEV_JWT_SECRET_KEY = "dev-secret-key-change-in-production"
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -19,7 +21,7 @@ class Settings(BaseSettings):
     # JWT settings
     jwt_secret_key: str = os.environ.get(
         "JWT_SECRET_KEY",
-        os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production"),
+        os.environ.get("SECRET_KEY", DEV_JWT_SECRET_KEY),
     )
     jwt_algorithm: str = "HS256"
     jwt_issuer: Optional[str] = None
@@ -86,6 +88,10 @@ class Settings(BaseSettings):
             if origin not in deduped:
                 deduped.append(origin)
         return deduped
+
+    @property
+    def is_default_jwt_secret(self) -> bool:
+        return self.jwt_secret_key == DEV_JWT_SECRET_KEY
     
     class Config:
         env_file = ".env"
