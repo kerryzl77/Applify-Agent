@@ -1,4 +1,4 @@
-"""Canonical contracts for candidate, job, and evidence data."""
+"""Canonical document-intelligence contracts for candidate, job, and evidence data."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ class SourceKind(str, Enum):
     parsed_resume = "parsed_resume"
     user_edit = "user_edit"
     job_posting = "job_posting"
+    recruiter_input = "recruiter_input"
     web_research = "web_research"
     system_inference = "system_inference"
 
@@ -39,10 +40,15 @@ class ArtifactKind(str, Enum):
 
 
 class Provenance(BaseModel):
+    """Trace where a normalized field or claim came from."""
+
     source_kind: SourceKind
     source_label: str = ""
     source_id: str = ""
-    locator: str = ""
+    locator: str = Field(
+        default="",
+        description="Lightweight pointer such as page/bullet id, JD section, or URL fragment.",
+    )
     excerpt: str = Field(default="", max_length=400)
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     inferred: bool = False
@@ -140,6 +146,8 @@ class CandidatePreferences(BaseModel):
 
 
 class CandidateProfile(BaseModel):
+    """Uploaded-resume-grounded canonical profile."""
+
     profile_version: str = "2026-03-08"
     source_of_truth: str = "uploaded_resume"
     contact: CandidateContact = Field(default_factory=CandidateContact)
@@ -153,7 +161,10 @@ class CandidateProfile(BaseModel):
     awards: List[str] = Field(default_factory=list)
     story_bank: List[StoryEntry] = Field(default_factory=list)
     preferences: CandidatePreferences = Field(default_factory=CandidatePreferences)
-    raw_resume_text: str = ""
+    raw_resume_text: str = Field(
+        default="",
+        description="Optional normalized text snapshot from the uploaded resume.",
+    )
 
 
 class RequirementEvidence(BaseModel):
@@ -189,6 +200,8 @@ class ThinJobFallback(BaseModel):
 
 
 class JobRequirementProfile(BaseModel):
+    """Normalized job brief derived from JD text, URL scrape, and optional research."""
+
     schema_version: str = "2026-03-08"
     job_title: str = ""
     company_name: str = ""
@@ -221,7 +234,10 @@ class CandidateEvidenceLink(BaseModel):
 
 class RequirementCoverage(BaseModel):
     requirement_id: str = Field(min_length=1, max_length=80)
-    coverage_label: str = "partial"
+    coverage_label: str = Field(
+        default="partial",
+        description="covered, partial, adjacent, or uncovered",
+    )
     highlight: bool = False
     selected_evidence: List[CandidateEvidenceLink] = Field(default_factory=list)
     gap_note: str = ""
@@ -253,3 +269,54 @@ class ApplicationEvidencePack(BaseModel):
         if self.candidate_profile.source_of_truth != "uploaded_resume":
             raise ValueError("candidate_profile.source_of_truth must remain 'uploaded_resume'")
         return self
+
+
+class TailoringDecision(BaseModel):
+    requirement_id: str = ""
+    candidate_item_id: str = ""
+    action: str = Field(
+        default="keep",
+        description="keep, rewrite, elevate, condense, drop, or mention_elsewhere",
+    )
+    reason: str = ""
+
+
+class TailoringPlan(BaseModel):
+    target_title: str = ""
+    target_company: str = ""
+    priorities: List[str] = Field(default_factory=list)
+    decisions: List[TailoringDecision] = Field(default_factory=list)
+    page_pressure: str = Field(
+        default="normal",
+        description="normal, moderate, or high based on one-page fit pressure.",
+    )
+    one_page_strategy: List[str] = Field(default_factory=list)
+    risks: List[str] = Field(default_factory=list)
+
+
+class ResumeQualityScore(BaseModel):
+    relevance: int = Field(ge=1, le=5)
+    evidence: int = Field(ge=1, le=5)
+    ats_safety: int = Field(ge=1, le=5)
+    concision: int = Field(ge=1, le=5)
+    one_page_fit: int = Field(ge=1, le=5)
+    credibility: int = Field(ge=1, le=5)
+    notes: List[str] = Field(default_factory=list)
+
+
+class CoverLetterQualityScore(BaseModel):
+    grounding: int = Field(ge=1, le=5)
+    specificity: int = Field(ge=1, le=5)
+    tone: int = Field(ge=1, le=5)
+    concision: int = Field(ge=1, le=5)
+    credibility: int = Field(ge=1, le=5)
+    notes: List[str] = Field(default_factory=list)
+
+
+class OutreachQualityScore(BaseModel):
+    personalization: int = Field(ge=1, le=5)
+    grounding: int = Field(ge=1, le=5)
+    tone: int = Field(ge=1, le=5)
+    clarity: int = Field(ge=1, le=5)
+    non_cringe: int = Field(ge=1, le=5)
+    notes: List[str] = Field(default_factory=list)

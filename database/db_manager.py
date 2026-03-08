@@ -2,12 +2,13 @@ import json
 import os
 from pathlib import Path
 import datetime
-import hashlib
 import uuid
 import psycopg2
 from psycopg2.extras import Json
 from psycopg2 import pool
 import logging
+
+from app.security import hash_password, password_needs_rehash, verify_password
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +191,7 @@ class DatabaseManager:
                 
                 # Create new user
                 user_id = str(uuid.uuid4())
-                password_hash = hashlib.sha256(password.encode()).hexdigest()
+                password_hash = hash_password(password)
                 created_at = datetime.datetime.now()
                 
                 cur.execute(
@@ -244,17 +245,49 @@ class DatabaseManager:
         try:
             conn = self._get_connection()
             with conn.cursor() as cur:
-                password_hash = hashlib.sha256(password.encode()).hexdigest()
                 cur.execute(
-                    "SELECT id FROM users WHERE email = %s AND password_hash = %s",
-                    (email, password_hash)
+                    "SELECT id, password_hash FROM users WHERE email = %s",
+                    (email,)
                 )
                 result = cur.fetchone()
-                if result:
-                    return True, result[0]
-                return False, "Invalid email or password"
+                if not result:
+                    return False, "Invalid email or password"
+
+                user_id, stored_password_hash = result
+                if not verify_password(password, stored_password_hash):
+                    return False, "Invalid email or password"
+
+                if password_needs_rehash(stored_password_hash):
+                    cur.execute(
+                        "UPDATE users SET password_hash = %s WHERE id = %s",
+                        (hash_password(password), user_id),
+                    )
+                    conn.commit()
+
+                return True, user_id
         except Exception as e:
             return False, str(e)
+        finally:
+            if conn:
+                self._return_connection(conn)
+
+    def update_user_password_hash(self, user_id, password_hash):
+        """Update a user's password hash."""
+        conn = None
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET password_hash = %s WHERE id = %s",
+                    (password_hash, user_id),
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Error updating password hash for user {user_id}: {str(e)}")
+            return False
         finally:
             if conn:
                 self._return_connection(conn)
@@ -363,7 +396,7 @@ class DatabaseManager:
     # Durable application runs / steps / artifacts
     # ------------------------------------------------------------------
     def create_application_run(self, user_id, run_type, source_type, source_id, request_payload=None, status="queued"):
-        """Create a durable application run and return the run ID."""
+        """Create a durable application run and return the run_id."""
         conn = None
         run_id = str(uuid.uuid4())
         try:
@@ -798,7 +831,7 @@ class DatabaseManager:
                 self._return_connection(conn)
 
     def get_latest_artifact(self, source_type, source_id, artifact_key=None, format=None, user_id=None):
-        """Get the latest artifact matching a source and optional key."""
+        """Get the latest artifact matching a source and optional key/format."""
         conn = None
         try:
             conn = self._get_connection()

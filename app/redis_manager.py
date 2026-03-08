@@ -27,7 +27,7 @@ class RedisManager:
             
             # Handle Heroku Redis SSL configuration
             if redis_url.startswith('rediss://'):
-                # Use SSL with proper certificate verification for Heroku Redis
+                # Use SSL with certificate verification for managed Redis services
                 self._redis_client = redis.from_url(
                     redis_url,
                     decode_responses=True,
@@ -35,8 +35,8 @@ class RedisManager:
                     socket_timeout=5,
                     retry_on_timeout=True,
                     health_check_interval=30,
-                    ssl_cert_reqs=ssl.CERT_NONE,  # Disable SSL cert verification for Heroku Redis
-                    ssl_check_hostname=False
+                    ssl_cert_reqs=ssl.CERT_REQUIRED,
+                    ssl_check_hostname=True
                 )
             else:
                 # Standard Redis connection for local development

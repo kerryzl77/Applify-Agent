@@ -40,12 +40,12 @@ app = FastAPI(
 )
 
 # CORS configuration
-origins = settings.cors_origins or ["*"]
+origins = settings.cors_origins or (["*"] if settings.debug else [])
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=origins != ["*"],
+    allow_credentials=bool(origins and origins != ["*"]),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -151,8 +151,10 @@ async def startup_event():
     """Initialize services on startup."""
     logger.info(f"Starting {settings.app_name} in {settings.environment} mode")
     logger.info(f"Client dist path: {CLIENT_DIST}")
-    if origins == ["*"]:
-        logger.warning("No explicit CORS origins configured; using wildcard fallback")
+    if settings.environment == "production" and settings.jwt_secret_key == "dev-secret-key-change-in-production":
+        logger.warning("JWT secret key is using the development default; configure JWT_SECRET_KEY for production")
+    if not origins:
+        logger.warning("No explicit CORS origins configured")
     
     # Initialize database
     try:

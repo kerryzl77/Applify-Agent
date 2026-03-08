@@ -17,8 +17,13 @@ class Settings(BaseSettings):
     environment: str = "production"
     
     # JWT settings
-    jwt_secret_key: str = os.environ.get("JWT_SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production"))
+    jwt_secret_key: str = os.environ.get(
+        "JWT_SECRET_KEY",
+        os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production"),
+    )
     jwt_algorithm: str = "HS256"
+    jwt_issuer: Optional[str] = None
+    jwt_audience: Optional[str] = None
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     
@@ -67,7 +72,7 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        origins: list[str] = []
+        origins = []
         for candidate in [self.allowed_origins, self.frontend_origin, self.public_url]:
             if not candidate:
                 continue
@@ -76,7 +81,7 @@ class Settings(BaseSettings):
                 for item in candidate.split(",")
                 if item and item.strip()
             )
-        deduped: list[str] = []
+        deduped = []
         for origin in origins:
             if origin not in deduped:
                 deduped.append(origin)

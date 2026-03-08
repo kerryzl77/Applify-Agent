@@ -1,0 +1,191 @@
+[
+  {
+    "case_id": "tech_clean_backend",
+    "slice": "clean technical JD + clean technical resume",
+    "candidate_fixture": "candidate_profile_snapshot_required",
+    "job_fixture": "job_profile_snapshot_required",
+    "expected_top_requirements": [
+      "backend API development",
+      "Python and SQL fluency",
+      "production systems ownership"
+    ],
+    "expected_top_evidence": [
+      "recent backend role with measurable delivery",
+      "database-heavy project work",
+      "relevant core skills near top of profile"
+    ],
+    "artifact_expectations": [
+      "summary aligns to backend scope",
+      "top bullets are quantified and production-relevant",
+      "cover letter mentions one or two concrete fit points"
+    ],
+    "failure_modes": [
+      "generic full-stack framing outranks backend evidence",
+      "keyword stuffing in skills section",
+      "cover letter repeats resume bullets verbatim"
+    ]
+  },
+  {
+    "case_id": "jd_messy_scrape",
+    "slice": "messy scrape with repeated boilerplate",
+    "candidate_fixture": "candidate_profile_snapshot_required",
+    "job_fixture": "raw_job_text_with_boilerplate_required",
+    "expected_top_requirements": [
+      "deduplicated core qualifications",
+      "role scope separated from company boilerplate",
+      "clear must-have versus preferred signals"
+    ],
+    "expected_top_evidence": [
+      "evidence tied to deduplicated requirements only"
+    ],
+    "artifact_expectations": [
+      "resume does not mirror duplicated JD text",
+      "cover letter skips generic company boilerplate"
+    ],
+    "failure_modes": [
+      "duplicated requirements inflate ranking",
+      "summary copies marketing language from scrape"
+    ]
+  },
+  {
+    "case_id": "jd_thin_minimal",
+    "slice": "thin JD with only title/team/location",
+    "candidate_fixture": "candidate_profile_snapshot_required",
+    "job_fixture": "thin_job_snapshot_required",
+    "expected_top_requirements": [
+      "role-family default signals only",
+      "conservative tailoring with low speculation"
+    ],
+    "expected_top_evidence": [
+      "broadly relevant recent evidence",
+      "no fabricated domain specialization"
+    ],
+    "artifact_expectations": [
+      "resume remains targeted but conservative",
+      "outreach is lightly personalized without fake specifics"
+    ],
+    "failure_modes": [
+      "invented company priorities",
+      "invented tech stack"
+    ]
+  },
+  {
+    "case_id": "senior_ic_leadership",
+    "slice": "senior IC role with heavy leadership signals",
+    "candidate_fixture": "candidate_profile_snapshot_required",
+    "job_fixture": "job_profile_snapshot_required",
+    "expected_top_requirements": [
+      "technical leadership",
+      "cross-functional influence",
+      "execution at scale"
+    ],
+    "expected_top_evidence": [
+      "scope and influence bullets",
+      "architecture or ownership examples",
+      "mentoring or stakeholder alignment evidence if present"
+    ],
+    "artifact_expectations": [
+      "resume shows leadership without title inflation",
+      "cover letter sounds credible for senior IC, not manager"
+    ],
+    "failure_modes": [
+      "managerial claims unsupported by resume",
+      "leadership language replaces technical depth"
+    ]
+  },
+  {
+    "case_id": "early_career_projects",
+    "slice": "early-career candidate where projects matter more than experience",
+    "candidate_fixture": "candidate_profile_snapshot_required",
+    "job_fixture": "job_profile_snapshot_required",
+    "expected_top_requirements": [
+      "practical technical skills",
+      "learning velocity",
+      "project execution"
+    ],
+    "expected_top_evidence": [
+      "strong project bullets",
+      "education signal if relevant",
+      "internship or contract evidence where available"
+    ],
+    "artifact_expectations": [
+      "projects are elevated appropriately",
+      "resume avoids pretending to have seniority"
+    ],
+    "failure_modes": [
+      "projects buried below weak experience",
+      "summary overstates experience level"
+    ]
+  },
+  {
+    "case_id": "career_switch_adjacent",
+    "slice": "career-switcher with adjacent evidence but partial requirement coverage",
+    "candidate_fixture": "candidate_profile_snapshot_required",
+    "job_fixture": "job_profile_snapshot_required",
+    "expected_top_requirements": [
+      "transferable execution skills",
+      "adjacent technical or domain overlap",
+      "clear gap handling"
+    ],
+    "expected_top_evidence": [
+      "adjacent evidence explicitly tied to target role",
+      "strong transferable outcomes"
+    ],
+    "artifact_expectations": [
+      "cover letter acknowledges fit through adjacent evidence",
+      "resume does not fake direct experience"
+    ],
+    "failure_modes": [
+      "hallucinated direct experience",
+      "overcompensating motivational language"
+    ]
+  },
+  {
+    "case_id": "outreach_rich_context",
+    "slice": "outreach personalization with rich recipient context",
+    "candidate_fixture": "candidate_profile_snapshot_required",
+    "job_fixture": "job_profile_snapshot_required",
+    "recipient_fixture": "recipient_profile_snapshot_required",
+    "expected_top_requirements": [
+      "recipient-aware personalization",
+      "role relevance",
+      "single clear ask"
+    ],
+    "expected_top_evidence": [
+      "candidate evidence aligned to role",
+      "one recipient-specific hook"
+    ],
+    "artifact_expectations": [
+      "email sounds human and informed",
+      "LinkedIn note stays within character limit"
+    ],
+    "failure_modes": [
+      "flattery theater",
+      "too many asks",
+      "recipient details copied awkwardly"
+    ]
+  },
+  {
+    "case_id": "outreach_sparse_context",
+    "slice": "outreach personalization with almost no recipient context",
+    "candidate_fixture": "candidate_profile_snapshot_required",
+    "job_fixture": "job_profile_snapshot_required",
+    "recipient_fixture": "name_and_title_only",
+    "expected_top_requirements": [
+      "respectful low-context outreach",
+      "role relevance",
+      "single lightweight ask"
+    ],
+    "expected_top_evidence": [
+      "candidate-job fit evidence only"
+    ],
+    "artifact_expectations": [
+      "message avoids fake familiarity",
+      "tone stays direct and concise"
+    ],
+    "failure_modes": [
+      "invented common ground",
+      "generic networking language"
+    ]
+  }
+]

@@ -1,9 +1,11 @@
 """JWT authentication and security utilities."""
 
 import hashlib
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
+import bcrypt
 from jose import JWTError, jwt
 from pydantic import BaseModel
 
@@ -18,13 +20,28 @@ class TokenData(BaseModel):
 
 
 def hash_password(password: str) -> str:
-    """Hash a password using SHA256 (matching existing db_manager implementation)."""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash a password using bcrypt."""
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    return hash_password(plain_password) == hashed_password
+    """Verify a password against a bcrypt or legacy SHA256 hash."""
+    if not hashed_password:
+        return False
+    if hashed_password.startswith("$2"):
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8"),
+        )
+    legacy_hash = hashlib.sha256(plain_password.encode()).hexdigest()
+    return legacy_hash == hashed_password
+
+
+def password_needs_rehash(hashed_password: str) -> bool:
+    """Return True when a stored password should be upgraded to bcrypt."""
+    if not hashed_password:
+        return True
+    return not hashed_password.startswith("$2")
 
 
 def create_access_token(user_id: str, email: str) -> str:
@@ -37,6 +54,9 @@ def create_access_token(user_id: str, email: str) -> str:
         "sub": user_id,
         "email": email,
         "type": "access",
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
+        "jti": str(uuid.uuid4()),
         "exp": expire,
         "iat": datetime.now(timezone.utc),
     }
@@ -54,6 +74,9 @@ def create_refresh_token(user_id: str, email: str) -> str:
         "sub": user_id,
         "email": email,
         "type": "refresh",
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
+        "jti": str(uuid.uuid4()),
         "exp": expire,
         "iat": datetime.now(timezone.utc),
     }
@@ -74,9 +97,15 @@ def decode_token(token: str) -> Optional[TokenData]:
     
     try:
         payload = jwt.decode(
-            token, 
-            settings.jwt_secret_key, 
-            algorithms=[settings.jwt_algorithm]
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            issuer=settings.jwt_issuer,
+            audience=settings.jwt_audience,
+            options={
+                "verify_aud": bool(settings.jwt_audience),
+                "verify_iss": bool(settings.jwt_issuer),
+            },
         )
         
         user_id = payload.get("sub")

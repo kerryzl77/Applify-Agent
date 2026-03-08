@@ -36,3 +36,18 @@ Append-only log. Every agent adds new entries at the bottom with date, owner, an
 - Live evidence generation now emits a typed candidate/job/evidence contract and outreach/cover-letter prompts consume that same normalized basis.
 - Legacy convenience fields such as `why_me_bullets` remain in the payload temporarily for compatibility with existing draft flows.
 - Chosen to improve grounding immediately while avoiding a destabilizing all-at-once rewrite.
+
+## 2026-03-08 - ai - Canonical document-intelligence contract
+
+- Added a typed candidate profile, job requirement, provenance, and shared evidence-pack contract in `app/document_intelligence_models.py`.
+- Chosen because current generation flows rely on ad hoc dicts, which makes resume tailoring, cover-letter grounding, and outreach personalization drift apart.
+
+## 2026-03-08 - ai - Rubric-first quality bar
+
+- Added explicit rubrics for resume tailoring, cover letters, and outreach plus thin-JD fallback rules in `agents/specs/document-intelligence-quality-bar.md`.
+- Chosen to make generation quality reviewable and regression-resistant instead of relying on subjective prompt inspection.
+
+## 2026-03-08 - frontend - Unify around a single workspace
+
+- Chosen direction: replace the current split `Dashboard` + `DiscoverJobs` + `Campaign` mental model with one package workspace centered on job intake, package generation, artifact review, and outreach delivery.
+- Rationale: the current route and sidebar structure teaches multiple tools instead of one core workflow, which increases first-run confusion and obscures the primary action.

@@ -370,11 +370,33 @@ async def confirm_campaign(
             db.update_job_campaign_state(campaign_id, current_user.user_id, {
                 'artifacts': {'gmail_draft_ids': gmail_draft_ids}
             })
+            latest_run_id = state.get("latest_run_id")
+            if latest_run_id:
+                db.create_artifact(
+                    user_id=current_user.user_id,
+                    run_id=latest_run_id,
+                    source_type="job_campaign",
+                    source_id=campaign_id,
+                    step_key="gmail",
+                    artifact_key="gmail_draft_ids",
+                    artifact_type="gmail_drafts",
+                    kind="json",
+                    payload_json=gmail_draft_ids,
+                    metadata={"campaign_id": campaign_id},
+                )
             
             # Update Gmail step status
             db.update_job_campaign_state(campaign_id, current_user.user_id, {
                 'steps': {'gmail': {'status': 'done'}}
             })
+            if latest_run_id:
+                db.update_run_step(
+                    latest_run_id,
+                    "gmail",
+                    "completed",
+                    output_payload={"count": len(gmail_draft_ids)},
+                    completed=True,
+                )
             
         except GmailOAuthError as e:
             raise HTTPException(
@@ -387,6 +409,14 @@ async def confirm_campaign(
         db.update_job_campaign_state(campaign_id, current_user.user_id, {
             'phase': 'done'
         })
+        latest_run_id = state.get("latest_run_id")
+        if latest_run_id:
+            db.update_application_run(
+                latest_run_id,
+                status="completed",
+                result_payload_patch={"terminal_phase": "done"},
+                completed=True,
+            )
     
     return {
         "success": True,
