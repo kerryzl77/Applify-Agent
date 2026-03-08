@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -19,11 +19,16 @@ import { authAPI } from '../services/api';
 import { formatDate, getInitials, getColorFromString } from '../utils/helpers';
 import toast from 'react-hot-toast';
 
+const DESKTOP_BREAKPOINT = 1024;
+
+const getIsDesktopViewport = () =>
+  typeof window !== 'undefined' && window.innerWidth >= DESKTOP_BREAKPOINT;
+
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  // Open by default on desktop, closed on mobile
-  const [isOpen, setIsOpen] = useState(window.innerWidth >= 1024);
+  const [isDesktop, setIsDesktop] = useState(getIsDesktopViewport);
+  const [isOpen, setIsOpen] = useState(getIsDesktopViewport);
 
   const {
     user,
@@ -34,6 +39,26 @@ const Sidebar = () => {
     createConversation,
     deleteConversation,
   } = useStore();
+
+  useEffect(() => {
+    const handleResize = () => {
+      const desktopViewport = getIsDesktopViewport();
+      setIsDesktop(desktopViewport);
+      setIsOpen((previouslyOpen) => (desktopViewport ? true : previouslyOpen));
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  const closeSidebarOnMobile = () => {
+    if (!isDesktop) {
+      setIsOpen(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -130,7 +155,7 @@ const Sidebar = () => {
               {/* Discover Jobs Button */}
               <Link
                 to="/discover"
-                onClick={() => setIsOpen(false)}
+                onClick={closeSidebarOnMobile}
                 className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg mb-4 transition-all duration-200 group ${
                   location.pathname === '/discover'
                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
@@ -190,7 +215,7 @@ const Sidebar = () => {
                         onClick={() => {
                           setCurrentConversation(conv.id);
                           navigate('/dashboard');
-                          setIsOpen(false);
+                          closeSidebarOnMobile();
                         }}
                         className={`w-full flex items-start space-x-3 p-3 rounded-lg transition-all duration-200 group ${
                           isActive
