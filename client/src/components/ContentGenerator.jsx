@@ -51,6 +51,7 @@ const ContentGenerator = () => {
   const [creatingDraft, setCreatingDraft] = useState(false);
   const [resumeProgress, setResumeProgress] = useState(null);
   const [resumeTaskId, setResumeTaskId] = useState(null);
+  const [resumePollFailures, setResumePollFailures] = useState(0);
   const [gmailStatus, setGmailStatus] = useState({ availability: "unknown", authorized: false });
   const [isGmailSetupOpen, setGmailSetupOpen] = useState(false);
 
@@ -79,6 +80,7 @@ const ContentGenerator = () => {
           `/api/resume/refinement-progress/${resumeTaskId}`,
         );
 
+        setResumePollFailures(0);
         setResumeProgress(response.data);
 
         if (
@@ -119,6 +121,26 @@ const ContentGenerator = () => {
         }
       } catch (error) {
         console.error("Error polling progress:", error);
+        setResumePollFailures((count) => {
+          const nextCount = count + 1;
+          if (nextCount >= 3) {
+            clearInterval(pollProgress);
+            setResumeTaskId(null);
+            setGenerating(false);
+            setResumeProgress({
+              status: "error",
+              message:
+                error.response?.data?.detail ||
+                "Resume generation status could not be retrieved. Please try again.",
+              progress: 0,
+            });
+            toast.error(
+              error.response?.data?.detail ||
+                "Resume generation status could not be retrieved. Please try again.",
+            );
+          }
+          return nextCount;
+        });
       }
     }, 1000);
 
@@ -137,6 +159,7 @@ const ContentGenerator = () => {
     setGeneratedContent(null);
     setFileInfo(null);
     setResumeProgress(null);
+    setResumePollFailures(0);
     setEmailMetadata({
       subject: "",
       body: "",
@@ -340,6 +363,7 @@ const ContentGenerator = () => {
     setGeneratedContent(null);
     setFileInfo(null);
     setResumeProgress(null);
+    setResumePollFailures(0);
 
     try {
       let response;

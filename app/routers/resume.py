@@ -34,10 +34,44 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Fallback progress store for environments where Redis is unavailable.
+_resume_refinement_progress = {}
+_resume_refinement_progress_lock = threading.Lock()
+
 # Initialize shared components
 output_formatter = OutputFormatter()
 data_retriever = DataRetriever()
 url_validator = URLValidator()
+
+
+def _progress_key(user_id: str, task_id: str) -> str:
+    return f"resume_refinement:{user_id}:{task_id}"
+
+
+def _set_progress(
+    user_id: str,
+    task_id: str,
+    progress_data: dict,
+    redis_manager: Optional[RedisManager] = None,
+):
+    progress_key = _progress_key(user_id, task_id)
+    with _resume_refinement_progress_lock:
+        _resume_refinement_progress[progress_key] = progress_data
+    if redis_manager is not None:
+        redis_manager.set(progress_key, progress_data, ttl=1800)
+
+
+def _get_progress(user_id: str, task_id: str, redis_manager: Optional[RedisManager] = None):
+    progress_key = _progress_key(user_id, task_id)
+    progress_data = None
+    if redis_manager is not None:
+        progress_data = redis_manager.get(progress_key)
+    if progress_data:
+        with _resume_refinement_progress_lock:
+            _resume_refinement_progress[progress_key] = progress_data
+        return progress_data
+    with _resume_refinement_progress_lock:
+        return _resume_refinement_progress.get(progress_key)
 
 
 def process_resume_refinement_background(
@@ -58,10 +92,8 @@ def process_resume_refinement_background(
     3. Apply one-page fitter constraints
     4. Generate PDF with FastPDFGenerator
     """
-    progress_key = f"resume_refinement:{user_id}:{task_id}"
-    
     def update_progress(step, progress, message, status="processing", data=None):
-        """Update progress in Redis."""
+        """Update progress in Redis and the in-process fallback store."""
         progress_data = {
             "task_id": task_id,
             "step": step,
@@ -71,7 +103,7 @@ def process_resume_refinement_background(
             "timestamp": datetime.datetime.now().isoformat(),
             "data": data or {},
         }
-        redis_manager.set(progress_key, progress_data, ttl=1800)  # 30 min TTL
+        _set_progress(user_id, task_id, progress_data, redis_manager)
         logger.info(f"Resume refinement progress [{user_id}]: {step} - {progress}% - {message}")
     
     try:
@@ -394,6 +426,17 @@ async def refine_resume(
     # Generate unique task ID
     task_id = str(uuid.uuid4())
     
+    initial_progress = {
+        "task_id": task_id,
+        "step": "queued",
+        "progress": 0,
+        "message": "Resume refinement queued...",
+        "status": "processing",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "data": {},
+    }
+    _set_progress(user_id, task_id, initial_progress, redis)
+
     # Start background processing with new VLM pipeline
     thread = threading.Thread(
         target=process_resume_refinement_background,
@@ -425,9 +468,8 @@ async def get_refinement_progress(
     redis: RedisManager = Depends(get_redis),
 ):
     """Get progress of resume refinement task."""
-    progress_key = f"resume_refinement:{current_user.user_id}:{task_id}"
-    progress_data = redis.get(progress_key)
-    
+    progress_data = _get_progress(current_user.user_id, task_id, redis)
+
     if not progress_data:
         raise HTTPException(
             status_code=404, detail="No refinement task found with this ID"
