@@ -1,7 +1,13 @@
 """Gmail integration router."""
 
+import base64
+import hashlib
+import hmac
+import json
 import logging
 import os
+import secrets
+import time
 from urllib.parse import urlencode, urlparse
 from typing import Optional
 
@@ -17,11 +23,77 @@ from app.schemas import (
 )
 from app.dependencies import get_current_user, get_redis, TokenData
 from app.gmail_service import GmailService, GmailOAuthError
+from app.config import get_settings
 from app.redis_manager import RedisManager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+STATE_TTL_SECONDS = 600
+
+
+def _state_signing_key() -> bytes:
+    return get_settings().jwt_secret_key.encode("utf-8")
+
+
+def _encode_oauth_state(
+    *,
+    user_id: str,
+    origin: Optional[str],
+    return_to: Optional[str],
+) -> str:
+    payload = {
+        "user_id": user_id,
+        "origin": origin,
+        "return_to": return_to,
+        "exp": int(time.time()) + STATE_TTL_SECONDS,
+        "nonce": secrets.token_urlsafe(12),
+    }
+    payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    signature = hmac.new(_state_signing_key(), payload_bytes, hashlib.sha256).digest()
+    return (
+        base64.urlsafe_b64encode(payload_bytes).decode("ascii").rstrip("=")
+        + "."
+        + base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
+    )
+
+
+def _decode_oauth_state(state: str) -> Optional[dict]:
+    if not state or "." not in state:
+        return None
+
+    payload_part, signature_part = state.split(".", 1)
+    try:
+        payload_bytes = base64.urlsafe_b64decode(payload_part + "=" * (-len(payload_part) % 4))
+        signature = base64.urlsafe_b64decode(signature_part + "=" * (-len(signature_part) % 4))
+    except Exception:
+        return None
+
+    expected_signature = hmac.new(_state_signing_key(), payload_bytes, hashlib.sha256).digest()
+    if not hmac.compare_digest(signature, expected_signature):
+        return None
+
+    try:
+        payload = json.loads(payload_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+    exp = payload.get("exp")
+    if not isinstance(exp, int) or exp < int(time.time()):
+        return None
+
+    user_id = payload.get("user_id")
+    if not isinstance(user_id, str) or not user_id:
+        return None
+
+    origin = payload.get("origin")
+    if origin is not None and not isinstance(origin, str):
+        return None
+
+    return_to = _normalize_return_to(payload.get("return_to"))
+    payload["origin"] = origin
+    payload["return_to"] = return_to
+    return payload
 
 
 def get_frontend_redirect_url(
@@ -114,21 +186,26 @@ async def gmail_auth_url(
     """Get Gmail OAuth authorization URL."""
     try:
         service = GmailService(current_user.user_id)
-        auth_url, state = service.get_authorization_url()
-        
         safe_return_to = _normalize_return_to(return_to)
         origin = _resolve_frontend_origin(request)
-        payload = {"state": state, "user_id": current_user.user_id}
-        if safe_return_to:
-            payload["return_to"] = safe_return_to
-        if origin:
-            payload["origin"] = origin
+        state = _encode_oauth_state(
+            user_id=current_user.user_id,
+            origin=origin,
+            return_to=safe_return_to,
+        )
+        auth_url, _ = service.get_authorization_url(state=state)
 
-        # Store state in Redis for validation
+        # Backward-compatible best-effort state storage for in-flight redirects;
+        # callback validation no longer depends on Redis availability.
         redis.set(
             f"gmail_oauth_state:{current_user.user_id}",
-            payload,
-            ttl=600,  # 10 minutes
+            {
+                "state": state,
+                "user_id": current_user.user_id,
+                "return_to": safe_return_to,
+                "origin": origin,
+            },
+            ttl=STATE_TTL_SECONDS,
         )
         
         return GmailAuthUrlResponse(auth_url=auth_url)
@@ -156,17 +233,21 @@ async def gmail_oauth_callback(
     user_id = None
 
     if state:
-        # Find the user from the state - we need to look up all active states
-        # In production, you might want to encode the user_id in the state
-        # For now, we'll iterate through recent states
-        for key in redis.scan_keys("gmail_oauth_state:*"):
-            stored_data = redis.get(key)
-            if stored_data and stored_data.get("state") == state:
-                user_id = stored_data.get("user_id")
-                redirect_origin = stored_data.get("origin")
-                redirect_return_to = stored_data.get("return_to")
-                redis.delete(key)  # Clean up
-                break
+        decoded_state = _decode_oauth_state(state)
+        if decoded_state:
+            user_id = decoded_state.get("user_id")
+            redirect_origin = decoded_state.get("origin")
+            redirect_return_to = decoded_state.get("return_to")
+        else:
+            # Fallback for states issued before signed-state rollout.
+            for key in redis.scan_keys("gmail_oauth_state:*"):
+                stored_data = redis.get(key)
+                if stored_data and stored_data.get("state") == state:
+                    user_id = stored_data.get("user_id")
+                    redirect_origin = stored_data.get("origin")
+                    redirect_return_to = stored_data.get("return_to")
+                    redis.delete(key)
+                    break
 
     if error:
         return RedirectResponse(

@@ -75,12 +75,13 @@ class GmailService:
             redirect_uri=self.redirect_uri,
         )
 
-    def get_authorization_url(self) -> Tuple[str, str]:
+    def get_authorization_url(self, state: Optional[str] = None) -> Tuple[str, str]:
         flow = self._create_flow()
         auth_url, state = flow.authorization_url(
             access_type="offline",
             prompt="consent",
             include_granted_scopes="true",
+            state=state,
         )
         return auth_url, state
 
