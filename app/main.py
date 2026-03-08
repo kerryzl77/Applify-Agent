@@ -80,8 +80,16 @@ async def health_check():
         
         # Check Redis connection
         redis_healthy = redis.is_available()
-        
-        status_value = "healthy" if db_healthy and redis_healthy else "unhealthy"
+
+        if not db_healthy:
+            status_value = "unhealthy"
+            status_code = 503
+        elif redis_healthy:
+            status_value = "healthy"
+            status_code = 200
+        else:
+            status_value = "degraded"
+            status_code = 200
         
         return JSONResponse(
             content={
@@ -90,7 +98,7 @@ async def health_check():
                 "redis": "up" if redis_healthy else "down",
                 "timestamp": datetime.now().isoformat(),
             },
-            status_code=200 if status_value == "healthy" else 503,
+            status_code=status_code,
         )
         
     except Exception as e:

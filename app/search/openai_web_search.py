@@ -2,14 +2,31 @@
 
 import json
 import logging
+import os
 from typing import List, Dict, Optional
 
 from openai import OpenAI
 
+from app.config import get_settings
 from app.utils.url import normalize_url
 logger = logging.getLogger(__name__)
 
-client = OpenAI()
+_client: Optional[OpenAI] = None
+
+
+def _get_client() -> Optional[OpenAI]:
+    global _client
+    if _client is not None:
+        return _client
+
+    settings = get_settings()
+    api_key = settings.openai_api_key or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        logger.warning("OPENAI_API_KEY is not configured; OpenAI web search is unavailable")
+        return None
+
+    _client = OpenAI(api_key=api_key)
+    return _client
 
 
 def _get_value(obj, key, default=None):
@@ -117,6 +134,10 @@ Each item must have: title, url, snippet.
 No extra keys, no commentary."""
 
     try:
+        client = _get_client()
+        if client is None:
+            return []
+
         resp = client.responses.create(
             model="gpt-4.1",
             tools=[{"type": "web_search"}],
@@ -188,7 +209,11 @@ Only include people who clearly work at {company_name}."""
 
     try:
         logger.info(f"🔍 Searching for contacts at {company_name} for {job_title}")
-        
+
+        client = _get_client()
+        if client is None:
+            return []
+
         resp = client.responses.create(
             model="gpt-4.1",
             tools=[{"type": "web_search"}],
